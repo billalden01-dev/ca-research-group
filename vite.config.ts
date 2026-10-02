@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  plugins: [react()],
+  // Simplified configuration with zero external plugins to bypass install errors
+  build: {
+    outDir: 'dist'
+  }
 });
