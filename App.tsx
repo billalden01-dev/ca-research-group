@@ -16,6 +16,7 @@ export default function App() {
       alert("Please review and authorize the Institutional Service Agreement by checking the compliance box below before selecting a tier.");
       return;
     }
+    console.log(`Tier selected: ${tierName}`);
     alert(`Connecting securely to your active Stripe Checkout page for the ${tierName}...`);
   };
 
@@ -78,7 +79,9 @@ export default function App() {
               <h1 style={{ fontSize: '36px', fontWeight: 'bold', color: '#ffffff' }}>Transparent, Institutional Framework Pricing</h1>
               <p style={{ color: '#94a3b8', fontSize: '16px' }}>Select the registry auditing engine allocation tier that meets your compliance workflow constraints.</p>
             </div>
+            
             <div style={{ display: 'flex', gap: '30px', justifyContent: 'center', flexWrap: 'wrap', maxWidth: '1000px', margin: '0 auto 60px auto' }}>
+              {/* Card 1 */}
               <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '30px', width: '260px', textAlign: 'center' }}>
                 <h3 style={{ color: '#ffffff', fontSize: '18px', margin: '0' }}>Standard Framework</h3>
                 <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#f59e0b', margin: '20px 0' }}>
@@ -91,6 +94,8 @@ export default function App() {
                   Select This Framework
                 </button>
               </div>
+
+              {/* Card 2 */}
               <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '30px', width: '260px', textAlign: 'center', borderColor: '#f59e0b' }}>
                 <h3 style={{ color: '#ffffff', fontSize: '18px', margin: '0' }}>Professional Suite</h3>
                 <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#f59e0b', margin: '20px 0' }}>
@@ -103,6 +108,8 @@ export default function App() {
                   Select This Framework
                 </button>
               </div>
+
+              {/* Card 3 - 3 Months Upfront Protection Rule */}
               <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '30px', width: '260px', textAlign: 'center' }}>
                 <h3 style={{ color: '#ffffff', fontSize: '18px', margin: '0' }}>Enterprise Infrastructure</h3>
                 <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#f59e0b', margin: '20px 0' }}>
@@ -117,8 +124,15 @@ export default function App() {
                 </button>
               </div>
             </div>
+
+            {/* The 24px Master Compliance Checkbox */}
             <div style={{ maxWidth: '640px', margin: '0 auto', backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '12px', padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-              <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ width: '24px', height: '24px', cursor: 'pointer', accentColor: '#f59e0b' }} />
+              <input 
+                type="checkbox" 
+                checked={agreed} 
+                onChange={(e) => setAgreed(e.target.checked)} 
+                style={{ width: '24px', height: '24px', cursor: 'pointer', accentColor: '#f59e0b' }} 
+              />
               <label style={{ fontSize: '14px', color: '#cbd5e1', lineHeight: '1.5' }}>
                 I explicitly review and authorize the <span onClick={() => handleNavigate('legal')} style={{ color: '#38bdf8', textDecoration: 'underline', cursor: 'pointer' }}>Institutional Service Agreement</span> text clauses and California registry compliance rules.
               </label>
