@@ -1,24 +1,41 @@
 import React from 'react';
 
-export default function HomePage() {
+interface HomePageProps {
+  onNavigate: () => void;
+}
+
+export default function HomePage({ onNavigate }: HomePageProps) {
   return (
-    <div style={{ backgroundColor: '#0f172a', color: '#f8fafc', minHeight: 'screen', padding: '40px', fontFamily: 'sans-serif' }}>
-      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '20px' }}>
-        <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#f59e0b' }}>CA RESEARCH GROUP</span>
-        <div style={{ display: 'flex', gap: '40px', fontSize: '14px' }}>
-          <a href="#" style={{ color: '#f59e0b', textDecoration: 'none', borderBottom: '2px solid #f59e0b', paddingBottom: '5px' }}>Solutions</a>
-          <a href="#" style={{ color: '#cbd5e1', textDecoration: 'none' }}>Pricing</a>
-          <a href="#" style={{ color: '#cbd5e1', textDecoration: 'none' }}>Enterprise API</a>
+    <div style={{ backgroundColor: '#0f172a', color: '#ffffff', minHeight: '80vh', padding: '80px 20px', fontFamily: 'sans-serif', textAlign: 'center' }}>
+      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+        
+        {/* Main Trust Badge */}
+        <div style={{ display: 'inline-block', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '20px', padding: '6px 16px', fontSize: '14px', color: '#f59e0b', fontWeight: 'bold', marginBottom: '30px', letterSpacing: '0.05em' }}>
+          SECURE REGISTRY INFRASTRUCTURE
         </div>
-      </nav>
-      <main style={{ textAlign: 'center', marginTop: '80px' }}>
-        <h1 style={{ fontSize: '40px', color: '#ffffff' }}>Built for Institutional Risk Management</h1>
-        <p style={{ color: '#94a3b8', maxWidth: '600px', margin: '20px auto' }}>Cross-referencing real-time proxy records, structural entity tracking, and high-stakes litigation risk ledgers.</p>
-        <div style={{ backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '12px', padding: '40px', maxWidth: '600px', margin: '40px auto' }}>
-          <h2 style={{ color: '#ffffff', fontSize: '20px', marginBottom: '20px' }}>Start a New Registry Audit</h2>
-          <input type="text" placeholder="Corporate Entity Name" style={{ width: '80%', padding: '12px', borderRadius: '8px', border: '1px solid #475569', backgroundColor: '#0f172a', color: '#ffffff' }} />
+
+        {/* Master Executive Header Title */}
+        <h1 style={{ fontSize: '48px', fontWeight: '800', lineHeight: '1.2', marginBottom: '24px', letterSpacing: '-0.02em' }}>
+          Built for Institutional Risk Management, <br />
+          <span style={{ color: '#f59e0b' }}>Legal Counsel, & Private Funds.</span>
+        </h1>
+
+        {/* Professional Subtext Overview */}
+        <p style={{ fontSize: '18px', color: '#94a3b8', maxWidth: '640px', margin: '0 auto 40px auto', lineHeight: '1.6' }}>
+          Cross-reference tracking files, structural entity records, and high-velocity onboarding frameworks. Built for strict industry compliance parameters.
+        </p>
+
+        {/* Call to Action Interactive Button */}
+        <div>
+          <button 
+            onClick={onNavigate}
+            style={{ backgroundColor: '#f59e0b', color: '#0f172a', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: '16px 32px', cursor: 'pointer', transition: '0.2s', boxShadow: '0 4px 14px rgba(245, 158, 11, 0.3)' }}
+          >
+            Access Allocation Framework Pricing →
+          </button>
         </div>
-      </main>
+
+      </div>
     </div>
   );
 }
