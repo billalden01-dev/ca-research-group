@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 
 type Page = 'home' | 'pricing' | 'api';
-type Tier = 'Standard Framework (\$499)' | 'Professional Suite (\$799)' | 'Enterprise Infrastructure (\$999)';
+type Tier = 'Standard Pricing Plan (\$499)' | 'Professional Suite (\$799)' | 'Enterprise Infrastructure (\$999)';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
@@ -18,11 +18,13 @@ export default function App() {
   const handleNavigate = (page: Page) => {
     setCurrentPage(page);
     setSelectedTier(null); 
+    setAgreed(false); 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleTierSelection = (tierName: Tier) => {
     setSelectedTier(tierName);
+    setAgreed(false); 
     setTimeout(() => {
       legalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 100);
@@ -39,13 +41,13 @@ export default function App() {
 
   const handleIntakeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!targetEntityName || !corporateEmail) {
+    if (!targetEntityName || !corporateEmail || !selectedTier) {
       alert("Please populate all mandatory data fields.");
       return;
     }
 
     let stripeUrl = '';
-    if (selectedTier === 'Standard Framework (\$499)') {
+    if (selectedTier === 'Standard Pricing Plan (\$499)') {
       stripeUrl = 'https://stripe.com';
     } else if (selectedTier === 'Professional Suite (\$799)') {
       stripeUrl = 'https://stripe.com';
@@ -87,16 +89,16 @@ export default function App() {
               Scraping the California Secretary of State, County Clerks, and court records to deliver flawless summaries in under 60 seconds.
             </p>
             <button onClick={() => handleNavigate('pricing')} style={{ backgroundColor: '#f59e0b', color: '#0f172a', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: '16px 32px', cursor: 'pointer' }}>
-              Access Allocation Framework Pricing →
+              Access Allocation Pricing Plans →
             </button>
             
             <div style={{ maxWidth: '940px', margin: '60px auto 0 auto', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '40px', textAlign: 'left' }}>
               <h2 style={{ fontSize: '22px', fontWeight: 'bold', marginBottom: '24px', color: '#ffffff', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
-                Onboarding Framework Protocol: How It Works
+                Onboarding Protocol: How It Works
               </h2>
               <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap', marginBottom: '35px' }}>
                 <div style={{ flex: '1', minWidth: '240px' }}>
-                  <strong style={{ fontSize: '16px', color: '#ffffff' }}>1. Select Framework Tier</strong>
+                  <strong style={{ fontSize: '16px', color: '#ffffff' }}>1. Select Pricing Plan</strong>
                   <p style={{ color: '#94a3b8', fontSize: '14px', margin: '10px 0 0 0' }}>Pick the subscription plan that fits your corporate query metrics.</p>
                 </div>
                 <div style={{ flex: '1', minWidth: '240px' }}>
@@ -105,11 +107,11 @@ export default function App() {
                 </div>
                 <div style={{ flex: '1', minWidth: '240px' }}>
                   <strong style={{ fontSize: '16px', color: '#ffffff' }}>3. Instant Execution</strong>
-                  <p style={{ color: '#94a3b8', fontSize: '14px', margin: '10px 0 0 0' }}>Checkout through secure Stripe lanes to deploy the scraping matrices instantly.</p>
+                  <p style={{ color: '#94a3b8', fontSize: '14px', margin: '10px 0 0 0' }}>Checkout through secure Stripe lanes to deploy the automated scraping matrices instantly.</p>
                 </div>
               </div>
               <div style={{ borderTop: '1px dashed #475569', paddingTop: '25px', fontSize: '14px', color: '#cbd5e1' }}>
-                <strong style={{ color: '#ffffff' }}>Returning Users:</strong> Because our framework runs folderless with zero-login restrictions, returning clients simply head back to the Pricing Tiers tab, click their chosen tier, input their next case parameters, and pass to checkout inside 15 seconds flat.
+                <strong style={{ color: '#ffffff' }}>Returning Users:</strong> Because our site runs folderless with zero-login restrictions, returning clients simply head back to the Pricing Tiers tab, click their chosen plan, input their next case parameters, and pass to checkout inside 15 seconds flat.
               </div>
             </div>
           </div>
@@ -117,33 +119,41 @@ export default function App() {
         {currentPage === 'pricing' && (
           <div style={{ padding: '60px 20px', maxWidth: '1000px', margin: '0 auto' }}>
             <div style={{ textAlign: 'center', marginBottom: '60px' }}>
-              <h1 style={{ fontSize: '36px', fontWeight: 'bold', color: '#ffffff' }}>Transparent, Institutional Framework Pricing</h1>
+              <h1 style={{ fontSize: '36px', fontWeight: 'bold', color: '#ffffff' }}>Transparent, Institutional Pricing Plans</h1>
+              <p style={{ color: '#94a3b8', fontSize: '16px' }}>Select an underwriting engine allocation plan to unlock the parameter request portals below.</p>
             </div>
             
             <div style={{ display: 'flex', gap: '30px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '60px' }}>
-              <div style={{ backgroundColor: '#1e293b', border: selectedTier === 'Standard Framework ($499)' ? '2px solid #f59e0b' : '1px solid #334155', borderRadius: '16px', padding: '30px', width: '260px', textAlign: 'center' }}>
-                <h3>Standard Framework</h3>
+              <div style={{ backgroundColor: '#1e293b', border: selectedTier === 'Standard Pricing Plan ($499)' ? '2px solid #f59e0b' : '1px solid #334155', borderRadius: '16px', padding: '30px', width: '260px', textAlign: 'center', transition: 'all 0.2s' }}>
+                <h3>Standard Pricing Plan</h3>
                 <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#f59e0b', margin: '20px 0' }}>$499<span style={{ fontSize: '14px', color: '#94a3b8' }}>/mo</span></div>
-                <button onClick={() => handleTierSelection('Standard Framework ($499)')} style={{ width: '100%', backgroundColor: '#f59e0b', color: '#0f172a', border: 'none', borderRadius: '8px', padding: '12px', fontWeight: 'bold', cursor: 'pointer' }}>Select Plan</button>
+                <button onClick={() => handleTierSelection('Standard Pricing Plan ($499)')} style={{ width: '100%', backgroundColor: selectedTier === 'Standard Pricing Plan ($499)' ? '#f59e0b' : '#334155', color: selectedTier === 'Standard Pricing Plan ($499)' ? '#0f172a' : '#ffffff', border: 'none', borderRadius: '8px', padding: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  {selectedTier === 'Standard Pricing Plan ($499)' ? '✓ Selected' : 'Select Plan'}
+                </button>
               </div>
 
-              <div style={{ backgroundColor: '#1e293b', border: selectedTier === 'Professional Suite ($799)' ? '2px solid #f59e0b' : '1px solid #334155', borderRadius: '16px', padding: '30px', width: '260px', textAlign: 'center' }}>
+              <div style={{ backgroundColor: '#1e293b', border: selectedTier === 'Professional Suite ($799)' ? '2px solid #f59e0b' : '1px solid #334155', borderRadius: '16px', padding: '30px', width: '260px', textAlign: 'center', transition: 'all 0.2s' }}>
                 <h3>Professional Suite</h3>
                 <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#f59e0b', margin: '20px 0' }}>$799<span style={{ fontSize: '14px', color: '#94a3b8' }}>/mo</span></div>
-                <button onClick={() => handleTierSelection('Professional Suite ($799)')} style={{ width: '100%', backgroundColor: '#f59e0b', color: '#0f172a', border: 'none', borderRadius: '8px', padding: '12px', fontWeight: 'bold', cursor: 'pointer' }}>Select Plan</button>
+                <button onClick={() => handleTierSelection('Professional Suite ($799)')} style={{ width: '100%', backgroundColor: selectedTier === 'Professional Suite ($799)' ? '#f59e0b' : '#334155', color: selectedTier === 'Professional Suite ($799)' ? '#0f172a' : '#ffffff', border: 'none', borderRadius: '8px', padding: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  {selectedTier === 'Professional Suite ($799)' ? '✓ Selected' : 'Select Plan'}
+                </button>
               </div>
 
-              <div style={{ backgroundColor: '#1e293b', border: selectedTier === 'Enterprise Infrastructure ($999)' ? '2px solid #f59e0b' : '1px solid #334155', borderRadius: '16px', padding: '30px', width: '260px', textAlign: 'center' }}>
+              <div style={{ backgroundColor: '#1e293b', border: selectedTier === 'Enterprise Infrastructure ($999)' ? '2px solid #f59e0b' : '1px solid #334155', borderRadius: '16px', padding: '30px', width: '260px', textAlign: 'center', transition: 'all 0.2s' }}>
                 <h3>Enterprise Infrastructure</h3>
                 <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#f59e0b', margin: '20px 0' }}>$999<span style={{ fontSize: '14px', color: '#94a3b8' }}>/mo</span></div>
-                <button onClick={() => handleTierSelection('Enterprise Infrastructure ($999)')} style={{ width: '100%', backgroundColor: '#f59e0b', color: '#0f172a', border: 'none', borderRadius: '8px', padding: '12px', fontWeight: 'bold', cursor: 'pointer' }}>Select Plan</button>
+                <p style={{ color: '#94a3b8', fontSize: '12px', marginTop: '-10px', marginBottom: '20px' }}>$2,997 upfront for initial 3 months</p>
+                <button onClick={() => handleTierSelection('Enterprise Infrastructure ($999)')} style={{ width: '100%', backgroundColor: selectedTier === 'Enterprise Infrastructure ($999)' ? '#f59e0b' : '#334155', color: selectedTier === 'Enterprise Infrastructure ($999)' ? '#0f172a' : '#ffffff', border: 'none', borderRadius: '8px', padding: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  {selectedTier === 'Enterprise Infrastructure ($999)' ? '✓ Selected' : 'Select Plan'}
+                </button>
               </div>
             </div>
 
             {selectedTier && (
               <div ref={legalSectionRef} style={{ backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '16px', padding: '40px', marginBottom: '40px' }}>
                 <h3 style={{ marginTop: '0' }}>Step 2: Review and Authorize Service Terms</h3>
-                <div style={{ backgroundColor: '#0f172a', padding: '20px', height: '100px', overflowY: 'scroll', fontSize: '14px', color: '#cbd5e1', marginBottom: '20px' }}>
+                <div style={{ backgroundColor: '#0f172a', padding: '20px', height: '120px', overflowY: 'scroll', fontSize: '14px', color: '#cbd5e1', marginBottom: '20px' }}>
                   <p><strong>1. Scope of Allocations:</strong> Governs corporate access to CA Research Group engines.</p>
                   <p><strong>2. Verification:</strong> Queries pass automated database matches and immediate manual review verification.</p>
                   <p><strong>3. Accounting:</strong> Completed checkouts authorize dispatch of line-item billing records.</p>
