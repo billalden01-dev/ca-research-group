@@ -1,29 +1,67 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 
-type Page = 'home' | 'pricing' | 'legal' | 'api';
+type Page = 'home' | 'pricing' | 'api';
+type Tier = 'Standard Framework (\$499)' | 'Professional Suite (\$799)' | 'Enterprise Infrastructure (\$999)';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [agreed, setAgreed] = useState(false);
+  const [selectedTier, setSelectedTier] = useState<Tier | null>(null);
+  
+  const [targetEntityName, setTargetEntityName] = useState('');
+  const [californiaCounty, setCaliforniaCounty] = useState('All Counties');
+  const [corporateEmail, setCorporateEmail] = useState('');
+
+  const legalSectionRef = useRef<HTMLDivElement>(null);
+  const intakeFormRef = useRef<HTMLDivElement>(null);
 
   const handleNavigate = (page: Page) => {
     setCurrentPage(page);
+    setSelectedTier(null); 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleTierSelection = (tierName: string) => {
-    if (!agreed) {
-      alert("Please review and authorize the Institutional Service Agreement by checking the compliance box below before selecting a tier.");
+  const handleTierSelection = (tierName: Tier) => {
+    setSelectedTier(tierName);
+    setTimeout(() => {
+      legalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  };
+
+  const handleCheckboxChange = (isChecked: boolean) => {
+    setAgreed(isChecked);
+    if (isChecked) {
+      setTimeout(() => {
+        intakeFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 150);
+    }
+  };
+
+  const handleIntakeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetEntityName || !corporateEmail) {
+      alert("Please populate all mandatory data fields.");
       return;
     }
-    console.log(`Tier selected: ${tierName}`);
-    alert(`Connecting securely to your active Stripe Checkout page for the ${tierName}...`);
+
+    let stripeUrl = '';
+    if (selectedTier === 'Standard Framework (\$499)') {
+      stripeUrl = 'https://stripe.com';
+    } else if (selectedTier === 'Professional Suite (\$799)') {
+      stripeUrl = 'https://stripe.com';
+    } else if (selectedTier === 'Enterprise Infrastructure (\$999)') {
+      stripeUrl = 'https://stripe.com';
+    }
+
+    if (stripeUrl) {
+      alert(`Transferring to Stripe Checkout for the ${selectedTier}...`);
+      window.location.href = stripeUrl;
+    }
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#0f172a', fontFamily: 'sans-serif', color: '#ffffff' }}>
       
-      {/* 1. MASTER NAVIGATION BAR */}
       <nav style={{ backgroundColor: '#1e293b', borderBottom: '1px solid #334155', padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div onClick={() => handleNavigate('home')} style={{ color: '#ffffff', fontSize: '20px', fontWeight: 'bold', cursor: 'pointer', letterSpacing: '0.05em' }}>
           CA RESEARCH GROUP
@@ -32,157 +70,131 @@ export default function App() {
           <span onClick={() => handleNavigate('home')} style={{ color: currentPage === 'home' ? '#f59e0b' : '#94a3b8', cursor: 'pointer', fontWeight: 'bold' }}>Home</span>
           <span onClick={() => handleNavigate('pricing')} style={{ color: currentPage === 'pricing' ? '#f59e0b' : '#94a3b8', cursor: 'pointer', fontWeight: 'bold' }}>Pricing Tiers</span>
           <span onClick={() => handleNavigate('api')} style={{ color: currentPage === 'api' ? '#f59e0b' : '#94a3b8', cursor: 'pointer', fontWeight: 'bold' }}>Developer API</span>
-          <span onClick={() => handleNavigate('legal')} style={{ color: currentPage === 'legal' ? '#f59e0b' : '#94a3b8', cursor: 'pointer', fontWeight: 'bold' }}>Service Agreement</span>
         </div>
       </nav>
-
-      {/* MAIN VIEW SCREEN CONFIGURATION CONTAINER */}
       <main style={{ flex: '1' }}>
         
-        {/* A. DISRUPTIVE HOME VIEW PITCH */}
         {currentPage === 'home' && (
-          <div style={{ padding: '100px 20px', textAlign: 'center' }}>
-            <div style={{ display: 'inline-block', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '20px', padding: '6px 16px', fontSize: '14px', color: '#f59e0b', fontWeight: 'bold', marginBottom: '30px', letterSpacing: '0.05em' }}>
+          <div style={{ padding: '80px 20px', textAlign: 'center' }}>
+            <div style={{ display: 'inline-block', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '20px', padding: '6px 16px', fontSize: '14px', color: '#f59e0b', fontWeight: 'bold', marginBottom: '30px' }}>
               SECURE REGISTRY INFRASTRUCTURE • CA CLIENTS ONLY
             </div>
-            <h1 style={{ fontSize: '44px', fontWeight: '800', lineHeight: '1.2', marginBottom: '24px', letterSpacing: '-0.02em' }}>
+            <h1 style={{ fontSize: '44px', fontWeight: '800', marginBottom: '24px' }}>
               Proprietary Risk Assessment For Large Funders, <br />
               <span style={{ color: '#f59e0b' }}>Commercial Real Estate, & Elite Law Firms.</span>
             </h1>
             <p style={{ fontSize: '18px', color: '#94a3b8', maxWidth: '720px', margin: '0 auto 40px auto', lineHeight: '1.6' }}>
-              Scraping the California Secretary of State, County Clerks, and court records to deliver flawless, dual-verified data summaries in under 60 seconds—disrupting standard 3-to-5 day title search timelines completely.
+              Scraping the California Secretary of State, County Clerks, and court records to deliver flawless summaries in under 60 seconds.
             </p>
-            <button onClick={() => handleNavigate('pricing')} style={{ backgroundColor: '#f59e0b', color: '#0f172a', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: '16px 32px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(245, 158, 11, 0.3)' }}>
+            <button onClick={() => handleNavigate('pricing')} style={{ backgroundColor: '#f59e0b', color: '#0f172a', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: '16px 32px', cursor: 'pointer' }}>
               Access Allocation Framework Pricing →
             </button>
             
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '40px', maxWidth: '900px', margin: '60px auto 0 auto', borderTop: '1px solid #1e293b', paddingTop: '40px' }}>
-              <div style={{ textAlign: 'left', width: '250px' }}>
-                <div style={{ color: '#f59e0b', fontSize: '20px', fontWeight: 'bold', marginBottom: '8px' }}>&lt; 60 Seconds</div>
-                <p style={{ color: '#94a3b8', fontSize: '14px', margin: '0', lineHeight: '1.4' }}>Instant automated collection bypassing the typical 3 to 5 day title company delays.</p>
+            <div style={{ maxWidth: '940px', margin: '60px auto 0 auto', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '40px', textAlign: 'left' }}>
+              <h2 style={{ fontSize: '22px', fontWeight: 'bold', marginBottom: '24px', color: '#ffffff', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+                Onboarding Framework Protocol: How It Works
+              </h2>
+              <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap', marginBottom: '35px' }}>
+                <div style={{ flex: '1', minWidth: '240px' }}>
+                  <strong style={{ fontSize: '16px', color: '#ffffff' }}>1. Select Framework Tier</strong>
+                  <p style={{ color: '#94a3b8', fontSize: '14px', margin: '10px 0 0 0' }}>Pick the subscription plan that fits your corporate query metrics.</p>
+                </div>
+                <div style={{ flex: '1', minWidth: '240px' }}>
+                  <strong style={{ fontSize: '16px', color: '#ffffff' }}>2. Authorize & Submit Parameters</strong>
+                  <p style={{ color: '#94a3b8', fontSize: '14px', margin: '10px 0 0 0' }}>Accept terms inline and populate your target underwriting indicators.</p>
+                </div>
+                <div style={{ flex: '1', minWidth: '240px' }}>
+                  <strong style={{ fontSize: '16px', color: '#ffffff' }}>3. Instant Execution</strong>
+                  <p style={{ color: '#94a3b8', fontSize: '14px', margin: '10px 0 0 0' }}>Checkout through secure Stripe lanes to deploy the scraping matrices instantly.</p>
+                </div>
               </div>
-              <div style={{ textAlign: 'left', width: '250px' }}>
-                <div style={{ color: '#f59e0b', fontSize: '20px', fontWeight: 'bold', marginBottom: '8px' }}>3 CA Gov Portals</div>
-                <p style={{ color: '#94a3b8', fontSize: '14px', margin: '0', lineHeight: '1.4' }}>Direct scanning of active California SOS, local County Deeds, and Court dockets.</p>
-              </div>
-              <div style={{ textAlign: 'left', width: '250px' }}>
-                <div style={{ color: '#f59e0b', fontSize: '20px', fontWeight: 'bold', marginBottom: '8px' }}>Dual-Fact Checked</div>
-                <p style={{ color: '#94a3b8', fontSize: '14px', margin: '0', lineHeight: '1.4' }}>Automated matching algorithms paired with manual review sign-off to catch all errors.</p>
+              <div style={{ borderTop: '1px dashed #475569', paddingTop: '25px', fontSize: '14px', color: '#cbd5e1' }}>
+                <strong style={{ color: '#ffffff' }}>Returning Users:</strong> Because our framework runs folderless with zero-login restrictions, returning clients simply head back to the Pricing Tiers tab, click their chosen tier, input their next case parameters, and pass to checkout inside 15 seconds flat.
               </div>
             </div>
           </div>
         )}
-        {/* B. PRICING TIERS VIEWPORT */}
         {currentPage === 'pricing' && (
-          <div style={{ padding: '60px 20px' }}>
+          <div style={{ padding: '60px 20px', maxWidth: '1000px', margin: '0 auto' }}>
             <div style={{ textAlign: 'center', marginBottom: '60px' }}>
               <h1 style={{ fontSize: '36px', fontWeight: 'bold', color: '#ffffff' }}>Transparent, Institutional Framework Pricing</h1>
-              <p style={{ color: '#94a3b8', fontSize: '16px' }}>Select the registry auditing engine allocation tier that meets your compliance workflow constraints.</p>
             </div>
             
-            <div style={{ display: 'flex', gap: '30px', justifyContent: 'center', flexWrap: 'wrap', maxWidth: '1000px', margin: '0 auto 60px auto' }}>
-              {/* Card 1 */}
-              <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '30px', width: '260px', textAlign: 'center' }}>
-                <h3 style={{ color: '#ffffff', fontSize: '18px', margin: '0' }}>Standard Framework</h3>
-                <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#f59e0b', margin: '20px 0' }}>
-                  $499<span style={{ fontSize: '14px', color: '#94a3b8' }}>/mo</span>
-                </div>
-                <button 
-                  onClick={() => handleTierSelection('Standard Framework ($499)')}
-                  style={{ width: '100%', backgroundColor: agreed ? '#f59e0b' : '#475569', color: agreed ? '#0f172a' : '#94a3b8', border: 'none', borderRadius: '8px', padding: '12px', fontWeight: 'bold', cursor: 'pointer', opacity: agreed ? 1 : 0.6 }}
-                >
-                  Select This Framework
-                </button>
+            <div style={{ display: 'flex', gap: '30px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '60px' }}>
+              <div style={{ backgroundColor: '#1e293b', border: selectedTier === 'Standard Framework ($499)' ? '2px solid #f59e0b' : '1px solid #334155', borderRadius: '16px', padding: '30px', width: '260px', textAlign: 'center' }}>
+                <h3>Standard Framework</h3>
+                <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#f59e0b', margin: '20px 0' }}>$499<span style={{ fontSize: '14px', color: '#94a3b8' }}>/mo</span></div>
+                <button onClick={() => handleTierSelection('Standard Framework ($499)')} style={{ width: '100%', backgroundColor: '#f59e0b', color: '#0f172a', border: 'none', borderRadius: '8px', padding: '12px', fontWeight: 'bold', cursor: 'pointer' }}>Select Plan</button>
               </div>
 
-              {/* Card 2 */}
-              <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '30px', width: '260px', textAlign: 'center', borderColor: '#f59e0b' }}>
-                <h3 style={{ color: '#ffffff', fontSize: '18px', margin: '0' }}>Professional Suite</h3>
-                <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#f59e0b', margin: '20px 0' }}>
-                  $799<span style={{ fontSize: '14px', color: '#94a3b8' }}>/mo</span>
-                </div>
-                <button 
-                  onClick={() => handleTierSelection('Professional Suite ($799)')}
-                  style={{ width: '100%', backgroundColor: agreed ? '#f59e0b' : '#475569', color: agreed ? '#0f172a' : '#94a3b8', border: 'none', borderRadius: '8px', padding: '12px', fontWeight: 'bold', cursor: 'pointer', opacity: agreed ? 1 : 0.6 }}
-                >
-                  Select This Framework
-                </button>
+              <div style={{ backgroundColor: '#1e293b', border: selectedTier === 'Professional Suite ($799)' ? '2px solid #f59e0b' : '1px solid #334155', borderRadius: '16px', padding: '30px', width: '260px', textAlign: 'center' }}>
+                <h3>Professional Suite</h3>
+                <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#f59e0b', margin: '20px 0' }}>$799<span style={{ fontSize: '14px', color: '#94a3b8' }}>/mo</span></div>
+                <button onClick={() => handleTierSelection('Professional Suite ($799)')} style={{ width: '100%', backgroundColor: '#f59e0b', color: '#0f172a', border: 'none', borderRadius: '8px', padding: '12px', fontWeight: 'bold', cursor: 'pointer' }}>Select Plan</button>
               </div>
 
-              {/* Card 3 - 3 Months Upfront Protection Rule */}
-              <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '30px', width: '260px', textAlign: 'center' }}>
-                <h3 style={{ color: '#ffffff', fontSize: '18px', margin: '0' }}>Enterprise Infrastructure</h3>
-                <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#f59e0b', margin: '20px 0' }}>
-                  $999<span style={{ fontSize: '14px', color: '#94a3b8' }}>/mo</span>
-                </div>
-                <p style={{ color: '#94a3b8', fontSize: '12px', marginTop: '-10px', marginBottom: '20px' }}>$2,997 upfront for initial 3 months</p>
-                <button 
-                  onClick={() => handleTierSelection('Enterprise Infrastructure ($999 - 3 Months Upfront)')}
-                  style={{ width: '100%', backgroundColor: agreed ? '#f59e0b' : '#475569', color: agreed ? '#0f172a' : '#94a3b8', border: 'none', borderRadius: '8px', padding: '12px', fontWeight: 'bold', cursor: 'pointer', opacity: agreed ? 1 : 0.6 }}
-                >
-                  Select This Framework
-                </button>
+              <div style={{ backgroundColor: '#1e293b', border: selectedTier === 'Enterprise Infrastructure ($999)' ? '2px solid #f59e0b' : '1px solid #334155', borderRadius: '16px', padding: '30px', width: '260px', textAlign: 'center' }}>
+                <h3>Enterprise Infrastructure</h3>
+                <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#f59e0b', margin: '20px 0' }}>$999<span style={{ fontSize: '14px', color: '#94a3b8' }}>/mo</span></div>
+                <button onClick={() => handleTierSelection('Enterprise Infrastructure ($999)')} style={{ width: '100%', backgroundColor: '#f59e0b', color: '#0f172a', border: 'none', borderRadius: '8px', padding: '12px', fontWeight: 'bold', cursor: 'pointer' }}>Select Plan</button>
               </div>
             </div>
 
-            {/* The 24px Master Compliance Checkbox */}
-            <div style={{ maxWidth: '640px', margin: '0 auto', backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '12px', padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-              <input 
-                type="checkbox" 
-                checked={agreed} 
-                onChange={(e) => setAgreed(e.target.checked)} 
-                style={{ width: '24px', height: '24px', cursor: 'pointer', accentColor: '#f59e0b' }} 
-              />
-              <label style={{ fontSize: '14px', color: '#cbd5e1', lineHeight: '1.5' }}>
-                I explicitly review and authorize the <span onClick={() => handleNavigate('legal')} style={{ color: '#38bdf8', textDecoration: 'underline', cursor: 'pointer' }}>Institutional Service Agreement</span> text clauses and California registry compliance rules.
-              </label>
-            </div>
+            {selectedTier && (
+              <div ref={legalSectionRef} style={{ backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '16px', padding: '40px', marginBottom: '40px' }}>
+                <h3 style={{ marginTop: '0' }}>Step 2: Review and Authorize Service Terms</h3>
+                <div style={{ backgroundColor: '#0f172a', padding: '20px', height: '100px', overflowY: 'scroll', fontSize: '14px', color: '#cbd5e1', marginBottom: '20px' }}>
+                  <p><strong>1. Scope of Allocations:</strong> Governs corporate access to CA Research Group engines.</p>
+                  <p><strong>2. Verification:</strong> Queries pass automated database matches and immediate manual review verification.</p>
+                  <p><strong>3. Accounting:</strong> Completed checkouts authorize dispatch of line-item billing records.</p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', padding: '15px', backgroundColor: '#0f172a', borderRadius: '8px' }}>
+                  <input type="checkbox" id="gatekeeperCheckbox" checked={agreed} onChange={(e) => handleCheckboxChange(e.target.checked)} style={{ width: '24px', height: '24px', cursor: 'pointer' }} />
+                  <label htmlFor="gatekeeperCheckbox" style={{ fontSize: '14px', color: '#f59e0b', fontWeight: 'bold', cursor: 'pointer' }}>I accept the Institutional Service Agreement terms outlined above.</label>
+                </div>
+              </div>
+            )}
+
+            {selectedTier && agreed && (
+              <div ref={intakeFormRef} style={{ backgroundColor: '#1e293b', border: '1px solid #f59e0b', borderRadius: '16px', padding: '40px' }}>
+                <h3 style={{ marginTop: '0' }}>Step 3: Submit Underwriting Registry Parameters</h3>
+                <form onSubmit={handleIntakeSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ fontSize: '14px', fontWeight: 'bold' }}>Target Corporate Entity Name *</label>
+                    <input type="text" required placeholder="e.g. California Capital Funding LLC" value={targetEntityName} onChange={(e) => setTargetEntityName(e.target.value)} style={{ padding: '12px', borderRadius: '8px', backgroundColor: '#0f172a', color: '#ffffff', border: '1px solid #475569' }} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ fontSize: '14px', fontWeight: 'bold' }}>Primary Target Registry Jurisdiction *</label>
+                    <select value={californiaCounty} onChange={(e) => setCaliforniaCounty(e.target.value)} style={{ padding: '12px', borderRadius: '8px', backgroundColor: '#0f172a', color: '#ffffff', border: '1px solid #475569' }}>
+                      <option value="All Counties">All California Counties (Statewide)</option>
+                      <option value="Los Angeles">Los Angeles County</option>
+                      <option value="Orange County">Orange County</option>
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ fontSize: '14px', fontWeight: 'bold' }}>Institutional Corporate Email Contact *</label>
+                    <input type="email" required placeholder="legal@yourfirm.com" value={corporateEmail} onChange={(e) => setCorporateEmail(e.target.value)} style={{ padding: '12px', borderRadius: '8px', backgroundColor: '#0f172a', color: '#ffffff', border: '1px solid #475569' }} />
+                  </div>
+                  <button type="submit" style={{ backgroundColor: '#f59e0b', color: '#0f172a', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: '14px', cursor: 'pointer' }}>Authorize Parameters & Proceed to Secure Checkout →</button>
+                </form>
+              </div>
+            )}
           </div>
         )}
 
-        {/* C. FUTURE DEVELOPER API ENDPOINT VIEW */}
         {currentPage === 'api' && (
           <div style={{ padding: '60px 20px' }}>
-            <div style={{ maxWidth: '800px', margin: '0 auto', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '40px' }}>
-              <div style={{ borderBottom: '1px solid #334155', paddingBottom: '20px', marginBottom: '30px' }}>
-                <div style={{ display: 'inline-block', backgroundColor: '#0f172a', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '4px 10px', fontSize: '12px', color: '#f59e0b', fontWeight: 'bold', marginBottom: '10px' }}>FUTURE INTEGRATION ROADMAP</div>
-                <h1 style={{ fontSize: '32px', color: '#ffffff', margin: '0' }}>Institutional API Access Gateway</h1>
-                <p style={{ color: '#94a3b8', fontSize: '15px', marginTop: '5px' }}>Direct system-to-system data streaming pipelines for custom developer networks.</p>
-              </div>
-              <div style={{ color: '#cbd5e1', lineHeight: '1.7', fontSize: '15px' }}>
-                <p>For large commercial real estate operations, title insurance providers, and high-volume corporate law firms, we are building a direct **REST API backend integration channel**.</p>
-                <p style={{ backgroundColor: '#0f172a', padding: '20px', borderRadius: '8px', border: '1px solid #334155', fontFamily: 'monospace', color: '#38bdf8', fontSize: '14px' }}>GET /api/v1/ca-registry/search?entity="TARGET_COMPANY_NAME"</p>
-                <p style={{ marginTop: '20px' }}>This pipeline will allow your internal underwriting platforms to instantly scrape the California Secretary of State indices, county lien registries, and active court dockets to feed data directly into your native tools in raw JSON strings in under 60 seconds.</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* D. UNIFIED LEGAL AGREEMENT VIEWPORT */}
-        {currentPage === 'legal' && (
-          <div style={{ padding: '60px 20px' }}>
-            <div style={{ maxWidth: '800px', margin: '0 auto', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '40px' }}>
-              <div style={{ borderBottom: '1px solid #334155', paddingBottom: '20px', marginBottom: '30px' }}>
-                <h1 style={{ fontSize: '28px', color: '#ffffff', margin: '0' }}>Institutional Service Agreement</h1>
-                <p style={{ color: '#94a3b8', fontSize: '14px' }}>CA Research Group Framework Protocols • Last Updated: October 2026</p>
-              </div>
-              <div style={{ color: '#cbd5e1', lineHeight: '1.7', fontSize: '15px' }}>
-                <p><strong>1. Scope of California Registry Allocations:</strong> This master framework sets forth the terms governing corporate user access to CA Research Group's automated data gathering systems and search pipelines across California state records.</p>
-                <p><strong>2. Two-Step Fact-Checking Verification:</strong> Every query passes an automated database match filter (Check 1) and is held for executive manual review (Check 2) to eliminate discrepancies before the final underwriting PDF report is generated.</p>
-              </div>
+            <div style={{ maxWidth: '800px', margin: '0 auto', backgroundColor: '#1e293b', padding: '40px', borderRadius: '16px' }}>
+              <h1>Institutional API Access Gateway</h1>
+              <p style={{ backgroundColor: '#0f172a', padding: '20px', borderRadius: '8px', fontFamily: 'monospace', color: '#38bdf8' }}>GET /api/v1/ca-registry/search?entity="TARGET_COMPANY_NAME"</p>
             </div>
           </div>
         )}
 
       </main>
 
-      {/* COMPLIANCE FOOTER */}
-      <footer style={{ backgroundColor: '#0f172a', borderTop: '1px solid #1e293b', padding: '30px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px', color: '#64748b' }}>
+      <footer style={{ backgroundColor: '#0f172a', borderTop: '1px solid #1e293b', padding: '30px 40px', textAlign: 'center', fontSize: '14px', color: '#64748b' }}>
         <div>© 2026 CA Research Group. All institutional compliance safeguards reserved.</div>
-        <div style={{ display: 'flex', gap: '20px' }}>
-          <span onClick={() => handleNavigate('api')} style={{ cursor: 'pointer', textDecoration: 'underline' }}>Developer API</span>
-          <span onClick={() => handleNavigate('legal')} style={{ cursor: 'pointer', textDecoration: 'underline' }}>Institutional Service Agreement</span>
-        </div>
       </footer>
 
     </div>
