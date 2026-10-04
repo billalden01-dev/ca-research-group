@@ -50,7 +50,7 @@ export default function App() {
       
       {/* NAVBAR */}
       <nav style={{ borderBottom: '1px solid #e2e8f0', padding: '15px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ffffff', flexWrap: 'wrap', gap: '15px' }}>
-        <img src="/logo.png" alt="CA Research Group" onClick={() => handleNavigate('home')} style={{ height: '56px', maxWidth: '100%', cursor: 'pointer' }} />
+        <img src="/logo-clean.png" alt="CA Research Group" onClick={() => handleNavigate('home')} style={{ height: '56px', maxWidth: '100%', cursor: 'pointer' }} />
         <div style={{ display: 'flex', gap: '20px', fontSize: '14px' }}>
           <span onClick={() => handleNavigate('home')} style={{ color: '#1e1b4b', fontWeight: 'bold', cursor: 'pointer', paddingBottom: '4px', borderBottom: currentPage === 'home' ? '2px solid #d97706' : '2px solid transparent' }}>Solutions</span>
           <span onClick={() => handleNavigate('pricing')} style={{ color: '#1e1b4b', fontWeight: 'bold', cursor: 'pointer', paddingBottom: '4px', borderBottom: currentPage === 'pricing' ? '2px solid #d97706' : '2px solid transparent' }}>Pricing</span>
