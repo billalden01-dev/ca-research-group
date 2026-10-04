@@ -50,14 +50,7 @@ export default function App() {
       
       {/* NAVBAR */}
       <nav style={{ borderBottom: '1px solid #e2e8f0', padding: '15px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ffffff', flexWrap: 'wrap', gap: '15px' }}>
-        <div onClick={() => handleNavigate('home')} style={{ display: 'flex', flexDirection: 'column', cursor: 'pointer' }}>
-          <div style={{ display: 'flex', gap: '2px', marginBottom: '2px' }}>
-            <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1' }}>C</span>
-            <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#d97706', lineHeight: '1', marginLeft: '-6px', marginTop: '4px' }}>R</span>
-          </div>
-          <div style={{ color: '#1e1b4b', fontSize: '14px', fontWeight: 'bold', letterSpacing: '0.05em' }}>CA RESEARCH GROUP</div>
-          <span style={{ display: 'block', fontSize: '9px', color: '#94a3b8' }}>public records retrieval & analytics</span>
-        </div>
+        <img src="/logo.png" alt="CA Research Group" onClick={() => handleNavigate('home')} style={{ height: '56px', maxWidth: '100%', cursor: 'pointer' }} />
         <div style={{ display: 'flex', gap: '20px', fontSize: '14px' }}>
           <span onClick={() => handleNavigate('home')} style={{ color: '#1e1b4b', fontWeight: 'bold', cursor: 'pointer', paddingBottom: '4px', borderBottom: currentPage === 'home' ? '2px solid #d97706' : '2px solid transparent' }}>Solutions</span>
           <span onClick={() => handleNavigate('pricing')} style={{ color: '#1e1b4b', fontWeight: 'bold', cursor: 'pointer', paddingBottom: '4px', borderBottom: currentPage === 'pricing' ? '2px solid #d97706' : '2px solid transparent' }}>Pricing</span>
