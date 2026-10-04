@@ -24,7 +24,7 @@ export default function App() {
 
   const handleTierSelection = (tierName: Tier) => {
     setSelectedTier(tierName);
-    setWizardStep(2); 
+  setTimeout(() => setWizardStep(2), 500);
   };
 
   const handleCheckboxChange = (isChecked: boolean) => {
@@ -108,7 +108,7 @@ export default function App() {
                 <div style={{ display: 'flex', gap: '25px', justifyContent: 'center', flexWrap: 'wrap', alignItems: 'stretch' }}>
                   
                   {/* STARTER */}
-                  <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '30px', flex: '1 1 280px', maxWidth: '320px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div style={{ backgroundColor: '#f8fafc', border: selectedTier === 'Starter ($499)' ? '3px solid #d97706' : '1px solid #e2e8f0', borderRadius: '16px', padding: '30px', flex: '1 1 280px', maxWidth: '320px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                     <div>
                       <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#1e1b4b', margin: '0' }}>Starter</h3>
                       <div style={{ fontSize: '36px', fontWeight: 'bold', color: '#1e1b4b', margin: '15px 0' }}>$499<span style={{ fontSize: '14px', color: '#94a3b8' }}>/mo</span></div>
@@ -118,7 +118,7 @@ export default function App() {
                   </div>
 
                   {/* ENTERPRISE PORTFOLIO */}
-                  <div style={{ backgroundColor: '#ffffff', border: '2px solid #1e1b4b', borderRadius: '16px', padding: '30px', flex: '1 1 280px', maxWidth: '320px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
+                  <div style={{ backgroundColor: '#ffffff', border: selectedTier === 'Enterprise Portfolio ($799)' ? '3px solid #d97706' : '2px solid #1e1b4b', borderRadius: '16px', padding: '30px', flex: '1 1 280px', maxWidth: '320px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
                     <div>
                       <div style={{ display: 'inline-block', backgroundColor: '#d97706', color: '#ffffff', fontSize: '10px', fontWeight: 'bold', padding: '3px 8px', borderRadius: '20px', marginBottom: '10px' }}>MOST POPULAR</div>
                       <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#1e1b4b', margin: '0' }}>Enterprise Portfolio</h3>
@@ -129,7 +129,7 @@ export default function App() {
                   </div>
 
                   {/* CONCIERGE PREMIUM */}
-                  <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '30px', flex: '1 1 280px', maxWidth: '320px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div style={{ backgroundColor: '#f8fafc', border: selectedTier === 'Concierge Premium ($999)' ? '3px solid #d97706' : '1px solid #e2e8f0', borderRadius: '16px', padding: '30px', flex: '1 1 280px', maxWidth: '320px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                     <div>
                       <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#1e1b4b', margin: '0' }}>Concierge Premium</h3>
                       <div style={{ fontSize: '36px', fontWeight: 'bold', color: '#1e1b4b', margin: '15px 0' }}>$999<span style={{ fontSize: '14px', color: '#94a3b8' }}>/mo</span></div>
