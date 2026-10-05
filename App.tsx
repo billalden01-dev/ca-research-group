@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-type Page = 'home' | 'pricing' | 'api';
+type Page = 'home' | 'pricing' | 'how';
 
 type Plan = {
   id: string;
@@ -71,6 +71,43 @@ const PLANS: Plan[] = [
   },
 ];
 
+const STEPS = [
+  {
+    title: 'Tell us who to research',
+    body: 'Enter the business or entity name and the California county you want searched. A short intake form keeps the request accurate.',
+  },
+  {
+    title: 'We pull and check the records',
+    body: 'Our system retrieves matching records from official California government sources, then runs a two-step verification check on what it finds.',
+  },
+  {
+    title: 'You get a PDF report',
+    body: 'Liens, filings, and entity status are compiled into a clear PDF report, typically in under 60 seconds.',
+  },
+];
+
+const REPORT_ITEMS = [
+  'Corporate standing and entity verification',
+  'Property lien and filing search',
+  'Litigation history scan',
+  'A findings matrix that brings it all together',
+];
+
+const FAQS = [
+  {
+    q: 'Is this legal advice?',
+    a: 'No. CA Research Group is not a law firm. Our reports are not title searches, title commitments, title insurance, appraisals, or legal opinions.',
+  },
+  {
+    q: 'How current is the information?',
+    a: 'Reports are only as current as the government sources they come from at the time of the search. Those sources can lag behind real events, so always verify against the originals.',
+  },
+  {
+    q: 'Can I cancel?',
+    a: 'Yes. Plans are monthly, and you can cancel anytime.',
+  },
+];
+
 const planLabel = (plan: Plan) => `${plan.name} ($${plan.price})`;
 
 export default function App() {
@@ -137,8 +174,8 @@ export default function App() {
         <img src="/logo-clean.png" alt="CA Research Group" onClick={() => handleNavigate('home')} style={{ height: '72px', maxWidth: '100%', cursor: 'pointer' }} />
         <div style={{ display: 'flex', gap: '20px', fontSize: '14px' }}>
           <span onClick={() => handleNavigate('home')} style={navLink('home')}>Solutions</span>
+          <span onClick={() => handleNavigate('how')} style={navLink('how')}>How It Works</span>
           <span onClick={() => handleNavigate('pricing')} style={navLink('pricing')}>Pricing</span>
-          <span onClick={() => handleNavigate('api')} style={navLink('api')}>Enterprise API</span>
         </div>
       </nav>
 
@@ -303,11 +340,56 @@ export default function App() {
           </div>
         )}
 
-        {/* ENTERPRISE API PAGE */}
-        {currentPage === 'api' && (
-          <div style={{ maxWidth: '900px', margin: '0 auto', padding: '60px 20px', textAlign: 'center' }}>
-            <h1 style={{ fontSize: '38px', fontWeight: 'bold', color: '#1e1b4b', marginBottom: '15px' }}>Enterprise API & Data Pipeline</h1>
-            <p style={{ fontSize: '15px', color: '#475569', maxWidth: '580px', margin: '0 auto' }}>Programmatic, raw data streaming interfaces designed for rapid institutional ingestion pipelines. Zero-throttling server hooks for corporate data rooms.</p>
+        {/* HOW IT WORKS PAGE */}
+        {currentPage === 'how' && (
+          <div>
+            <div style={{ backgroundColor: '#1e1b4b', padding: '56px 20px', textAlign: 'center' }}>
+              <h1 style={{ fontFamily: SERIF, fontSize: '42px', fontWeight: 'bold', color: '#ffffff', margin: '0 0 16px 0', lineHeight: '1.15' }}>How CA Research Group Works</h1>
+              <p style={{ fontSize: '17px', color: '#cbd5e1', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>Three steps from a name to a report you can act on.</p>
+            </div>
+
+            <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '60px 20px 80px 20px' }}>
+              <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                {STEPS.map((step, index) => (
+                  <div key={step.title} style={{ flex: '1 1 260px', maxWidth: '300px', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '28px', backgroundColor: '#ffffff', boxShadow: '0 10px 28px rgba(30,27,75,0.08)' }}>
+                    <div style={{ fontFamily: SERIF, fontSize: '34px', fontWeight: 'bold', color: '#d97706', lineHeight: '1' }}>{index + 1}</div>
+                    <h3 style={{ fontFamily: SERIF, fontSize: '20px', color: '#1e1b4b', margin: '14px 0 10px 0' }}>{step.title}</h3>
+                    <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6', margin: 0 }}>{step.body}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ maxWidth: '640px', margin: '64px auto 0 auto' }}>
+                <h2 style={{ fontFamily: SERIF, fontSize: '26px', color: '#1e1b4b', margin: '0 0 16px 0' }}>What is in a report</h2>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {REPORT_ITEMS.map((item) => (
+                    <li key={item} style={{ display: 'flex', gap: '10px', fontSize: '15px', color: '#475569', lineHeight: '1.5' }}>
+                      <span style={{ color: '#d97706', fontWeight: 'bold' }}>✓</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div style={{ maxWidth: '640px', margin: '56px auto 0 auto', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '24px' }}>
+                <h2 style={{ fontFamily: SERIF, fontSize: '22px', color: '#1e1b4b', margin: '0 0 10px 0' }}>Sources and limits</h2>
+                <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.7', margin: 0 }}>Reports are compiled from publicly available California government records. Those sources can lag behind real-world events, contain errors, or be incomplete, so every report should be verified against the original sources before you rely on it. CA Research Group is not a law firm, and our reports are not title searches, title insurance, appraisals, or legal opinions.</p>
+              </div>
+
+              <div style={{ maxWidth: '640px', margin: '56px auto 0 auto' }}>
+                <h2 style={{ fontFamily: SERIF, fontSize: '26px', color: '#1e1b4b', margin: '0 0 16px 0' }}>Common questions</h2>
+                {FAQS.map((faq) => (
+                  <div key={faq.q} style={{ borderTop: '1px solid #e2e8f0', padding: '18px 0' }}>
+                    <h3 style={{ fontSize: '16px', color: '#1e1b4b', margin: '0 0 6px 0' }}>{faq.q}</h3>
+                    <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.7', margin: 0 }}>{faq.a}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ textAlign: 'center', marginTop: '48px' }}>
+                <button type="button" onClick={() => handleNavigate('pricing')} style={{ backgroundColor: '#1e1b4b', color: '#ffffff', fontSize: '15px', fontWeight: 'bold', border: 'none', borderRadius: '6px', padding: '14px 32px', cursor: 'pointer' }}>See pricing plans →</button>
+              </div>
+            </div>
           </div>
         )}
 
