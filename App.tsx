@@ -66,19 +66,18 @@ export default function App() {
           <div style={{ maxWidth: '850px', margin: '0 auto', padding: '30px 20px 80px 20px', textAlign: 'center' }}>
             <h1 style={{ fontSize: '38px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.1', marginBottom: '4px' }}>Fast California Public-Record Research</h1>
 <h2 style={{ fontSize: '30px', fontWeight: 'bold', color: '#d97706', marginTop: '4px', marginBottom: '40px' }}>for Lenders, Brokers, Investors, Title Companies & Counsel</h2>
-            <p style={{ fontSize: '15px', color: '#475569', maxWidth: '640px', margin: '0 auto 40px auto', lineHeight: '1.6' }}>Cross-referencing real-time public records, structural entity tracking, and high-velocity litigation indexing for multi-industry compliance and due diligence.</p>
-            
-            <div style={{ maxWidth: '640px', margin: '0 auto 40px auto', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <strong style={{ fontSize: '14px', color: '#1e1b4b', display: 'block', marginBottom: '4px' }}>🛡️ Definitive Accuracy & Speed</strong>
-                <p style={{ margin: '0', fontSize: '13px', color: '#475569' }}>Utilizing dual-tiered automated verification audits to double-check data integrity, delivering zero-latency risk reporting you can rely on.</p>
-              </div>
-              <div style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <strong style={{ fontSize: '14px', color: '#1e1b4b', display: 'block', marginBottom: '4px' }}>⚡ Zero Bloat, Instant Results</strong>
-                <p style={{ margin: '0', fontSize: '13px', color: '#475569' }}>Engineered specifically to bypass standard public registries. Get the exact compliance documentation you need instantly.</p>
-              </div>
-            </div>
-            
+            <p style={{ fontSize: '15px', color: '#475569', maxWidth: '640px', margin: '0 auto 40px auto', lineHeight: '1.6' }}>Liens, filings, and entity status from official California public records, compiled into a clear PDF report in under 60 seconds.</p>
+
+<div style={{ maxWidth: '640px', margin: '0 auto 40px auto', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+  <div style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+    <strong style={{ fontSize: '14px', color: '#1e1b4b', display: 'block', marginBottom: '4px' }}>⚡ Faster Decisions</strong>
+    <p style={{ margin: '0', fontSize: '13px', color: '#475569' }}>Whether you are closing a loan or walking away from one, get the public-record picture quickly: liens, filings, and entity status in a report that is typically ready in under a minute.</p>
+  </div>
+  <div style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+    <strong style={{ fontSize: '14px', color: '#1e1b4b', display: 'block', marginBottom: '4px' }}>🛡️ Fewer Manual Errors</strong>
+    <p style={{ margin: '0', fontSize: '13px', color: '#475569' }}>Automated retrieval and a two-step verification check help reduce the typos and missed details that come with manual lookups and hand-keyed intake forms.</p>
+  </div>
+</div>
             <button type="button" onClick={() => handleNavigate('pricing')} style={{ backgroundColor: '#1e1b4b', color: '#ffffff', fontSize: '15px', fontWeight: 'bold', border: 'none', borderRadius: '6px', padding: '14px 32px', cursor: 'pointer' }}>Access Pricing Plans & Intakes →</button>
           </div>
         )}
