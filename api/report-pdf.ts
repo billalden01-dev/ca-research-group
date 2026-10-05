@@ -959,7 +959,11 @@ export async function emailReport(to: string, input: ReportInput, pdf: Uint8Arra
       }),
       signal: timeout(20000),
     });
-    if (!res.ok) return { sent: false, detail: `Resend returned ${res.status}: ${(await res.text()).slice(0, 200)}` };
+    if (!res.ok) {
+      const detail = `Resend returned ${res.status}: ${(await res.text()).slice(0, 200)}`;
+      console.error(detail);
+      return { sent: false, detail };
+    }
     return { sent: true, detail: `Emailed to ${to}` };
   } catch (err) {
     return { sent: false, detail: err instanceof Error ? err.message : 'Email failed.' };
@@ -1155,7 +1159,8 @@ export async function POST(request: Request) {
       'Sanctions Matches': input.sanctions?.available ? input.sanctions.matches.length : null,
       'Federal Cases': courtsSearched ? input.courts?.total ?? null : null,
       'Bankruptcy Cases': courtsSearched ? input.courts?.bankruptcyTotal ?? null : null,
-    }).catch(() => undefined);
+    }).catch((e) => console.error('Airtable update failed:', e instanceof Error ? e.message : e));
+    console.log('Report', input.reportId, mail.sent ? 'emailed' : `email not sent: ${mail.detail}`);
     return pdfResponse(pdf, `CA-Research-Group-${input.reportId}.pdf`);
   } catch (err) {
     await updateRequest(requestId, { Status: 'Failed', Notes: err instanceof Error ? err.message : 'Report failed.' }).catch(() => undefined);
