@@ -3,8 +3,10 @@
 //
 // Sample (made-up data, no key needed):
 //   https://caresearchgroup.com/api/report-pdf?sample=1
-// Real report (Vercel Environment Variables: LOOKUP_TOKEN required; CA_SOS_API_KEY and COURTLISTENER_TOKEN switch on those sources):
-//   https://caresearchgroup.com/api/report-pdf?token=...&name=Acme Holdings LLC&address=123 Main St&company=Your Firm&email=you@firm.com&county=Los Angeles
+// Staff report (Vercel Environment Variables: LOOKUP_TOKEN required; CA_SOS_API_KEY and COURTLISTENER_TOKEN switch on those sources):
+//   https://caresearchgroup.com/run-report.html
+// Client report (needs AIRTABLE_TOKEN): each customer's private page posts here.
+//   https://caresearchgroup.com/report.html?c=LINK_CODE
 
 import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage, PDFImage } from 'pdf-lib';
 
@@ -856,6 +858,72 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
   return doc.save();
 }
 
+// ---------- Airtable (customers and report log) ----------
+
+const AIRTABLE_BASE = 'appi5Q5zd611aH9P3';
+const CUSTOMERS_TABLE = 'tblPwePeCA9vco2Oi';
+const REQUESTS_TABLE = 'tbl6xrbWaWhWetlh1';
+
+type AirtableRecord = { id: string; fields: Record<string, unknown> };
+
+async function airtable(path: string, init: { method?: string; body?: string } = {}): Promise<{ records?: AirtableRecord[] }> {
+  const token = process.env.AIRTABLE_TOKEN;
+  if (!token) throw new Error('AIRTABLE_TOKEN is missing in Vercel.');
+  const res = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE}/${path}`, {
+    method: init.method ?? 'GET',
+    body: init.body,
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    signal: timeout(15000),
+  });
+  if (!res.ok) throw new Error(`Airtable returned ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  return (await res.json()) as { records?: AirtableRecord[] };
+}
+
+export type Customer = { id: string; company: string; email: string; role: string; plan: string; used: number; limit: number; canRun: boolean; active: boolean };
+
+const selectName = (v: unknown) => (v && typeof v === 'object' && 'name' in (v as object) ? str((v as { name: unknown }).name) : str(v));
+
+export async function findCustomer(code: string): Promise<Customer | null> {
+  // Link codes are letters, numbers, dashes and underscores only, so they are safe inside the formula.
+  if (!/^[A-Za-z0-9_-]{12,64}$/.test(code)) return null;
+  const formula = encodeURIComponent(`{Link Code}='${code}'`);
+  const data = await airtable(`${CUSTOMERS_TABLE}?maxRecords=1&filterByFormula=${formula}`);
+  const r = data.records?.[0];
+  if (!r) return null;
+  const f = r.fields;
+  return {
+    id: r.id,
+    company: str(f['Company']) || 'Your company',
+    email: str(f['Contact Email']),
+    role: selectName(f['Role']),
+    plan: selectName(f['Plan']),
+    used: Number(f['Reports This Month'] ?? 0) || 0,
+    limit: Number(f['Monthly Report Limit'] ?? 0) || 0,
+    canRun: str(f['Can Run Report']) === 'YES',
+    active: selectName(f['Subscription Status']) === 'Active',
+  };
+}
+
+async function logRequest(fields: Record<string, unknown>): Promise<string> {
+  const d = await airtable(REQUESTS_TABLE, { method: 'POST', body: JSON.stringify({ records: [{ fields }], typecast: true }) });
+  return d.records?.[0]?.id ?? '';
+}
+
+async function updateRequest(id: string, fields: Record<string, unknown>) {
+  if (!id) return;
+  await airtable(REQUESTS_TABLE, { method: 'PATCH', body: JSON.stringify({ records: [{ id, fields }], typecast: true }) });
+}
+
+const escapeHtml = (t: string) => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
+
+const htmlPage = (title: string, message: string, status: number) =>
+  new Response(
+    `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${escapeHtml(title)} - CA Research Group</title>
+<style>body{margin:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1e293b}.c{max-width:520px;margin:60px auto;padding:0 16px}.k{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:32px;text-align:center}img{height:48px;margin-bottom:16px}h1{font-family:Georgia,serif;color:#1e1b4b;font-size:22px;margin:0 0 12px}p{color:#475569;line-height:1.6;margin:0}</style></head>
+<body><div class="c"><div class="k"><img src="/logo-tight.png" alt="CA Research Group"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}</p></div></div></body></html>`,
+    { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } },
+  );
+
 // ---------- Web address handler ----------
 
 const jsonError = (error: string, status: number) =>
@@ -941,6 +1009,19 @@ export async function GET(request: Request) {
     return pdfResponse(await buildReportPdf(input, await loadLogo(url.origin)), 'CA-Research-Group-Sample-Report.pdf');
   }
 
+  if (q('client')) {
+    try {
+      const c = await findCustomer(q('client'));
+      if (!c) return jsonError('This link is not recognized.', 404);
+      return new Response(
+        JSON.stringify({ ok: true, company: c.company, plan: c.plan, active: c.active, used: c.used, limit: c.limit >= 999999 ? null : c.limit, canRun: c.canRun }),
+        { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } },
+      );
+    } catch {
+      return jsonError('Customer records are temporarily unavailable.', 503);
+    }
+  }
+
   const lookupToken = process.env.LOOKUP_TOKEN;
   if (!lookupToken) return jsonError('Setup not finished: LOOKUP_TOKEN is missing in Vercel. Add ?sample=1 to see the sample report.', 500);
   if (q('token') !== lookupToken) return jsonError('Not authorized.', 401);
@@ -962,5 +1043,78 @@ export async function GET(request: Request) {
     return pdfResponse(await buildReportPdf(input, await loadLogo(url.origin)), `CA-Research-Group-${input.reportId}.pdf`);
   } catch (err) {
     return jsonError(err instanceof Error ? err.message : 'Report failed.', 502);
+  }
+}
+
+// Client reports: posted from each customer's private page (public/report.html).
+export async function POST(request: Request) {
+  const url = new URL(request.url);
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    return htmlPage('Something went wrong', 'The request could not be read. Please go back and try again.', 400);
+  }
+  const g = (k: string) => String(form.get(k) ?? '').trim().slice(0, 300);
+
+  let customer: Customer | null;
+  try {
+    customer = await findCustomer(g('c'));
+  } catch {
+    return htmlPage('Temporarily unavailable', 'We could not check your account just now. Please try again in a few minutes.', 503);
+  }
+  if (!customer) return htmlPage('Link not recognized', 'This report link is not valid. Please contact CA Research Group for your current private link.', 404);
+  if (!customer.active) return htmlPage('Subscription not active', 'Your subscription is not active right now. Please contact CA Research Group to reactivate it.', 403);
+
+  const address = g('address');
+  const entityName = g('name');
+  if (!address) return htmlPage('Property address needed', 'Please go back and enter the property address or APN.', 400);
+  if (g('certify') !== 'yes') return htmlPage('Certification needed', 'Please go back and check the purpose certification box.', 400);
+
+  const base = {
+    Customer: [customer.id],
+    'Requested At': new Date().toISOString(),
+    'Business Name': entityName,
+    'Property Address': address,
+    County: g('county'),
+    'Report Use': g('use'),
+    'Purpose Certified': true,
+  };
+
+  if (!customer.canRun) {
+    await logRequest({ ...base, Status: 'Over plan limit' }).catch(() => '');
+    return htmlPage(
+      'Monthly report limit reached',
+      `Your plan includes ${customer.limit} reports per month and this month's reports have been used. Please contact CA Research Group to upgrade your plan or add reports.`,
+      429,
+    );
+  }
+
+  let requestId = '';
+  try {
+    requestId = await logRequest({ ...base, Status: 'Received' });
+  } catch {
+    return htmlPage('Temporarily unavailable', 'We could not record your request just now. Please try again in a few minutes.', 503);
+  }
+
+  try {
+    const input = await runReport(
+      { company: customer.company, email: customer.email || 'Not provided', role: customer.role || undefined, propertyAddress: address, entityName: entityName || undefined, county: g('county') || undefined, reportUse: g('use') || undefined },
+      { sosApiKey: process.env.CA_SOS_API_KEY, courtListenerToken: process.env.COURTLISTENER_TOKEN },
+    );
+    const pdf = await buildReportPdf(input, await loadLogo(url.origin));
+    const courtsSearched = input.courts?.status === 'searched';
+    await updateRequest(requestId, {
+      'Report ID': input.reportId,
+      Status: 'Completed',
+      'Two-Step Check': input.verification?.overall ?? 'Not run',
+      'Sanctions Matches': input.sanctions?.available ? input.sanctions.matches.length : null,
+      'Federal Cases': courtsSearched ? input.courts?.total ?? null : null,
+      'Bankruptcy Cases': courtsSearched ? input.courts?.bankruptcyTotal ?? null : null,
+    }).catch(() => undefined);
+    return pdfResponse(pdf, `CA-Research-Group-${input.reportId}.pdf`);
+  } catch (err) {
+    await updateRequest(requestId, { Status: 'Failed', Notes: err instanceof Error ? err.message : 'Report failed.' }).catch(() => undefined);
+    return htmlPage('Report could not be completed', 'Something went wrong while building your report. It has not been counted against your plan. Please try again shortly.', 502);
   }
 }
