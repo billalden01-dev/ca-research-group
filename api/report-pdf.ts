@@ -924,6 +924,48 @@ const htmlPage = (title: string, message: string, status: number) =>
     { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } },
   );
 
+// ---------- Email delivery (Resend) ----------
+
+function toBase64(bytes: Uint8Array): string {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
+// Sends the finished PDF. Until caresearchgroup.com is verified in Resend, set no RESEND_FROM:
+// Resend's test sender (onboarding@resend.dev) can only deliver to the Resend account owner's own email.
+export async function emailReport(to: string, input: ReportInput, pdf: Uint8Array): Promise<{ sent: boolean; detail: string }> {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return { sent: false, detail: 'RESEND_API_KEY is not set.' };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return { sent: false, detail: 'No valid contact email on file.' };
+  const from = process.env.RESEND_FROM || 'CA Research Group <onboarding@resend.dev>';
+  const what = input.request.entityName ? `${input.request.entityName} - ${input.request.propertyAddress}` : input.request.propertyAddress;
+  const html = `<div style="font-family:Arial,sans-serif;color:#1e293b;max-width:560px">
+<p style="font-size:18px;color:#1e1b4b;font-weight:bold;margin:0 0 12px">Your public records report is ready</p>
+<p style="margin:0 0 12px">Attached is report <strong>${escapeHtml(input.reportId)}</strong> for <strong>${escapeHtml(what)}</strong>.</p>
+<p style="margin:0 0 12px">Please review any flagged items and verify findings against the original sources before relying on them.</p>
+<p style="font-size:12px;color:#64748b;margin:16px 0 0">CA Research Group is not a law firm and does not provide legal advice. This report is not a title search, title insurance, appraisal, legal opinion, or consumer report.</p>
+</div>`;
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from,
+        to: [to],
+        subject: `Your CA Research Group report ${input.reportId}`,
+        html,
+        attachments: [{ filename: `CA-Research-Group-${input.reportId}.pdf`, content: toBase64(pdf) }],
+      }),
+      signal: timeout(20000),
+    });
+    if (!res.ok) return { sent: false, detail: `Resend returned ${res.status}: ${(await res.text()).slice(0, 200)}` };
+    return { sent: true, detail: `Emailed to ${to}` };
+  } catch (err) {
+    return { sent: false, detail: err instanceof Error ? err.message : 'Email failed.' };
+  }
+}
+
 // ---------- Web address handler ----------
 
 const jsonError = (error: string, status: number) =>
@@ -1104,7 +1146,9 @@ export async function POST(request: Request) {
     );
     const pdf = await buildReportPdf(input, await loadLogo(url.origin));
     const courtsSearched = input.courts?.status === 'searched';
+    const mail = await emailReport(customer.email, input, pdf);
     await updateRequest(requestId, {
+      Notes: mail.sent ? mail.detail : `Email not sent: ${mail.detail}`,
       'Report ID': input.reportId,
       Status: 'Completed',
       'Two-Step Check': input.verification?.overall ?? 'Not run',
