@@ -13,6 +13,10 @@ type Plan = {
 
 const SERIF = "Georgia, 'Times New Roman', serif";
 
+const inputStyle: React.CSSProperties = { padding: '12px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', fontSize: '14px' };
+const labelStyle: React.CSSProperties = { fontSize: '13px', fontWeight: 'bold', color: '#1e1b4b' };
+const fieldStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: '6px' };
+
 const PLANS: Plan[] = [
   {
     id: 'standard',
@@ -113,6 +117,11 @@ export default function App() {
   const [targetEntityName, setTargetEntityName] = useState('');
   const [californiaCounty, setCaliforniaCounty] = useState('All Counties');
   const [corporateEmail, setCorporateEmail] = useState('');
+  const [propertyAddress, setPropertyAddress] = useState('');
+  const [reportUse, setReportUse] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [roleType, setRoleType] = useState('');
+  const [purposeCertified, setPurposeCertified] = useState(false);
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState<boolean>(typeof window !== 'undefined' && window.innerWidth < 700);
   const [isShort, setIsShort] = useState<boolean>(typeof window !== 'undefined' && window.innerHeight < 800);
@@ -133,6 +142,11 @@ export default function App() {
     setAgreed(false);
     setTargetEntityName('');
     setCorporateEmail('');
+    setPropertyAddress('');
+    setReportUse('');
+    setCompanyName('');
+    setRoleType('');
+    setPurposeCertified(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -150,8 +164,8 @@ export default function App() {
 
   const handleIntakeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!targetEntityName || !corporateEmail || !selectedTier) {
-      alert("Please populate all fields.");
+    if (!selectedTier || !corporateEmail || !companyName || !roleType || !propertyAddress || !purposeCertified) {
+      alert("Please complete all required fields, including the property address and the purpose certification.");
       return;
     }
     const stripeUrl = 'https://stripe.com';
@@ -321,14 +335,42 @@ export default function App() {
                   <h3 style={{ fontFamily: SERIF, color: '#1e1b4b', textAlign: 'center', margin: '0 0 6px 0', fontSize: '22px' }}>Complete Your Research Profile</h3>
                   <p style={{ textAlign: 'center', fontSize: '13px', color: '#64748b', margin: '0 0 6px 0' }}>Plan: {selectedTier}</p>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#1e1b4b' }}>Target Entity / Corporate Name</label>
-                    <input type="text" placeholder="e.g. Acme Holdings LLC" value={targetEntityName} onChange={(e) => setTargetEntityName(e.target.value)} style={{ padding: '12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px' }} required />
+                  <div style={fieldStyle}>
+                    <label style={labelStyle}>Your Company or Firm</label>
+                    <input type="text" placeholder="e.g. Pacific Bridge Lending" value={companyName} onChange={(e) => setCompanyName(e.target.value)} style={inputStyle} required />
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#1e1b4b' }}>California Regional County Jurisdictions</label>
-                    <select value={californiaCounty} onChange={(e) => setCaliforniaCounty(e.target.value)} style={{ padding: '12px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', fontSize: '14px' }}>
+                  <div style={fieldStyle}>
+                    <label style={labelStyle}>Your Role</label>
+                    <select value={roleType} onChange={(e) => setRoleType(e.target.value)} style={inputStyle} required>
+                      <option value="">Select one</option>
+                      <option value="Hard money lender or lending institution">Hard money lender or lending institution</option>
+                      <option value="Attorney or legal counsel">Attorney or legal counsel</option>
+                      <option value="Commercial real estate broker">Commercial real estate broker</option>
+                      <option value="Real estate investor">Real estate investor</option>
+                      <option value="Title or escrow company">Title or escrow company</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  <div style={fieldStyle}>
+                    <label style={labelStyle}>Corporate Work Email</label>
+                    <input type="email" placeholder="name@firm.com" value={corporateEmail} onChange={(e) => setCorporateEmail(e.target.value)} style={inputStyle} required />
+                  </div>
+
+                  <div style={fieldStyle}>
+                    <label style={labelStyle}>Property Address or APN</label>
+                    <input type="text" placeholder="e.g. 123 Main St, Los Angeles, or APN" value={propertyAddress} onChange={(e) => setPropertyAddress(e.target.value)} style={inputStyle} required />
+                  </div>
+
+                  <div style={fieldStyle}>
+                    <label style={labelStyle}>Target Entity / Corporate Name (optional)</label>
+                    <input type="text" placeholder="e.g. Acme Holdings LLC" value={targetEntityName} onChange={(e) => setTargetEntityName(e.target.value)} style={inputStyle} />
+                  </div>
+
+                  <div style={fieldStyle}>
+                    <label style={labelStyle}>California Regional County Jurisdictions</label>
+                    <select value={californiaCounty} onChange={(e) => setCaliforniaCounty(e.target.value)} style={inputStyle}>
                       <option value="All Counties">All Counties (Comprehensive Statewide)</option>
                       <option value="Los Angeles">Los Angeles County</option>
                       <option value="Orange">Orange County</option>
@@ -338,10 +380,22 @@ export default function App() {
                     </select>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#1e1b4b' }}>Corporate Work Email</label>
-                    <input type="email" placeholder="name@firm.com" value={corporateEmail} onChange={(e) => setCorporateEmail(e.target.value)} style={{ padding: '12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px' }} required />
+                  <div style={fieldStyle}>
+                    <label style={labelStyle}>How will you use this report? (optional)</label>
+                    <select value={reportUse} onChange={(e) => setReportUse(e.target.value)} style={inputStyle}>
+                      <option value="">Select one</option>
+                      <option value="Loan underwriting">Loan underwriting</option>
+                      <option value="Acquisition due diligence">Acquisition due diligence</option>
+                      <option value="Title or escrow">Title or escrow</option>
+                      <option value="Legal matter">Legal matter</option>
+                      <option value="Other">Other</option>
+                    </select>
                   </div>
+
+                  <label style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', fontSize: '13px', color: '#475569', lineHeight: '1.5', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={purposeCertified} onChange={(e) => setPurposeCertified(e.target.checked)} style={{ marginTop: '3px', transform: 'scale(1.15)' }} required />
+                    <span>I certify that I will use reports from CA Research Group only for a lawful business purpose related to a real estate, lending, title, or legal matter. I will not use them to decide eligibility for credit, employment, insurance, or housing for any individual, and I understand they contain only information from public sources.</span>
+                  </label>
 
                   <button type="submit" style={{ backgroundColor: '#1e1b4b', color: '#ffffff', fontSize: '15px', fontWeight: 'bold', border: 'none', borderRadius: '10px', padding: '14px', cursor: 'pointer', marginTop: '10px' }}>
                     Proceed to Secure Payment Checkout ➔
