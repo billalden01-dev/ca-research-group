@@ -72,8 +72,8 @@ const PLANS: Plan[] = [
 
 const STEPS = [
   {
-    title: 'Tell us who to research',
-    body: 'Enter the business or entity name and the California county you want searched. A short intake form keeps the request accurate.',
+    title: 'Tell us what to research',
+    body: 'Enter the property address or APN, the county, and the business or entity name if there is one. A short form keeps each request accurate.',
   },
   {
     title: 'We pull and check the records',
@@ -83,6 +83,13 @@ const STEPS = [
     title: 'You get a PDF report',
     body: 'Liens, filings, and entity status are compiled into a clear PDF report, typically in under 60 seconds.',
   },
+];
+
+const AFTER_SUBSCRIBE = [
+  'Choose a plan, fill in your details and the first property you want researched, then pay securely by card.',
+  'We email your company a private link. Bookmark it. There is no password to remember.',
+  'Use that link any time to request another report. Each request counts toward your monthly plan.',
+  'Your PDF report is sent to your work email.',
 ];
 
 const REPORT_ITEMS = [
@@ -191,6 +198,17 @@ export default function App() {
     borderBottom: currentPage === page ? '2px solid #d97706' : '2px solid transparent',
   });
 
+  const afterSubscribeBox = (
+    <div style={{ maxWidth: '640px', margin: '0 auto', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '14px', padding: isMobile ? '20px' : '24px 28px', textAlign: 'left' }}>
+      <h2 style={{ fontFamily: SERIF, fontSize: '22px', color: '#1e1b4b', margin: '0 0 14px 0' }}>What happens after you subscribe</h2>
+      <ol style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {AFTER_SUBSCRIBE.map((item) => (
+          <li key={item} style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6' }}>{item}</li>
+        ))}
+      </ol>
+    </div>
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%', overflowX: 'hidden', backgroundColor: '#ffffff', fontFamily: 'sans-serif', color: '#1e293b' }}>
 
@@ -198,7 +216,7 @@ export default function App() {
       <nav style={{ borderBottom: '1px solid #e2e8f0', padding: isMobile ? '12px 16px' : isShort ? '10px 30px' : '15px 30px', display: 'flex', justifyContent: isMobile ? 'center' : 'space-between', alignItems: 'center', backgroundColor: '#ffffff', flexWrap: 'wrap', gap: isMobile ? '10px' : '15px' }}>
         <img src="/logo-tight.png" alt="CA Research Group" onClick={() => handleNavigate('home')} style={{ height: isMobile ? '44px' : isShort ? '54px' : '62px', maxWidth: '100%', cursor: 'pointer' }} />
         <div style={{ display: 'flex', gap: isMobile ? '14px' : '20px', fontSize: isMobile ? '13px' : '14px' }}>
-          <span onClick={() => handleNavigate('home')} style={navLink('home')}>Solutions</span>
+          <span onClick={() => handleNavigate('home')} style={navLink('home')}>Home</span>
           <span onClick={() => handleNavigate('how')} style={navLink('how')}>How It Works</span>
           <span onClick={() => handleNavigate('pricing')} style={navLink('pricing')}>Pricing</span>
         </div>
@@ -225,7 +243,7 @@ export default function App() {
               </div>
             </div>
 
-            <button type="button" onClick={() => handleNavigate('pricing')} style={{ backgroundColor: '#1e1b4b', color: '#ffffff', fontSize: isMobile ? '15px' : '17px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: isMobile ? '14px 22px' : '16px 38px', cursor: 'pointer' }}>Access Pricing Plans & Intakes →</button>
+            <button type="button" onClick={() => handleNavigate('pricing')} style={{ backgroundColor: '#1e1b4b', color: '#ffffff', fontSize: isMobile ? '15px' : '17px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: isMobile ? '14px 22px' : '16px 38px', cursor: 'pointer' }}>See Plans & Pricing →</button>
           </div>
         )}
 
@@ -242,9 +260,9 @@ export default function App() {
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: isMobile ? '8px' : '15px', flexWrap: 'wrap', marginTop: isMobile ? '22px' : '32px', fontSize: isMobile ? '12px' : '13px' }}>
                 <span style={stepStyle(1)}>1. Choose Plan</span>
                 <span style={{ color: '#64748b' }}>➔</span>
-                <span style={stepStyle(2)}>2. Compliance Notice</span>
+                <span style={stepStyle(2)}>2. Review Terms</span>
                 <span style={{ color: '#64748b' }}>➔</span>
-                <span style={stepStyle(3)}>3. Entity Profile Intake</span>
+                <span style={stepStyle(3)}>3. Your Details</span>
               </div>
             </div>
 
@@ -306,14 +324,16 @@ export default function App() {
                     })}
                   </div>
                   </div>
-                  <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748b', maxWidth: '640px', margin: '40px auto 0 auto', lineHeight: '1.6' }}>* Reports are compiled from public records and should be independently verified. See the legal notice below.</p>
+                  <div style={{ marginTop: '40px' }}>{afterSubscribeBox}</div>
+                  <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748b', maxWidth: '640px', margin: '28px auto 0 auto', lineHeight: '1.6' }}>* Reports are compiled from public records and should be independently verified. See the legal notice below.</p>
                 </div>
               )}
 
-              {/* STEP 2: COMPLIANCE AGREEMENT */}
+              {/* STEP 2: REVIEW TERMS */}
               {wizardStep === 2 && (
                 <div style={{ maxWidth: '640px', margin: '20px auto 0 auto', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: isMobile ? '22px' : '36px', boxShadow: '0 14px 36px rgba(30,27,75,0.12)', textAlign: 'center' }}>
                   <h3 style={{ fontFamily: SERIF, color: '#1e1b4b', margin: '0 0 18px 0', fontSize: '22px' }}>Selected plan: <span style={{ color: '#d97706' }}>{selectedTier}</span></h3>
+                  <p style={{ fontSize: '14px', color: '#475569', margin: '0 0 16px 0', lineHeight: '1.6' }}>Please read and accept these terms to continue.</p>
                   <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', padding: '20px', borderRadius: '10px', textAlign: 'left', maxHeight: '200px', overflowY: 'scroll', fontSize: '13px', color: '#475569', marginBottom: '25px', lineHeight: '1.6' }}>
                     <strong>CA RESEARCH GROUP COMPLIANCE ASSURANCE PROVISIONS</strong>
                     <p style={{ margin: '8px 0' }}>By continuing, you acknowledge that reports are compiled from publicly available government records and are only as accurate and complete as the sources they come from. Public records can be incomplete, delayed, or contain errors. You agree to independently verify any information against the original sources before relying on it for any lending, investment, title, or legal decision.</p>
@@ -322,18 +342,18 @@ export default function App() {
 
                   <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold', color: '#1e1b4b' }}>
                     <input type="checkbox" checked={agreed} onChange={(e) => handleCheckboxChange(e.target.checked)} style={{ transform: 'scale(1.2)', cursor: 'pointer' }} />
-                    I accept the Compliance Terms & Conditions
+                    I have read and accept these terms
                   </label>
 
                   <button type="button" onClick={() => setWizardStep(1)} style={{ background: 'none', border: 'none', color: '#64748b', textDecoration: 'underline', cursor: 'pointer', display: 'block', margin: '25px auto 0 auto' }}>➔ Back to Plans</button>
                 </div>
               )}
 
-              {/* STEP 3: ACCOUNT INTAKE FORM */}
+              {/* STEP 3: YOUR DETAILS */}
               {wizardStep === 3 && (
                 <form onSubmit={handleIntakeSubmit} style={{ maxWidth: '540px', margin: '20px auto 0 auto', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: isMobile ? '22px' : '36px', boxShadow: '0 14px 36px rgba(30,27,75,0.12)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  <h3 style={{ fontFamily: SERIF, color: '#1e1b4b', textAlign: 'center', margin: '0 0 6px 0', fontSize: '22px' }}>Complete Your Research Profile</h3>
-                  <p style={{ textAlign: 'center', fontSize: '13px', color: '#64748b', margin: '0 0 6px 0' }}>Plan: {selectedTier}</p>
+                  <h3 style={{ fontFamily: SERIF, color: '#1e1b4b', textAlign: 'center', margin: '0 0 6px 0', fontSize: '22px' }}>Your Details & First Report</h3>
+                  <p style={{ textAlign: 'center', fontSize: '13px', color: '#64748b', margin: '0 0 6px 0', lineHeight: '1.6' }}>Plan: {selectedTier}<br />Tell us about your firm and the first property you want researched.</p>
 
                   <div style={fieldStyle}>
                     <label style={labelStyle}>Your Company or Firm</label>
@@ -354,7 +374,7 @@ export default function App() {
                   </div>
 
                   <div style={fieldStyle}>
-                    <label style={labelStyle}>Corporate Work Email</label>
+                    <label style={labelStyle}>Work Email</label>
                     <input type="email" placeholder="name@firm.com" value={corporateEmail} onChange={(e) => setCorporateEmail(e.target.value)} style={inputStyle} required />
                   </div>
 
@@ -364,12 +384,12 @@ export default function App() {
                   </div>
 
                   <div style={fieldStyle}>
-                    <label style={labelStyle}>Target Entity / Corporate Name (optional)</label>
+                    <label style={labelStyle}>Business or Entity Name (optional)</label>
                     <input type="text" placeholder="e.g. Acme Holdings LLC" value={targetEntityName} onChange={(e) => setTargetEntityName(e.target.value)} style={inputStyle} />
                   </div>
 
                   <div style={fieldStyle}>
-                    <label style={labelStyle}>California Regional County Jurisdictions</label>
+                    <label style={labelStyle}>County</label>
                     <select value={californiaCounty} onChange={(e) => setCaliforniaCounty(e.target.value)} style={inputStyle}>
                       <option value="All Counties">All Counties (Comprehensive Statewide)</option>
                       <option value="Los Angeles">Los Angeles County</option>
@@ -398,10 +418,10 @@ export default function App() {
                   </label>
 
                   <button type="submit" style={{ backgroundColor: '#1e1b4b', color: '#ffffff', fontSize: '15px', fontWeight: 'bold', border: 'none', borderRadius: '10px', padding: '14px', cursor: 'pointer', marginTop: '10px' }}>
-                    Proceed to Secure Payment Checkout ➔
+                    Continue to Secure Payment ➔
                   </button>
 
-                  <button type="button" onClick={() => { setWizardStep(2); setAgreed(false); }} style={{ background: 'none', border: 'none', color: '#64748b', textDecoration: 'underline', cursor: 'pointer', alignSelf: 'center' }}>➔ Back to Compliance</button>
+                  <button type="button" onClick={() => { setWizardStep(2); setAgreed(false); }} style={{ background: 'none', border: 'none', color: '#64748b', textDecoration: 'underline', cursor: 'pointer', alignSelf: 'center' }}>➔ Back to Terms</button>
                 </form>
               )}
 
@@ -414,7 +434,7 @@ export default function App() {
           <div>
             <div style={{ backgroundColor: '#1e1b4b', padding: isMobile ? '36px 16px' : '56px 20px', textAlign: 'center' }}>
               <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '30px' : '42px', fontWeight: 'bold', color: '#ffffff', margin: '0 0 16px 0', lineHeight: '1.15' }}>How CA Research Group Works</h1>
-              <p style={{ fontSize: '17px', color: '#cbd5e1', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>Three steps from a name to a report you can act on.</p>
+              <p style={{ fontSize: '17px', color: '#cbd5e1', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>Three steps from a property to a report you can act on.</p>
             </div>
 
             <div style={{ maxWidth: '1000px', margin: '0 auto', padding: isMobile ? '36px 16px 56px 16px' : '60px 20px 80px 20px' }}>
@@ -428,7 +448,9 @@ export default function App() {
                 ))}
               </div>
 
-              <div style={{ maxWidth: '640px', margin: '64px auto 0 auto' }}>
+              <div style={{ margin: '64px auto 0 auto' }}>{afterSubscribeBox}</div>
+
+              <div style={{ maxWidth: '640px', margin: '56px auto 0 auto' }}>
                 <h2 style={{ fontFamily: SERIF, fontSize: '26px', color: '#1e1b4b', margin: '0 0 16px 0' }}>What is in a report</h2>
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {REPORT_ITEMS.map((item) => (
