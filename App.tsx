@@ -189,23 +189,23 @@ export default function App() {
 
         {/* HOME COMPONENT */}
         {currentPage === 'home' && (
-          <div style={{ maxWidth: '850px', margin: '0 auto', padding: '30px 20px 80px 20px', textAlign: 'center' }}>
-            <h1 style={{ fontSize: '38px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.1', marginBottom: '4px' }}>Fast California Public-Record Research</h1>
-            <h2 style={{ fontSize: '28px', fontWeight: 'bold', color: '#d97706', marginTop: '4px', marginBottom: '40px' }}>for Hard Money Lenders, Legal Counsel<br />& Real Estate Professionals</h2>
-            <p style={{ fontSize: '15px', color: '#475569', maxWidth: '640px', margin: '0 auto 40px auto', lineHeight: '1.6' }}>Liens, filings, and entity status from official California public records, compiled into a clear PDF report in under 60 seconds.</p>
+          <div style={{ maxWidth: '920px', margin: '0 auto', padding: '30px 20px 80px 20px', textAlign: 'center' }}>
+            <h1 style={{ fontSize: '42px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.1', marginBottom: '4px' }}>Fast California Public-Record Research</h1>
+            <h2 style={{ fontSize: '30px', fontWeight: 'bold', color: '#d97706', marginTop: '4px', marginBottom: '40px' }}>for Hard Money Lenders, Legal Counsel<br />& Real Estate Professionals</h2>
+            <p style={{ fontSize: '19px', color: '#475569', maxWidth: '720px', margin: '0 auto 44px auto', lineHeight: '1.65' }}>Liens, filings, and entity status from official California public records, compiled into a clear PDF report in under 60 seconds.</p>
 
-            <div style={{ maxWidth: '640px', margin: '0 auto 40px auto', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <strong style={{ fontSize: '14px', color: '#1e1b4b', display: 'block', marginBottom: '4px' }}>⚡ Faster Decisions</strong>
-                <p style={{ margin: '0', fontSize: '13px', color: '#475569' }}>Whether you are closing a loan or walking away from one, get the public-record picture quickly: liens, filings, and entity status in a report that is typically ready in under a minute.</p>
+            <div style={{ maxWidth: '740px', margin: '0 auto 44px auto', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ backgroundColor: '#f8fafc', padding: '26px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+                <strong style={{ fontSize: '18px', color: '#1e1b4b', display: 'block', marginBottom: '8px' }}>⚡ Faster Decisions</strong>
+                <p style={{ margin: '0', fontSize: '16px', lineHeight: '1.6', color: '#475569' }}>Whether you are closing a loan or walking away from one, get the public-record picture quickly: liens, filings, and entity status in a report that is typically ready in under a minute.</p>
               </div>
-              <div style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <strong style={{ fontSize: '14px', color: '#1e1b4b', display: 'block', marginBottom: '4px' }}>🛡️ Fewer Manual Errors</strong>
-                <p style={{ margin: '0', fontSize: '13px', color: '#475569' }}>Automated retrieval and a two-step verification check help reduce the typos and missed details that come with manual lookups and hand-keyed intake forms.</p>
+              <div style={{ backgroundColor: '#f8fafc', padding: '26px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+                <strong style={{ fontSize: '18px', color: '#1e1b4b', display: 'block', marginBottom: '8px' }}>🛡️ Fewer Manual Errors</strong>
+                <p style={{ margin: '0', fontSize: '16px', lineHeight: '1.6', color: '#475569' }}>Automated retrieval and a two-step verification check help reduce the typos and missed details that come with manual lookups and hand-keyed intake forms.</p>
               </div>
             </div>
 
-            <button type="button" onClick={() => handleNavigate('pricing')} style={{ backgroundColor: '#1e1b4b', color: '#ffffff', fontSize: '15px', fontWeight: 'bold', border: 'none', borderRadius: '6px', padding: '14px 32px', cursor: 'pointer' }}>Access Pricing Plans & Intakes →</button>
+            <button type="button" onClick={() => handleNavigate('pricing')} style={{ backgroundColor: '#1e1b4b', color: '#ffffff', fontSize: '17px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: '16px 38px', cursor: 'pointer' }}>Access Pricing Plans & Intakes →</button>
           </div>
         )}
 
