@@ -1,10 +1,14 @@
-// CA Research Group: Step 2 of the report engine.
-// Builds the branded PDF report.
-// Right now it only produces a clearly-labeled SAMPLE report:
+// CA Research Group: the report engine.
+// Searches the CA Secretary of State, runs the automated two-step check, and builds the branded PDF.
+//
+// Sample (made-up data, no key needed):
 //   https://caresearchgroup.com/api/report-pdf?sample=1
-// Once the Secretary of State key works, real lookups will feed into buildReportPdf().
+// Real report (needs Vercel Environment Variables CA_SOS_API_KEY and LOOKUP_TOKEN):
+//   https://caresearchgroup.com/api/report-pdf?token=...&name=Acme Holdings LLC&address=123 Main St&company=Your Firm&email=you@firm.com&county=Los Angeles
 
 import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage, PDFImage } from 'pdf-lib';
+
+declare const process: { env: Record<string, string | undefined> };
 
 // ---------- Report data shape ----------
 
@@ -31,7 +35,151 @@ export type ReportInput = {
   preparedFor: { company: string; email: string; role?: string };
   request: { propertyAddress: string; entityName?: string; county?: string; reportUse?: string };
   entitySearch: { searchedAt: Date; searchedFor: string; records: EntityRecord[] } | null;
+  verification: Verification | null;
 };
+
+export type Check = { label: string; result: 'Passed' | 'Flagged'; detail: string };
+export type Verification = { overall: 'Verified' | 'Needs attention'; checks: Check[] };
+
+// ---------- Secretary of State lookups ----------
+
+const SOS_BASE = 'https://calico.sos.ca.gov/cbc/v1/api';
+type SosRaw = Record<string, unknown>;
+
+const str = (v: unknown) => (v === null || v === undefined ? '' : String(v).trim());
+const joinParts = (...parts: unknown[]) => parts.map(str).filter(Boolean).join(', ');
+
+function toRecord(e: SosRaw): EntityRecord {
+  return {
+    name: str(e.EntityName),
+    entityNumber: str(e.EntityID),
+    type: str(e.EntityType),
+    status: str(e.StatusDescription),
+    statusDate: str(e.StatusDate),
+    filingDate: str(e.FilingDate),
+    jurisdiction: str(e.Jurisdiction),
+    standingSOS: str(e.StandingSOS),
+    standingFTB: str(e.StandingFTB),
+    standingAgent: str(e.StandingAgent),
+    address: joinParts(e.EntityStreetAddress1, e.EntityStreetAddress2, e.EntityCity, e.EntityState, e.EntityZipCode),
+    agent: str(e.AgentName),
+    agentAddress: joinParts(e.AgentAddress1, e.AgentAddress2, e.AgentCity, e.AgentState, e.AgentZipCode),
+  };
+}
+
+function entityList(data: unknown): SosRaw[] {
+  if (Array.isArray(data)) return data as SosRaw[];
+  if (data && typeof data === 'object') {
+    const d = data as SosRaw;
+    if (Array.isArray(d.EntityData)) return d.EntityData as SosRaw[];
+    if ('EntityID' in d || 'EntityName' in d) return [d];
+  }
+  return [];
+}
+
+async function sosGet(path: string, apiKey: string): Promise<unknown> {
+  const res = await fetch(`${SOS_BASE}/${path}`, { headers: { 'Ocp-Apim-Subscription-Key': apiKey } });
+  if (!res.ok) throw new Error(`Secretary of State API returned ${res.status}`);
+  return res.json();
+}
+
+export async function searchEntities(name: string, apiKey: string): Promise<EntityRecord[]> {
+  return entityList(await sosGet(`BusinessEntityKeywordSearch?search-term=${encodeURIComponent(name)}`, apiKey)).map(toRecord);
+}
+
+export async function getEntityDetails(entityNumber: string, apiKey: string): Promise<EntityRecord | null> {
+  const list = entityList(await sosGet(`BusinessEntityDetails?entity-number=${encodeURIComponent(entityNumber)}`, apiKey));
+  return list.length ? toRecord(list[0]) : null;
+}
+
+// ---------- Automated two-step check ----------
+
+const SUFFIXES = new Set(['LLC', 'L L C', 'INC', 'INCORPORATED', 'CORP', 'CORPORATION', 'CO', 'COMPANY', 'LTD', 'LIMITED', 'LP', 'LLP', 'PC', 'THE']);
+
+export function normalizeName(name: string): string[] {
+  return name
+    .toUpperCase()
+    .replace(/&/g, ' AND ')
+    .replace(/[^A-Z0-9 ]+/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w && !SUFFIXES.has(w));
+}
+
+export function nameSimilarity(a: string, b: string): number {
+  const x = new Set(normalizeName(a));
+  const y = new Set(normalizeName(b));
+  if (!x.size || !y.size) return 0;
+  let shared = 0;
+  x.forEach((w) => {
+    if (y.has(w)) shared++;
+  });
+  return shared / new Set([...x, ...y]).size;
+}
+
+const same = (a: unknown, b: unknown) => str(a).toUpperCase() === str(b).toUpperCase();
+
+export function verifyEntity(requestedName: string, results: EntityRecord[], confirmed: EntityRecord | null): Verification {
+  const checks: Check[] = [];
+  const top = results[0];
+
+  // Step 1: found in the search
+  checks.push({
+    label: 'Step 1: Found in Secretary of State search',
+    result: top ? 'Passed' : 'Flagged',
+    detail: top ? `${results.length} result${results.length === 1 ? '' : 's'} returned; top result ${str(top.name)} (#${str(top.entityNumber)}).` : 'No matching business was found.',
+  });
+  if (!top) return { overall: 'Needs attention', checks };
+
+  // Step 2: confirmed by a second lookup using the entity number
+  if (!confirmed) {
+    checks.push({ label: 'Step 2: Confirmed by entity-number lookup', result: 'Flagged', detail: 'The second lookup by entity number returned no record.' });
+  } else {
+    const fields: [string, keyof EntityRecord][] = [
+      ['name', 'name'],
+      ['entity number', 'entityNumber'],
+      ['status', 'status'],
+      ['entity type', 'type'],
+      ['Secretary of State standing', 'standingSOS'],
+      ['Franchise Tax Board standing', 'standingFTB'],
+    ];
+    const diffs = fields.filter(([, k]) => !same(top[k], confirmed[k])).map(([label]) => label);
+    checks.push({
+      label: 'Step 2: Confirmed by entity-number lookup',
+      result: diffs.length ? 'Flagged' : 'Passed',
+      detail: diffs.length ? `The two lookups disagree on: ${diffs.join(', ')}. Verify directly with the Secretary of State.` : 'Second lookup matched the search result on name, number, status, type, and standing.',
+    });
+  }
+
+  // Name match quality
+  const score = nameSimilarity(requestedName, str(top.name));
+  checks.push({
+    label: 'Name match',
+    result: score >= 0.8 ? 'Passed' : 'Flagged',
+    detail: score === 1 ? `Exact match for "${requestedName}".` : score >= 0.8 ? `Close match for "${requestedName}" (${Math.round(score * 100)}%).` : `Weak match for "${requestedName}" (${Math.round(score * 100)}%). This may be a different business.`,
+  });
+
+  // Look-alike businesses
+  const lookalikes = results.slice(1).filter((r) => nameSimilarity(requestedName, str(r.name)) >= 0.8);
+  checks.push({
+    label: 'Similar business names',
+    result: lookalikes.length ? 'Flagged' : 'Passed',
+    detail: lookalikes.length ? `${lookalikes.length} other business${lookalikes.length === 1 ? ' has' : 'es have'} a very similar name, e.g. ${str(lookalikes[0].name)} (#${str(lookalikes[0].entityNumber)}). Confirm the entity number.` : 'No other businesses with a closely similar name.',
+  });
+
+  // Status and standing
+  const rec = confirmed ?? top;
+  const problems: string[] = [];
+  if (str(rec.status) && !/^ACTIVE$/i.test(str(rec.status))) problems.push(`status is ${str(rec.status)}`);
+  if (str(rec.standingSOS) && !/^GOOD$/i.test(str(rec.standingSOS))) problems.push(`Secretary of State standing is ${str(rec.standingSOS)}`);
+  if (str(rec.standingFTB) && !/^GOOD$/i.test(str(rec.standingFTB))) problems.push(`Franchise Tax Board standing is ${str(rec.standingFTB)}`);
+  checks.push({
+    label: 'Status and standing',
+    result: problems.length ? 'Flagged' : 'Passed',
+    detail: problems.length ? `Attention: ${problems.join('; ')}.` : 'Active, with good standing.',
+  });
+
+  return { overall: checks.some((c) => c.result === 'Flagged') ? 'Needs attention' : 'Verified', checks };
+}
 
 const SAMPLE_INPUT: ReportInput = {
   sample: true,
@@ -63,6 +211,16 @@ const SAMPLE_INPUT: ReportInput = {
         agent: 'Example Registered Agent Inc.',
         agentAddress: '789 Placeholder Blvd, Sacramento, CA 95800',
       },
+    ],
+  },
+  verification: {
+    overall: 'Verified',
+    checks: [
+      { label: 'Step 1: Found in Secretary of State search', result: 'Passed', detail: '1 result returned; top result SAMPLE HOLDINGS LLC (#000000000000).' },
+      { label: 'Step 2: Confirmed by entity-number lookup', result: 'Passed', detail: 'Second lookup matched the search result on name, number, status, type, and standing.' },
+      { label: 'Name match', result: 'Passed', detail: 'Exact match for "Sample Holdings LLC".' },
+      { label: 'Similar business names', result: 'Passed', detail: 'No other businesses with a closely similar name.' },
+      { label: 'Status and standing', result: 'Passed', detail: 'Active, with good standing.' },
     ],
   },
 };
@@ -151,8 +309,8 @@ class Writer {
     this.y -= opts.gap ?? 6;
   }
 
-  heading(text: string) {
-    this.ensure(48);
+  heading(text: string, keepWith = 110) {
+    this.ensure(44 + keepWith);
     this.y -= 10;
     this.page.drawText(text, { x: MARGIN, y: this.y - 15, size: 15, font: this.serif, color: NAVY });
     this.y -= 22;
@@ -304,17 +462,37 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       ? `No matching entity found for "${input.entitySearch.searchedFor}".`
       : `${records.length} match${records.length === 1 ? '' : 'es'}. Top match: ${clean(records[0].name)}, status ${clean(records[0].status)}.`;
 
+  const v = input.verification;
   w.heading('Summary of findings');
   w.table(
     ['Source', 'Searched', 'Result'],
     [190, 80, CONTENT_W - 270],
     [
-      ['CA Secretary of State - business entity', input.entitySearch ? 'Yes' : 'No', entitySummary],
+      ['CA Secretary of State - business entity', input.entitySearch ? 'Yes' : 'No', v ? `${entitySummary} Two-step check: ${v.overall}.` : entitySummary],
       ['CA Secretary of State - UCC liens', 'Coming soon', 'Not yet included in reports.'],
       ['County recorder - recorded documents', 'Coming soon', 'Not yet included in reports.'],
       ['Court records', 'Coming soon', 'Not yet included in reports.'],
     ],
   );
+
+  // Verification
+  if (v) {
+    w.heading('Automated two-step verification', 190);
+    const ok = v.overall === 'Verified';
+    w.callout(
+      ok ? 'RESULT: VERIFIED' : 'RESULT: NEEDS ATTENTION',
+      ok
+        ? 'The business record was found by name, then confirmed by a second, separate lookup using its official entity number. All checks passed.'
+        : 'One or more checks were flagged below. Review the flagged items and confirm them directly with the Secretary of State before relying on this report.',
+      ok ? rgb(240 / 255, 253 / 255, 244 / 255) : SAMPLE_BG,
+      ok ? rgb(21 / 255, 128 / 255, 61 / 255) : rgb(185 / 255, 28 / 255, 28 / 255),
+    );
+    w.table(
+      ['Check', 'Result', 'Details'],
+      [170, 70, CONTENT_W - 240],
+      v.checks.map((c) => [c.label, c.result, c.detail]),
+    );
+  }
 
   // Section 1: entity detail
   w.heading('1. Business entity status');
@@ -324,6 +502,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
     w.paragraph(`The California Secretary of State business search returned no match for "${input.entitySearch.searchedFor}". Check the spelling or try the exact registered name.`);
   } else {
     records.slice(0, 3).forEach((e, i) => {
+      w.ensure(120);
       if (records.length > 1) w.paragraph(`Match ${i + 1} of ${records.length}`, { font: bold, color: GOLD, size: 10, gap: 2 });
       w.keyValues([
         ['Entity name', clean(e.name)],
@@ -366,31 +545,94 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
 
 // ---------- Web address handler ----------
 
-export async function GET(request: Request) {
-  const url = new URL(request.url);
+const jsonError = (error: string, status: number) =>
+  new Response(JSON.stringify({ ok: false, error }, null, 2), { status, headers: { 'Content-Type': 'application/json' } });
 
-  if (url.searchParams.get('sample') !== '1') {
-    return new Response(JSON.stringify({ ok: false, error: 'Only the sample report is available right now. Add ?sample=1 to the address.' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+const newReportId = (d: Date) => {
+  const ymd = d.toISOString().slice(0, 10).replace(/-/g, '');
+  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `CARG-${ymd}-${rand}`;
+};
+
+// Runs the full engine: search, two-step check, report data.
+export async function runEntityReport(
+  form: { company: string; email: string; role?: string; propertyAddress: string; entityName?: string; county?: string; reportUse?: string },
+  apiKey: string,
+): Promise<ReportInput> {
+  const now = new Date();
+  let entitySearch: ReportInput['entitySearch'] = null;
+  let verification: Verification | null = null;
+  const name = (form.entityName ?? '').trim();
+  if (name) {
+    const records = await searchEntities(name, apiKey);
+    const confirmed = records[0]?.entityNumber ? await getEntityDetails(String(records[0].entityNumber), apiKey) : null;
+    entitySearch = { searchedAt: new Date(), searchedFor: name, records };
+    verification = verifyEntity(name, records, confirmed);
   }
+  return {
+    sample: false,
+    reportId: newReportId(now),
+    generatedAt: now,
+    preparedFor: { company: form.company, email: form.email, role: form.role },
+    request: { propertyAddress: form.propertyAddress, entityName: name || undefined, county: form.county, reportUse: form.reportUse },
+    entitySearch,
+    verification,
+  };
+}
 
-  let logo: Uint8Array | undefined;
+async function loadLogo(origin: string): Promise<Uint8Array | undefined> {
   try {
-    const res = await fetch(new URL('/logo-tight.png', url.origin));
-    if (res.ok) logo = new Uint8Array(await res.arrayBuffer());
+    const res = await fetch(new URL('/logo-tight.png', origin));
+    if (res.ok) return new Uint8Array(await res.arrayBuffer());
   } catch {
-    logo = undefined;
+    // no logo, the report falls back to text
   }
+  return undefined;
+}
 
-  const pdf = await buildReportPdf({ ...SAMPLE_INPUT, generatedAt: new Date(), entitySearch: SAMPLE_INPUT.entitySearch && { ...SAMPLE_INPUT.entitySearch, searchedAt: new Date() } }, logo);
-
-  return new Response(pdf as unknown as BodyInit, {
+const pdfResponse = (pdf: Uint8Array, filename: string) =>
+  new Response(pdf as unknown as BodyInit, {
     headers: {
       'Content-Type': 'application/pdf',
-      'Content-Disposition': 'inline; filename="CA-Research-Group-Sample-Report.pdf"',
+      'Content-Disposition': `inline; filename="${filename}"`,
       'Cache-Control': 'no-store',
     },
   });
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const q = (k: string) => (url.searchParams.get(k) ?? '').trim();
+
+  if (q('sample') === '1') {
+    const input: ReportInput = {
+      ...SAMPLE_INPUT,
+      generatedAt: new Date(),
+      entitySearch: SAMPLE_INPUT.entitySearch && { ...SAMPLE_INPUT.entitySearch, searchedAt: new Date() },
+    };
+    return pdfResponse(await buildReportPdf(input, await loadLogo(url.origin)), 'CA-Research-Group-Sample-Report.pdf');
+  }
+
+  const apiKey = process.env.CA_SOS_API_KEY;
+  const lookupToken = process.env.LOOKUP_TOKEN;
+  if (!apiKey || !lookupToken) return jsonError('Setup not finished: CA_SOS_API_KEY or LOOKUP_TOKEN is missing in Vercel. Add ?sample=1 to see the sample report.', 500);
+  if (q('token') !== lookupToken) return jsonError('Not authorized.', 401);
+  if (!q('address')) return jsonError('Add a property address, e.g. &address=123 Main St, Los Angeles', 400);
+
+  try {
+    const input = await runEntityReport(
+      {
+        company: q('company') || 'Not provided',
+        email: q('email') || 'Not provided',
+        role: q('role') || undefined,
+        propertyAddress: q('address'),
+        entityName: q('name') || undefined,
+        county: q('county') || undefined,
+        reportUse: q('use') || undefined,
+      },
+      apiKey,
+    );
+    return pdfResponse(await buildReportPdf(input, await loadLogo(url.origin)), `CA-Research-Group-${input.reportId}.pdf`);
+  } catch (err) {
+    return jsonError(err instanceof Error ? err.message : 'Report failed.', 502);
+  }
 }
