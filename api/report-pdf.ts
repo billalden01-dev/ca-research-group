@@ -879,7 +879,29 @@ async function airtable(path: string, init: { method?: string; body?: string } =
   return (await res.json()) as { records?: AirtableRecord[] };
 }
 
-export type Customer = { id: string; company: string; email: string; role: string; plan: string; used: number; limit: number; canRun: boolean; active: boolean };
+export type Customer = { id: string; company: string; email: string; role: string; plan: string; used: number; limit: number; canRun: boolean; active: boolean; voucher: boolean; expires: string; expired: boolean; usedTotal: number };
+
+// A complimentary report voucher: one free report, good through the date in Voucher Expires (Pacific time).
+export const VOUCHER_PLAN = 'Complimentary Report (5-day voucher)';
+export const VOUCHER_DAYS = 5;
+
+// Today's date in California, as YYYY-MM-DD.
+export const pacificToday = (now = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+
+export const addDays = (ymd: string, days: number) => {
+  const d = new Date(`${ymd}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+};
+
+export const friendlyDate = (ymd: string) =>
+  ymd ? new Date(`${ymd}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' }) : '';
+
+export function newLinkCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  return [...bytes].map((b) => chars[b % chars.length]).join('');
+}
 
 const selectName = (v: unknown) => (v && typeof v === 'object' && 'name' in (v as object) ? str((v as { name: unknown }).name) : str(v));
 
@@ -901,7 +923,37 @@ export async function findCustomer(code: string): Promise<Customer | null> {
     limit: Number(f['Monthly Report Limit'] ?? 0) || 0,
     canRun: str(f['Can Run Report']) === 'YES',
     active: selectName(f['Subscription Status']) === 'Active',
+    voucher: selectName(f['Plan']) === VOUCHER_PLAN,
+    expires: str(f['Voucher Expires']).slice(0, 10),
+    expired: selectName(f['Plan']) === VOUCHER_PLAN && (!str(f['Voucher Expires']) || str(f['Voucher Expires']).slice(0, 10) < pacificToday()),
+    usedTotal: Number(f['Reports Total'] ?? 0) || 0,
   };
+}
+
+// Staff: create a complimentary report voucher (one free report, good for VOUCHER_DAYS days).
+async function createVoucher(company: string, contactName: string, email: string): Promise<{ link: string; expires: string; id: string }> {
+  const code = newLinkCode();
+  const expires = addDays(pacificToday(), VOUCHER_DAYS);
+  const d = await airtable(CUSTOMERS_TABLE, {
+    method: 'POST',
+    body: JSON.stringify({
+      typecast: true,
+      records: [{
+        fields: {
+          Company: company,
+          'Contact Name': contactName,
+          'Contact Email': email,
+          Plan: VOUCHER_PLAN,
+          'Subscription Status': 'Active',
+          'Link Code': code,
+          'Voucher Expires': expires,
+          'Signed Up': pacificToday(),
+          Notes: `Complimentary report voucher created ${pacificToday()}.`,
+        },
+      }],
+    }),
+  });
+  return { link: `https://www.caresearchgroup.com/report.html?c=${code}`, expires, id: d.records?.[0]?.id ?? '' };
 }
 
 async function logRequest(fields: Record<string, unknown>): Promise<string> {
@@ -934,7 +986,7 @@ function toBase64(bytes: Uint8Array): string {
 
 // Sends the finished PDF. Until caresearchgroup.com is verified in Resend, set no RESEND_FROM:
 // Resend's test sender (onboarding@resend.dev) can only deliver to the Resend account owner's own email.
-export async function emailReport(to: string, input: ReportInput, pdf: Uint8Array): Promise<{ sent: boolean; detail: string }> {
+export async function emailReport(to: string, input: ReportInput, pdf: Uint8Array, opts: { voucher?: boolean } = {}): Promise<{ sent: boolean; detail: string }> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return { sent: false, detail: 'RESEND_API_KEY is not set.' };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return { sent: false, detail: 'No valid contact email on file.' };
@@ -944,6 +996,12 @@ export async function emailReport(to: string, input: ReportInput, pdf: Uint8Arra
 <p style="font-size:18px;color:#1e1b4b;font-weight:bold;margin:0 0 12px">Your public records report is ready</p>
 <p style="margin:0 0 12px">Attached is report <strong>${escapeHtml(input.reportId)}</strong> for <strong>${escapeHtml(what)}</strong>.</p>
 <p style="margin:0 0 12px">Please review any flagged items and verify findings against the original sources before relying on them.</p>
+${opts.voucher ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px;margin:16px 0">
+<p style="margin:0 0 8px;font-weight:bold;color:#1e1b4b">Thanks for trying CA Research Group</p>
+<p style="margin:0 0 10px">This was your complimentary report. To run reports on every deal, choose a monthly plan. Your private link and reports arrive in about a minute.</p>
+<a href="https://www.caresearchgroup.com/" style="display:inline-block;background:#1e1b4b;color:#ffffff;padding:10px 16px;border-radius:6px;text-decoration:none;font-weight:bold">See plans</a>
+<p style="margin:10px 0 0;font-size:13px">Questions? Just reply to this email.</p>
+</div>` : ''}
 <p style="font-size:12px;color:#64748b;margin:16px 0 0">CA Research Group is not a law firm and does not provide legal advice. This report is not a title search, title insurance, appraisal, legal opinion, or consumer report.</p>
 </div>`;
   try {
@@ -954,6 +1012,7 @@ export async function emailReport(to: string, input: ReportInput, pdf: Uint8Arra
         from,
         to: [to],
         subject: `Your CA Research Group report ${input.reportId}`,
+        reply_to: 'william@caresearchgroup.com',
         html,
         attachments: [{ filename: `CA-Research-Group-${input.reportId}.pdf`, content: toBase64(pdf) }],
       }),
@@ -1060,7 +1119,10 @@ export async function GET(request: Request) {
       const c = await findCustomer(q('client'));
       if (!c) return jsonError('This link is not recognized.', 404);
       return new Response(
-        JSON.stringify({ ok: true, company: c.company, plan: c.plan, active: c.active, used: c.used, limit: c.limit >= 999999 ? null : c.limit, canRun: c.canRun }),
+        JSON.stringify({
+          ok: true, company: c.company, plan: c.plan, active: c.active, used: c.used, limit: c.limit >= 999999 ? null : c.limit, canRun: c.canRun,
+          voucher: c.voucher, expires: c.expires, expiresText: friendlyDate(c.expires), expired: c.expired, voucherUsed: c.voucher && c.usedTotal > 0,
+        }),
         { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } },
       );
     } catch {
@@ -1071,6 +1133,20 @@ export async function GET(request: Request) {
   const lookupToken = process.env.LOOKUP_TOKEN;
   if (!lookupToken) return jsonError('Setup not finished: LOOKUP_TOKEN is missing in Vercel. Add ?sample=1 to see the sample report.', 500);
   if (q('token') !== lookupToken) return jsonError('Not authorized.', 401);
+
+  if (q('voucher') === '1') {
+    const company = q('company').slice(0, 150);
+    const email = q('email').slice(0, 200);
+    if (!company || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return jsonError('Enter the company name and a valid email.', 400);
+    try {
+      const v = await createVoucher(company, q('contact').slice(0, 150), email);
+      return new Response(JSON.stringify({ ok: true, link: v.link, expires: v.expires, expiresText: friendlyDate(v.expires) }), {
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+      });
+    } catch (err) {
+      return jsonError(err instanceof Error ? err.message : 'Voucher could not be created.', 502);
+    }
+  }
   if (!q('address')) return jsonError('Add a property address, e.g. &address=123 Main St, Los Angeles', 400);
 
   try {
@@ -1129,6 +1205,11 @@ export async function POST(request: Request) {
 
   if (!customer.canRun) {
     await logRequest({ ...base, Status: 'Over plan limit' }).catch(() => '');
+    if (customer.voucher) {
+      return customer.usedTotal > 0
+        ? htmlPage('Complimentary report already used', 'Thank you for trying CA Research Group. To keep running reports, choose a monthly plan at caresearchgroup.com, or reply to our email and we will set you up.', 429)
+        : htmlPage('This voucher has expired', 'This complimentary report link has expired. Reply to our email or contact william@caresearchgroup.com and we will be happy to help.', 410);
+    }
     return htmlPage(
       'Monthly report limit reached',
       `Your plan includes ${customer.limit} reports per month and this month's reports have been used. Please contact CA Research Group to upgrade your plan or add reports.`,
@@ -1150,7 +1231,7 @@ export async function POST(request: Request) {
     );
     const pdf = await buildReportPdf(input, await loadLogo(url.origin));
     const courtsSearched = input.courts?.status === 'searched';
-    const mail = await emailReport(customer.email, input, pdf);
+    const mail = await emailReport(customer.email, input, pdf, { voucher: customer.voucher });
     await updateRequest(requestId, {
       Notes: mail.sent ? mail.detail : `Email not sent: ${mail.detail}`,
       'Report ID': input.reportId,
