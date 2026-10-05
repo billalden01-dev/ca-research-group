@@ -27,7 +27,7 @@ const PLANS: Plan[] = [
       'Corporate standing & entity verification',
       'Property lien & filing search',
       'Litigation history scan',
-      'PDF download with verified badge',
+      'Downloadable PDF reports',
       '60-day report archive',
       'Email support',
     ],
@@ -41,12 +41,9 @@ const PLANS: Plan[] = [
     features: [
       '25 comprehensive reports per month',
       '3 seats included',
-      'Automated continuous tracking alerts',
-      'Real-time lien & litigation monitoring',
+      'Ongoing monitoring with email alerts',
       'Full findings matrix with risk scoring',
-      'Priority 60-second pipeline processing',
-      'Unlimited report downloads',
-      'Email + SMS alert notifications',
+      'Priority processing',
       '180-day report archive',
       'Dedicated support channel',
     ],
@@ -61,12 +58,10 @@ const PLANS: Plan[] = [
       'Unlimited comprehensive reports',
       'Includes up to 10 seats',
       'Extra seats at $49/mo each',
-      'Role-based access controls',
-      'Automated continuous tracking alerts',
+      'Ongoing monitoring with email alerts',
       'White-label report branding',
       'Dedicated account manager',
       '365-day report archive',
-      'Audit trail exports',
     ],
   },
 ];
@@ -203,16 +198,16 @@ export default function App() {
           <div style={{ maxWidth: '980px', margin: '0 auto', padding: isMobile ? '20px 16px 56px 16px' : isShort ? '14px 20px 56px 20px' : '24px 20px 80px 20px', textAlign: 'center' }}>
             <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '27px' : isShort ? '36px' : '40px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.15', marginBottom: '4px' }}>Fast California Public-Record Research</h1>
             <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '20px' : isShort ? '26px' : '29px', fontWeight: 'normal', color: '#d97706', marginTop: '4px', marginBottom: isMobile ? '24px' : '28px' }}>for Hard Money Lenders, Legal Counsel<br />& Real Estate Professionals</h2>
-            <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>Liens, filings, and entity status from official California public records, compiled and checked in two steps into a clear PDF report in under 60 seconds.</p>
+            <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>Liens, filings, and entity status from official California public records, compiled and checked in two steps into a clear PDF report, typically in under 60 seconds.</p>
 
             <div style={{ maxWidth: '900px', margin: '0 auto 30px auto', textAlign: 'left', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '20px' }}>
               <div style={{ flex: 1, backgroundColor: '#f8fafc', padding: isMobile ? '18px' : isShort ? '18px 22px' : '22px 24px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
                 <strong style={{ fontFamily: SERIF, fontSize: isMobile ? '17px' : '19px', color: '#1e1b4b', display: 'block', marginBottom: '6px' }}>⚡ Faster Decisions</strong>
-                <p style={{ margin: '0', fontSize: isMobile ? '14px' : '15px', lineHeight: '1.6', color: '#475569' }}>Whether you are closing a loan or walking away from one, get the public-record picture quickly: liens, filings, and entity status in a report that is typically ready in under a minute.</p>
+                <p style={{ margin: '0', fontSize: isMobile ? '14px' : '15px', lineHeight: '1.6', color: '#475569' }}>Closing a loan or walking away? Get liens, filings, and entity status, usually in under a minute.</p>
               </div>
               <div style={{ flex: 1, backgroundColor: '#f8fafc', padding: isMobile ? '18px' : isShort ? '18px 22px' : '22px 24px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
                 <strong style={{ fontFamily: SERIF, fontSize: isMobile ? '17px' : '19px', color: '#1e1b4b', display: 'block', marginBottom: '6px' }}>🛡️ Fewer Manual Errors</strong>
-                <p style={{ margin: '0', fontSize: isMobile ? '14px' : '15px', lineHeight: '1.6', color: '#475569' }}>Automated retrieval and a two-step verification check help reduce the typos and missed details that come with manual lookups and hand-keyed intake forms.</p>
+                <p style={{ margin: '0', fontSize: isMobile ? '14px' : '15px', lineHeight: '1.6', color: '#475569' }}>Automated retrieval and a two-step check reduce typos and missed details from manual lookups.</p>
               </div>
             </div>
 
@@ -297,7 +292,7 @@ export default function App() {
                     })}
                   </div>
                   </div>
-                  <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748b', maxWidth: '640px', margin: '40px auto 0 auto', lineHeight: '1.6' }}>Reports are compiled from public records and should be independently verified. See the legal notice below.</p>
+                  <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748b', maxWidth: '640px', margin: '40px auto 0 auto', lineHeight: '1.6' }}>* Reports are compiled from public records and should be independently verified. See the legal notice below.</p>
                 </div>
               )}
 
