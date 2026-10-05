@@ -64,8 +64,8 @@ export default function App() {
         {/* HOME COMPONENT */}
         {currentPage === 'home' && (
           <div style={{ maxWidth: '850px', margin: '0 auto', padding: '60px 20px', textAlign: 'center' }}>
-            <h1 style={{ fontSize: '42px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.1', marginBottom: '4px' }}>Built for Institutional Risk Management,</h1>
-            <h2 style={{ fontSize: '36px', fontWeight: 'bold', color: '#d97706', marginTop: '4px', marginBottom: '40px' }}>Legal Counsel, & Private Funds</h2>
+            <h1 style={{ fontSize: '38px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.1', marginBottom: '4px' }}>Fast California Public-Record Research</h1>
+<h2 style={{ fontSize: '30px', fontWeight: 'bold', color: '#d97706', marginTop: '4px', marginBottom: '40px' }}>for Lenders, Brokers, Investors, Title Companies & Counsel</h2>
             <p style={{ fontSize: '15px', color: '#475569', maxWidth: '640px', margin: '0 auto 40px auto', lineHeight: '1.6' }}>Cross-referencing real-time public records, structural entity tracking, and high-velocity litigation indexing for multi-industry compliance and due diligence.</p>
             
             <div style={{ maxWidth: '640px', margin: '0 auto 40px auto', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '20px' }}>
