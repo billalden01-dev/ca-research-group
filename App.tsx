@@ -192,16 +192,16 @@ export default function App() {
           <div style={{ maxWidth: '920px', margin: '0 auto', padding: '30px 20px 80px 20px', textAlign: 'center' }}>
             <h1 style={{ fontSize: '42px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.1', marginBottom: '4px' }}>Fast California Public-Record Research</h1>
             <h2 style={{ fontSize: '30px', fontWeight: 'bold', color: '#d97706', marginTop: '4px', marginBottom: '40px' }}>for Hard Money Lenders, Legal Counsel<br />& Real Estate Professionals</h2>
-            <p style={{ fontSize: '19px', color: '#475569', maxWidth: '720px', margin: '0 auto 44px auto', lineHeight: '1.65' }}>Liens, filings, and entity status from official California public records, compiled into a clear PDF report in under 60 seconds.</p>
+            <p style={{ fontSize: '18px', color: '#475569', maxWidth: '680px', margin: '0 auto 40px auto', lineHeight: '1.65' }}>Liens, filings, and entity status from official California public records, compiled into a clear PDF report in under 60 seconds.</p>
 
-            <div style={{ maxWidth: '740px', margin: '0 auto 44px auto', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={{ backgroundColor: '#f8fafc', padding: '26px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
-                <strong style={{ fontSize: '18px', color: '#1e1b4b', display: 'block', marginBottom: '8px' }}>⚡ Faster Decisions</strong>
-                <p style={{ margin: '0', fontSize: '16px', lineHeight: '1.6', color: '#475569' }}>Whether you are closing a loan or walking away from one, get the public-record picture quickly: liens, filings, and entity status in a report that is typically ready in under a minute.</p>
+            <div style={{ maxWidth: '680px', margin: '0 auto 40px auto', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ backgroundColor: '#f8fafc', padding: '22px 24px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+                <strong style={{ fontSize: '17px', color: '#1e1b4b', display: 'block', marginBottom: '6px' }}>⚡ Faster Decisions</strong>
+                <p style={{ margin: '0', fontSize: '15px', lineHeight: '1.6', color: '#475569' }}>Whether you are closing a loan or walking away from one, get the public-record picture quickly: liens, filings, and entity status in a report that is typically ready in under a minute.</p>
               </div>
-              <div style={{ backgroundColor: '#f8fafc', padding: '26px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
-                <strong style={{ fontSize: '18px', color: '#1e1b4b', display: 'block', marginBottom: '8px' }}>🛡️ Fewer Manual Errors</strong>
-                <p style={{ margin: '0', fontSize: '16px', lineHeight: '1.6', color: '#475569' }}>Automated retrieval and a two-step verification check help reduce the typos and missed details that come with manual lookups and hand-keyed intake forms.</p>
+              <div style={{ backgroundColor: '#f8fafc', padding: '22px 24px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+                <strong style={{ fontSize: '17px', color: '#1e1b4b', display: 'block', marginBottom: '6px' }}>🛡️ Fewer Manual Errors</strong>
+                <p style={{ margin: '0', fontSize: '15px', lineHeight: '1.6', color: '#475569' }}>Automated retrieval and a two-step verification check help reduce the typos and missed details that come with manual lookups and hand-keyed intake forms.</p>
               </div>
             </div>
 
