@@ -47,8 +47,16 @@ export type Verification = { overall: 'Verified' | 'Needs attention'; checks: Ch
 export type SanctionsMatch = { checkedName: string; listedName: string; type: string; programs: string; score: number };
 export type SanctionsResult = { searchedAt: Date; namesChecked: string[]; available: boolean; matches: SanctionsMatch[] };
 
-export type CourtCase = { caseName: string; court: string; dateFiled: string; dateTerminated: string; docketNumber: string; url: string; bankruptcy: boolean; chapter: string };
-export type CourtResult = { searchedAt: Date; searchedFor: string; status: 'searched' | 'unavailable' | 'not_connected'; total: number; cases: CourtCase[] };
+export type CourtCase = { caseName: string; court: string; dateFiled: string; dateTerminated: string; docketNumber: string; url: string; bankruptcy: boolean; chapter: string; kind: string };
+export type CourtResult = {
+  searchedAt: Date;
+  searchedFor: string;
+  status: 'searched' | 'unavailable' | 'not_connected';
+  total: number;
+  bankruptcyTotal: number;
+  bankruptcyCases: CourtCase[];
+  otherCases: CourtCase[];
+};
 
 const timeout = (ms: number) => AbortSignal.timeout(ms);
 
@@ -165,32 +173,66 @@ export async function screenSanctions(names: string[]): Promise<SanctionsResult>
 
 const CL_SEARCH = 'https://www.courtlistener.com/api/rest/v4/search/';
 
+// All U.S. bankruptcy courts in CourtListener (jurisdiction FB).
+const BANKRUPTCY_COURTS =
+  'almb alnb alsb akb arb areb arwb cacb caeb canb casb cob ctb deb dcb flmb flnb flsb gamb ganb gasb hib idb ilcb ilnb ilsb innb insb ianb iasb ksb kyeb kywb laeb lamb lawb meb mdb mab mieb miwb mnb msnb mssb moeb mowb mtb nebraskab nvb nhb njb nmb nyeb nynb nysb nywb nceb ncmb ncwb ndb ohnb ohsb okeb oknb okwb orb paeb pamb pawb rib scb sdb tneb tnmb tnwb tennesseeb txeb txnb txsb txwb utb vtb vaeb vawb waeb wawb wvnb wvsb wieb wiwb wyb gub nmib prb vib';
+const BK_SET = new Set(BANKRUPTCY_COURTS.split(' '));
+
+function toCourtCase(r: Record<string, unknown>, searchedFor: string): CourtCase {
+  const court = str(r.court);
+  const courtId = str(r.court_id);
+  const url = str(r.docket_absolute_url);
+  const caseName = str(r.caseName ?? r.case_name);
+  const docketNumber = str(r.docketNumber);
+  const bankruptcy = BK_SET.has(courtId) || /bankruptcy/i.test(court);
+  let kind = 'Lawsuit or other federal case';
+  if (bankruptcy) {
+    const adversary = /-ap-/i.test(docketNumber) || /\sv\.?\s/i.test(caseName);
+    const looksLikeDebtor = !adversary && nameSimilarity(caseName.replace(/^in re:?\s*/i, ''), searchedFor) >= 0.8;
+    kind = adversary ? 'Adversary proceeding (lawsuit inside a bankruptcy)' : looksLikeDebtor ? 'Bankruptcy filing - company may be the debtor' : 'Bankruptcy case';
+  }
+  return {
+    caseName,
+    court,
+    dateFiled: str(r.dateFiled).slice(0, 10),
+    dateTerminated: str(r.dateTerminated).slice(0, 10),
+    docketNumber,
+    url: url ? `https://www.courtlistener.com${url}` : '',
+    bankruptcy,
+    chapter: str(r.chapter),
+    kind,
+  };
+}
+
+async function clSearch(params: Record<string, string>, token: string) {
+  const res = await fetch(`${CL_SEARCH}?${new URLSearchParams({ type: 'r', order_by: 'dateFiled desc', ...params })}`, {
+    headers: { Authorization: `Token ${token}`, Accept: 'application/json' },
+    signal: timeout(20000),
+  });
+  if (!res.ok) throw new Error(`CourtListener returned ${res.status}`);
+  return (await res.json()) as { count?: number; results?: Record<string, unknown>[] };
+}
+
 export async function searchFederalCases(name: string, token: string | undefined): Promise<CourtResult> {
   const searchedAt = new Date();
-  if (!token) return { searchedAt, searchedFor: name, status: 'not_connected', total: 0, cases: [] };
+  const empty = { total: 0, bankruptcyTotal: 0, bankruptcyCases: [], otherCases: [] };
+  if (!token) return { searchedAt, searchedFor: name, status: 'not_connected', ...empty };
   try {
-    const params = new URLSearchParams({ type: 'r', party_name: `"${name}"`, order_by: 'dateFiled desc' });
-    const res = await fetch(`${CL_SEARCH}?${params}`, { headers: { Authorization: `Token ${token}` }, signal: timeout(20000) });
-    if (!res.ok) throw new Error(`CourtListener returned ${res.status}`);
-    const data = (await res.json()) as { count?: number; results?: Record<string, unknown>[] };
-    const cases: CourtCase[] = (data.results ?? []).slice(0, 10).map((r) => {
-      const court = str(r.court);
-      const courtId = str(r.court_id);
-      const url = str(r.docket_absolute_url);
-      return {
-        caseName: str(r.caseName ?? r.case_name),
-        court,
-        dateFiled: str(r.dateFiled).slice(0, 10),
-        dateTerminated: str(r.dateTerminated).slice(0, 10),
-        docketNumber: str(r.docketNumber),
-        url: url ? `https://www.courtlistener.com${url}` : '',
-        bankruptcy: /bankruptcy/i.test(court) || /b$/.test(courtId),
-        chapter: str(r.chapter),
-      };
-    });
-    return { searchedAt, searchedFor: name, status: 'searched', total: typeof data.count === 'number' ? data.count : cases.length, cases };
+    const party = `"${name}"`;
+    const [all, bk] = await Promise.all([clSearch({ party_name: party }, token), clSearch({ party_name: party, court: BANKRUPTCY_COURTS }, token)]);
+    const bankruptcyCases = (bk.results ?? []).slice(0, 10).map((r) => toCourtCase(r, name));
+    // Possible debtor filings first, then newest.
+    const rank = (c: CourtCase) => (c.kind.includes('debtor') ? 0 : c.kind === 'Bankruptcy case' ? 1 : 2);
+    bankruptcyCases.sort((a, b) => rank(a) - rank(b));
+    const otherCases = (all.results ?? [])
+      .map((r) => toCourtCase(r, name))
+      .filter((c) => !c.bankruptcy)
+      .slice(0, 10);
+    const bankruptcyTotal = typeof bk.count === 'number' ? bk.count : bankruptcyCases.length;
+    const total = typeof all.count === 'number' ? all.count : otherCases.length + bankruptcyTotal;
+    return { searchedAt, searchedFor: name, status: 'searched', total, bankruptcyTotal, bankruptcyCases, otherCases };
   } catch {
-    return { searchedAt, searchedFor: name, status: 'unavailable', total: 0, cases: [] };
+    return { searchedAt, searchedFor: name, status: 'unavailable', ...empty };
   }
 }
 
@@ -381,17 +423,32 @@ const SAMPLE_INPUT: ReportInput = {
     searchedAt: new Date(),
     searchedFor: 'Sample Holdings LLC',
     status: 'searched',
-    total: 1,
-    cases: [
+    total: 2,
+    bankruptcyTotal: 1,
+    bankruptcyCases: [
       {
-        caseName: 'In re Example Debtor, sample creditor Sample Holdings LLC',
+        caseName: 'Example Creditor v. Sample Holdings LLC',
         court: 'United States Bankruptcy Court, C.D. California',
         dateFiled: '2022-08-09',
         dateTerminated: '2023-02-14',
-        docketNumber: '2:22-bk-00000',
+        docketNumber: '2:22-ap-00000',
         url: '',
         bankruptcy: true,
-        chapter: '7',
+        chapter: '',
+        kind: 'Adversary proceeding (lawsuit inside a bankruptcy)',
+      },
+    ],
+    otherCases: [
+      {
+        caseName: 'Sample Holdings LLC v. Example Contractor Inc.',
+        court: 'District Court, C.D. California',
+        dateFiled: '2021-05-03',
+        dateTerminated: '',
+        docketNumber: '2:21-cv-00000',
+        url: '',
+        bankruptcy: false,
+        chapter: '',
+        kind: 'Lawsuit or other federal case',
       },
     ],
   },
@@ -481,7 +538,7 @@ class Writer {
     this.y -= opts.gap ?? 6;
   }
 
-  heading(text: string, keepWith = 110) {
+  heading(text: string, keepWith = 80) {
     this.ensure(44 + keepWith);
     this.y -= 10;
     this.page.drawText(text, { x: MARGIN, y: this.y - 15, size: 15, font: this.serif, color: NAVY });
@@ -644,7 +701,8 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
         ? `No matches on the OFAC Specially Designated Nationals list for ${sx.namesChecked.map((n) => `"${n}"`).join(' or ')}.`
         : `${sx.matches.length} possible name match${sx.matches.length === 1 ? '' : 'es'}. Review required (see section 2).`;
   const ct = input.courts;
-  const bk = ct ? ct.cases.filter((c) => c.bankruptcy).length : 0;
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  const debtorCount = ct ? ct.bankruptcyCases.filter((c) => c.kind.includes('debtor')).length : 0;
   const courtSummary = !ct
     ? 'Not searched (no business name provided).'
     : ct.status === 'not_connected'
@@ -653,7 +711,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
         ? 'The court archive could not be reached at the time of the search.'
         : ct.total === 0
           ? 'No federal or bankruptcy cases found in the CourtListener archive.'
-          : `${ct.total} federal case${ct.total === 1 ? '' : 's'} found${bk ? `, including ${bk} bankruptcy case${bk === 1 ? '' : 's'}` : ''} (see section 3).`;
+          : `${plural(ct.total, 'federal case')} found, including ${plural(ct.bankruptcyTotal, 'case')} in bankruptcy courts${debtorCount ? `. ${plural(debtorCount, 'filing')} where the company may be the debtor - review` : ''} (see sections 3 and 4).`;
   w.heading('Summary of findings');
   w.table(
     ['Source', 'Searched', 'Result'],
@@ -695,7 +753,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
     w.paragraph(`The California Secretary of State business search returned no match for "${input.entitySearch.searchedFor}". Check the spelling or try the exact registered name.`);
   } else {
     records.slice(0, 3).forEach((e, i) => {
-      w.ensure(120);
+      w.ensure(100);
       if (records.length > 1) w.paragraph(`Match ${i + 1} of ${records.length}`, { font: bold, color: GOLD, size: 10, gap: 2 });
       w.keyValues([
         ['Entity name', clean(e.name)],
@@ -721,7 +779,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
 
   // Section 2: sanctions
   if (sx) {
-    w.heading('2. Sanctions screening');
+    w.heading('2. Sanctions screening', 50);
     if (!sx.available) {
       w.paragraph('The U.S. Treasury OFAC sanctions list could not be downloaded at the time of this search, so no screening result is available. Search it directly at sanctionssearch.ofac.treas.gov before relying on this report.');
     } else if (sx.matches.length === 0) {
@@ -737,25 +795,43 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
     w.paragraph(`Source: U.S. Department of the Treasury, Office of Foreign Assets Control, SDN list. Screened on ${fmtDate(sx.searchedAt)}.`, { size: 8.5, color: MUTED });
   }
 
-  // Section 3: federal courts
+  // Sections 3 and 4: bankruptcy and other federal courts
   if (ct && ct.status !== 'not_connected') {
-    w.heading('3. Federal court and bankruptcy cases');
-    if (ct.status === 'unavailable') {
-      w.paragraph('The CourtListener federal court archive could not be reached at the time of this search. Search PACER (pacer.uscourts.gov) directly before relying on this report.');
-    } else if (ct.cases.length === 0) {
-      w.paragraph(`No federal or bankruptcy cases naming "${ct.searchedFor}" as a party were found in the CourtListener archive.`);
-    } else {
-      if (ct.total > ct.cases.length) w.paragraph(`Showing the ${ct.cases.length} most recent of ${ct.total} cases found.`, { size: 9, color: MUTED, gap: 4 });
+    const caseTable = (cases: CourtCase[]) =>
       w.table(
-        ['Case', 'Court', 'Filed / closed', 'Docket'],
-        [190, 145, 82, CONTENT_W - 417],
-        ct.cases.map((c) => [
-          `${c.caseName}${c.bankruptcy && c.chapter ? ` (Chapter ${c.chapter})` : ''}`,
+        ['Case', 'Court', 'Filed', 'Closed', 'Docket'],
+        [168, 128, 58, 58, CONTENT_W - 412],
+        cases.map((c) => [
+          `${c.caseName}${c.chapter ? ` (Chapter ${c.chapter})` : ''}${c.bankruptcy ? `\n${c.kind}` : ''}`,
           c.court,
-          `${c.dateFiled || 'Unknown'}${c.dateTerminated ? ` / ${c.dateTerminated}` : ' / open or unknown'}`,
-          c.docketNumber || 'Not listed',
+          c.dateFiled || '-',
+          c.dateTerminated || '-',
+          c.docketNumber || '-',
         ]),
       );
+
+    w.heading('3. Bankruptcy court cases', 70);
+    if (ct.status === 'unavailable') {
+      w.paragraph('The CourtListener federal court archive could not be reached at the time of this search. Search PACER (pacer.uscourts.gov) directly before relying on this report.');
+    } else if (ct.bankruptcyCases.length === 0) {
+      w.paragraph(`No bankruptcy court cases naming "${ct.searchedFor}" as a party were found in the CourtListener archive.`);
+    } else {
+      w.paragraph(
+        `${plural(ct.bankruptcyTotal, 'bankruptcy court case')} name this business as a party. ${ct.bankruptcyTotal > ct.bankruptcyCases.length ? `Showing ${ct.bankruptcyCases.length}, with possible debtor filings first, then the most recent.` : ''} An adversary proceeding is a lawsuit inside someone's bankruptcy and does not by itself mean this business went bankrupt.`,
+        { size: 9, color: MUTED, gap: 6 },
+      );
+      caseTable(ct.bankruptcyCases);
+    }
+
+    if (ct.status === 'searched') {
+      w.heading('4. Other federal court cases', 70);
+      if (ct.otherCases.length === 0) {
+        w.paragraph(`No other federal court cases naming "${ct.searchedFor}" as a party were found in the CourtListener archive.`);
+      } else {
+        const otherTotal = Math.max(ct.total - ct.bankruptcyTotal, ct.otherCases.length);
+        if (otherTotal > ct.otherCases.length) w.paragraph(`Showing the ${ct.otherCases.length} most recent of about ${otherTotal} cases.`, { size: 9, color: MUTED, gap: 4 });
+        caseTable(ct.otherCases);
+      }
     }
     w.paragraph(
       `Source: CourtListener (Free Law Project) archive of federal court and bankruptcy records, searched for party name "${ct.searchedFor}" on ${fmtDate(ct.searchedAt)}. This archive holds many but not all federal cases, so a "no cases found" result does not prove none exist. PACER is the complete federal source.`,
@@ -764,7 +840,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
   }
 
   // Limits
-  w.heading('Sources and limits');
+  w.heading('Sources and limits', 60);
   w.paragraph(LIMITS_TEXT, { size: 9, color: MUTED });
 
   // Footers with page numbers
