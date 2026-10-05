@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Request a Report - CA Research Group</title>
+<style>
+  body { margin: 0; background: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1e293b; }
+  .wrap { max-width: 560px; margin: 36px auto; padding: 0 16px; }
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 28px; box-shadow: 0 10px 28px rgba(30,27,75,0.08); }
+  .logo { height: 52px; display: block; margin: 0 auto 18px; }
+  h1 { font-family: Georgia, serif; color: #1e1b4b; font-size: 24px; margin: 0 0 4px; text-align: center; }
+  .company { text-align: center; color: #d97706; font-weight: bold; font-size: 16px; margin: 0 0 6px; }
+  .usage { text-align: center; color: #64748b; font-size: 13px; margin: 0 0 18px; }
+  label { display: block; font-size: 13px; font-weight: bold; color: #1e1b4b; margin: 16px 0 6px; }
+  input[type=text], select { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; background: #fff; }
+  .cert { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: #475569; line-height: 1.5; margin-top: 20px; }
+  .cert input { margin-top: 3px; transform: scale(1.15); }
+  button { width: 100%; margin-top: 22px; padding: 14px; background: #1e1b4b; color: #fff; border: 0; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; }
+  button:disabled { background: #94a3b8; cursor: not-allowed; }
+  .note { font-size: 12px; color: #64748b; text-align: center; margin-top: 14px; line-height: 1.5; }
+  .msg { text-align: center; color: #475569; line-height: 1.6; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <img class="logo" src="/logo-tight.png" alt="CA Research Group">
+    <h1>Request a Report</h1>
+
+    <p id="loading" class="msg">Checking your link...</p>
+    <p id="problem" class="msg hidden"></p>
+
+    <div id="ready" class="hidden">
+      <p id="company" class="company"></p>
+      <p id="usage" class="usage"></p>
+      <form id="f" method="post" action="/api/report-pdf" target="_blank">
+        <input type="hidden" name="c" id="code">
+
+        <label for="address">Property address or APN</label>
+        <input id="address" name="address" type="text" required placeholder="e.g. 123 Main St, Los Angeles, CA">
+
+        <label for="name">Business or entity name (optional)</label>
+        <input id="name" name="name" type="text" placeholder="e.g. Acme Holdings LLC">
+
+        <label for="county">County (optional)</label>
+        <input id="county" name="county" type="text" placeholder="e.g. Los Angeles">
+
+        <label for="use">How will you use this report? (optional)</label>
+        <select id="use" name="use">
+          <option value="">Select one</option>
+          <option>Loan underwriting</option>
+          <option>Acquisition due diligence</option>
+          <option>Title or escrow</option>
+          <option>Legal matter</option>
+          <option>Other</option>
+        </select>
+
+        <label class="cert">
+          <input type="checkbox" name="certify" value="yes" required>
+          <span>I certify that I will use this report only for a lawful business purpose related to a real estate, lending, title, or legal matter. I will not use it to decide eligibility for credit, employment, insurance, or housing for any individual, and I understand it contains only information from public sources.</span>
+        </label>
+
+        <button id="go" type="submit">Run report</button>
+      </form>
+      <p class="note">Your PDF report opens in a new tab and can take up to a minute.<br>This link is private to your company. Please do not share it.</p>
+    </div>
+  </div>
+</div>
+<script>
+  (function () {
+    var code = new URLSearchParams(location.search).get('c') || '';
+    var $ = function (id) { return document.getElementById(id); };
+    function problem(text) { $('loading').classList.add('hidden'); $('problem').textContent = text; $('problem').classList.remove('hidden'); }
+    function load() {
+      fetch('/api/report-pdf?client=' + encodeURIComponent(code), { cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d.ok) return problem('This report link is not valid. Please contact CA Research Group for your current private link.');
+          if (!d.active) return problem('Your subscription is not active right now. Please contact CA Research Group to reactivate it.');
+          $('loading').classList.add('hidden');
+          $('ready').classList.remove('hidden');
+          $('code').value = code;
+          $('company').textContent = d.company;
+          $('usage').textContent = (d.plan ? d.plan + ' · ' : '') + (d.limit === null ? d.used + ' reports this month (unlimited plan)' : d.used + ' of ' + d.limit + ' reports used this month');
+          if (!d.canRun) { $('go').disabled = true; $('go').textContent = 'Monthly limit reached'; }
+        })
+        .catch(function () { problem('We could not check your link just now. Please try again in a few minutes.'); });
+    }
+    if (!code) problem('This page needs your private report link. Please use the link CA Research Group sent you.'); else load();
+    $('f').addEventListener('submit', function () {
+      $('go').disabled = true; $('go').textContent = 'Running report...';
+      setTimeout(function () { $('go').disabled = false; $('go').textContent = 'Run report'; load(); }, 20000);
+    });
+  })();
+</script>
+</body>
+</html>
