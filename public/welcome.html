@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Welcome - CA Research Group</title>
+<style>
+  body { margin: 0; background: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1e293b; }
+  .wrap { max-width: 560px; margin: 40px auto; padding: 0 16px; }
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 30px; box-shadow: 0 10px 28px rgba(30,27,75,0.08); text-align: center; }
+  .logo { height: 52px; display: block; margin: 0 auto 18px; }
+  h1 { font-family: Georgia, serif; color: #1e1b4b; font-size: 26px; margin: 0 0 8px; }
+  p { color: #475569; line-height: 1.6; margin: 0 0 14px; }
+  .link { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; font-size: 13px; word-break: break-all; color: #1e1b4b; margin: 6px 0 12px; }
+  .btn { display: block; width: 100%; box-sizing: border-box; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: bold; text-decoration: none; cursor: pointer; border: 0; margin-top: 10px; }
+  .primary { background: #1e1b4b; color: #fff; }
+  .secondary { background: #fff; color: #1e1b4b; border: 1px solid #cbd5e1; }
+  .small { font-size: 12px; color: #64748b; margin-top: 16px; }
+  .spinner { width: 28px; height: 28px; border: 3px solid #e2e8f0; border-top-color: #d97706; border-radius: 50%; margin: 10px auto 16px; animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap"><div class="card">
+  <img class="logo" src="/logo-tight.png" alt="CA Research Group">
+
+  <div id="wait">
+    <h1>Payment received</h1>
+    <div class="spinner"></div>
+    <p>Setting up your account. This usually takes a few seconds.</p>
+  </div>
+
+  <div id="ready" class="hidden">
+    <h1>Welcome aboard</h1>
+    <p id="who"></p>
+    <p>This is your company's private report link. No login is needed. Bookmark it and keep it private.</p>
+    <div class="link" id="link"></div>
+    <button class="btn secondary" id="copy" type="button">Copy link</button>
+    <a class="btn primary" id="first" href="#">Run your first report now &rarr;</a>
+    <p class="small" id="emailed"></p>
+  </div>
+
+  <div id="slow" class="hidden">
+    <h1>Payment received</h1>
+    <p>Your account is still being set up. Your private report link will arrive by email within a few minutes.</p>
+    <p class="small">Didn't get it? Email <a href="mailto:william@caresearchgroup.com">william@caresearchgroup.com</a> and we'll send it right away.</p>
+  </div>
+</div></div>
+<script>
+  (function () {
+    var $ = function (id) { return document.getElementById(id); };
+    var sid = new URLSearchParams(location.search).get('session_id') || '';
+    var tries = 0;
+    function show(id) { ['wait', 'ready', 'slow'].forEach(function (x) { $(x).classList.toggle('hidden', x !== id); }); }
+    function check() {
+      tries++;
+      fetch('/api/stripe?session_id=' + encodeURIComponent(sid), { cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d.ready) {
+            $('who').textContent = d.company ? 'Your subscription for ' + d.company + ' is active.' : 'Your subscription is active.';
+            $('link').textContent = d.link;
+            var q = new URLSearchParams({ c: d.code });
+            ['address', 'name', 'county', 'use'].forEach(function (k) { if (d.first && d.first[k]) q.set(k, d.first[k]); });
+            $('first').href = '/report.html?' + q.toString();
+            $('emailed').textContent = d.email ? 'We also emailed this link to ' + d.email + '.' : '';
+            $('copy').onclick = function () {
+              navigator.clipboard.writeText(d.link).then(function () { $('copy').textContent = 'Copied'; }, function () {});
+            };
+            show('ready');
+          } else if (tries < 20) {
+            setTimeout(check, 2000);
+          } else {
+            show('slow');
+          }
+        })
+        .catch(function () { if (tries < 20) setTimeout(check, 3000); else show('slow'); });
+    }
+    if (!sid) show('slow'); else check();
+  })();
+</script>
+</body>
+</html>
