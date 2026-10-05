@@ -228,8 +228,8 @@ export default function App() {
         {/* HOME COMPONENT */}
         {currentPage === 'home' && (
           <div style={{ maxWidth: '980px', margin: '0 auto', padding: isMobile ? '20px 16px 56px 16px' : isShort ? '14px 20px 56px 20px' : '24px 20px 80px 20px', textAlign: 'center' }}>
-            <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '27px' : isShort ? '36px' : '40px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.15', marginBottom: '4px', textWrap: 'balance' } as React.CSSProperties}>Fast California Public-Record Research</h1>
-            <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '20px' : isShort ? '26px' : '29px', fontWeight: 'normal', color: '#d97706', marginTop: '4px', marginBottom: isMobile ? '24px' : '28px', textWrap: 'balance' } as React.CSSProperties}>for Hard Money Lenders, Legal Counsel{isMobile ? ' ' : <br />}& Real Estate Professionals</h2>
+            <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '32px' : isShort ? '46px' : '54px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.12', marginBottom: '6px', textWrap: 'balance' } as React.CSSProperties}>Fast California Public-Record Research</h1>
+            <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '22px' : isShort ? '30px' : '34px', fontWeight: 'normal', color: '#d97706', marginTop: '6px', marginBottom: isMobile ? '24px' : '28px', textWrap: 'balance' } as React.CSSProperties}>for Hard Money Lenders, Legal Counsel{isMobile ? ' ' : <br />}& Real Estate Professionals</h2>
             <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>Liens, filings, and entity status from official California public records, compiled and checked in two steps into a clear PDF report, typically in under 60 seconds.</p>
 
             <div style={{ maxWidth: '900px', margin: '0 auto 30px auto', textAlign: 'left', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '20px' }}>
