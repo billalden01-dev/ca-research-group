@@ -187,7 +187,7 @@ export default function App() {
 
       {/* NAVBAR */}
       <nav style={{ borderBottom: '1px solid #e2e8f0', padding: isMobile ? '12px 16px' : isShort ? '10px 30px' : '15px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ffffff', flexWrap: 'wrap', gap: '15px' }}>
-        <img src="/logo-clean.png" alt="CA Research Group" onClick={() => handleNavigate('home')} style={{ height: isMobile ? '52px' : isShort ? '60px' : '72px', maxWidth: '100%', cursor: 'pointer' }} />
+        <img src="/logo-tight.png" alt="CA Research Group" onClick={() => handleNavigate('home')} style={{ height: isMobile ? '44px' : isShort ? '54px' : '62px', maxWidth: '100%', cursor: 'pointer' }} />
         <div style={{ display: 'flex', gap: isMobile ? '14px' : '20px', fontSize: isMobile ? '13px' : '14px' }}>
           <span onClick={() => handleNavigate('home')} style={navLink('home')}>Solutions</span>
           <span onClick={() => handleNavigate('how')} style={navLink('how')}>How It Works</span>
@@ -203,7 +203,7 @@ export default function App() {
           <div style={{ maxWidth: '920px', margin: '0 auto', padding: isMobile ? '20px 16px 56px 16px' : isShort ? '14px 20px 56px 20px' : '24px 20px 80px 20px', textAlign: 'center' }}>
             <h1 style={{ fontSize: isMobile ? '28px' : isShort ? '38px' : '42px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.15', marginBottom: '4px' }}>Fast California Public-Record Research</h1>
             <h2 style={{ fontSize: isMobile ? '21px' : isShort ? '27px' : '30px', fontWeight: 'bold', color: '#d97706', marginTop: '4px', marginBottom: isMobile ? '24px' : '28px' }}>for Hard Money Lenders, Legal Counsel<br />& Real Estate Professionals</h2>
-            <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65' }}>Liens, filings, and entity status from official California public records, compiled into a clear PDF report in under 60 seconds.</p>
+            <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>Liens, filings, and entity status from official California public records, compiled and checked in two steps into a clear PDF report in under 60 seconds.</p>
 
             <div style={{ maxWidth: '900px', margin: '0 auto 30px auto', textAlign: 'left', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '20px' }}>
               <div style={{ flex: 1, backgroundColor: '#f8fafc', padding: isMobile ? '18px' : isShort ? '18px 22px' : '22px 24px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
