@@ -73,21 +73,28 @@
   (function () {
     var code = new URLSearchParams(location.search).get('c') || '';
     var $ = function (id) { return document.getElementById(id); };
-    function problem(text) { $('loading').classList.add('hidden'); $('problem').textContent = text; $('problem').classList.remove('hidden'); }
+    function problem(text, plans) {
+      $('loading').classList.add('hidden'); $('problem').textContent = text; $('problem').classList.remove('hidden');
+      if (plans) { var a = document.createElement('a'); a.href = '/'; a.textContent = 'See plans'; a.style.cssText = 'display:block;margin-top:18px;padding:14px;background:#1e1b4b;color:#fff;border-radius:10px;font-weight:bold;text-decoration:none'; $('problem').appendChild(a); }
+    }
     function load() {
       fetch('/api/report-pdf?client=' + encodeURIComponent(code), { cache: 'no-store' })
         .then(function (r) { return r.json(); })
         .then(function (d) {
           if (!d.ok) return problem('This report link is not valid. Please contact CA Research Group for your current private link.');
           if (!d.active) return problem('Your subscription is not active right now. Please contact CA Research Group to reactivate it.');
+          if (d.voucher && d.voucherUsed) return problem('Thank you for trying CA Research Group. Your complimentary report has been used. To keep running reports, choose a monthly plan.', true);
+          if (d.voucher && d.expired) return problem('This complimentary report link expired on ' + d.expiresText + '. Contact william@caresearchgroup.com and we will be happy to help.', true);
           $('loading').classList.add('hidden');
           $('ready').classList.remove('hidden');
           $('code').value = code;
           var pre = new URLSearchParams(location.search);
           ['address', 'name', 'county', 'use'].forEach(function (k) { var v = pre.get(k); if (v && !$(k).value) $(k).value = v; });
           $('company').textContent = d.company;
-          $('usage').textContent = (d.plan ? d.plan + ' · ' : '') + (d.limit === null ? d.used + ' reports this month (unlimited plan)' : d.used + ' of ' + d.limit + ' reports used this month');
-          if (!d.canRun) { $('go').disabled = true; $('go').textContent = 'Monthly limit reached'; }
+          $('usage').textContent = d.voucher
+            ? 'Your complimentary report · good through ' + d.expiresText
+            : (d.plan ? d.plan + ' · ' : '') + (d.limit === null ? d.used + ' reports this month (unlimited plan)' : d.used + ' of ' + d.limit + ' reports used this month');
+          if (!d.canRun) { $('go').disabled = true; $('go').textContent = d.voucher ? 'Not available' : 'Monthly limit reached'; }
         })
         .catch(function () { problem('We could not check your link just now. Please try again in a few minutes.'); });
     }
