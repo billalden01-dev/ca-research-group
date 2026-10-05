@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Run a Report - CA Research Group (private)</title>
+<style>
+  body { margin: 0; background: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1e293b; }
+  .wrap { max-width: 520px; margin: 40px auto; padding: 0 16px; }
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 28px; box-shadow: 0 10px 28px rgba(30,27,75,0.08); }
+  img { height: 52px; display: block; margin: 0 auto 18px; }
+  h1 { font-family: Georgia, serif; color: #1e1b4b; font-size: 24px; margin: 0 0 6px; text-align: center; }
+  p.sub { text-align: center; color: #64748b; font-size: 14px; margin: 0 0 22px; }
+  label { display: block; font-size: 13px; font-weight: bold; color: #1e1b4b; margin: 16px 0 6px; }
+  input { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; }
+  .hint { font-size: 12px; color: #64748b; margin-top: 4px; }
+  button { width: 100%; margin-top: 24px; padding: 14px; background: #1e1b4b; color: #fff; border: 0; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; }
+  button:hover { background: #2e2a6b; }
+  .note { font-size: 12px; color: #64748b; text-align: center; margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <img src="/logo-tight.png" alt="CA Research Group">
+    <h1>Run a Report</h1>
+    <p class="sub">Private page for CA Research Group staff.</p>
+    <form method="get" action="/api/report-pdf" target="_blank">
+      <label for="token">Report password</label>
+      <input id="token" name="token" type="password" required autocomplete="current-password">
+      <div class="hint">The LOOKUP_TOKEN password you saved in Vercel.</div>
+
+      <label for="name">Business or entity name</label>
+      <input id="name" name="name" type="text" placeholder="e.g. Acme Holdings LLC">
+
+      <label for="address">Property address or APN</label>
+      <input id="address" name="address" type="text" required placeholder="e.g. 123 Main St, Los Angeles, CA">
+
+      <label for="county">County (optional)</label>
+      <input id="county" name="county" type="text" placeholder="e.g. Los Angeles">
+
+      <label for="company">Prepared for (optional)</label>
+      <input id="company" name="company" type="text" placeholder="Client company name">
+
+      <button type="submit">Run report</button>
+    </form>
+    <p class="note">The PDF opens in a new tab. It can take up to a minute.</p>
+  </div>
+</div>
+</body>
+</html>
