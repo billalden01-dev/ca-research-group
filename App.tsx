@@ -245,7 +245,7 @@ export default function App() {
               {wizardStep === 1 && (
                 <div>
                   <div style={{ backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '28px', padding: isMobile ? '44px 14px 28px 14px' : '56px 28px 40px 28px' }}>
-                  <div style={{ display: 'flex', gap: isMobile ? '36px' : '28px', justifyContent: 'center', flexWrap: 'wrap', alignItems: 'stretch' }}>
+                  <div style={{ display: 'flex', gap: isMobile ? '36px' : '28px', justifyContent: 'center', flexWrap: isMobile ? 'wrap' : 'nowrap', alignItems: 'stretch' }}>
                     {PLANS.map((plan) => {
                       const label = planLabel(plan);
                       const isSelected = plan.id === highlightId;
@@ -262,11 +262,11 @@ export default function App() {
                             boxShadow: isSelected ? '0 0 0 4px rgba(217,119,6,0.2), 0 18px 40px rgba(30,27,75,0.18)' : dark ? '0 22px 44px rgba(30,27,75,0.3)' : '0 10px 28px rgba(30,27,75,0.1)',
                             borderRadius: '20px',
                             padding: isMobile ? '28px 20px 22px 20px' : '34px 28px 28px 28px',
-                            flex: isMobile ? '1 1 100%' : '1 1 300px',
+                            flex: isMobile ? '1 1 100%' : '1 1 0', minWidth: 0,
                             maxWidth: '360px',
                             display: 'flex',
                             flexDirection: 'column',
-                            transform: dark && !isMobile ? 'translateY(-14px)' : 'none',
+                            transform: 'none',
                             transition: 'border 150ms ease, box-shadow 150ms ease',
                           }}
                         >
