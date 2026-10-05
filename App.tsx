@@ -120,9 +120,13 @@ export default function App() {
   const [corporateEmail, setCorporateEmail] = useState('');
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState<boolean>(typeof window !== 'undefined' && window.innerWidth < 700);
+  const [isShort, setIsShort] = useState<boolean>(typeof window !== 'undefined' && window.innerHeight < 800);
 
   useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth < 700);
+    const onResize = () => {
+      setIsMobile(window.innerWidth < 700);
+      setIsShort(window.innerHeight < 800);
+    };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
@@ -182,8 +186,8 @@ export default function App() {
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#ffffff', fontFamily: 'sans-serif', color: '#1e293b' }}>
 
       {/* NAVBAR */}
-      <nav style={{ borderBottom: '1px solid #e2e8f0', padding: isMobile ? '12px 16px' : '15px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ffffff', flexWrap: 'wrap', gap: '15px' }}>
-        <img src="/logo-clean.png" alt="CA Research Group" onClick={() => handleNavigate('home')} style={{ height: isMobile ? '52px' : '72px', maxWidth: '100%', cursor: 'pointer' }} />
+      <nav style={{ borderBottom: '1px solid #e2e8f0', padding: isMobile ? '12px 16px' : isShort ? '10px 30px' : '15px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ffffff', flexWrap: 'wrap', gap: '15px' }}>
+        <img src="/logo-clean.png" alt="CA Research Group" onClick={() => handleNavigate('home')} style={{ height: isMobile ? '52px' : isShort ? '60px' : '72px', maxWidth: '100%', cursor: 'pointer' }} />
         <div style={{ display: 'flex', gap: isMobile ? '14px' : '20px', fontSize: isMobile ? '13px' : '14px' }}>
           <span onClick={() => handleNavigate('home')} style={navLink('home')}>Solutions</span>
           <span onClick={() => handleNavigate('how')} style={navLink('how')}>How It Works</span>
@@ -196,17 +200,17 @@ export default function App() {
 
         {/* HOME COMPONENT */}
         {currentPage === 'home' && (
-          <div style={{ maxWidth: '920px', margin: '0 auto', padding: isMobile ? '20px 16px 56px 16px' : '30px 20px 80px 20px', textAlign: 'center' }}>
-            <h1 style={{ fontSize: isMobile ? '28px' : '42px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.15', marginBottom: '4px' }}>Fast California Public-Record Research</h1>
-            <h2 style={{ fontSize: isMobile ? '21px' : '30px', fontWeight: 'bold', color: '#d97706', marginTop: '4px', marginBottom: isMobile ? '28px' : '40px' }}>for Hard Money Lenders, Legal Counsel<br />& Real Estate Professionals</h2>
-            <p style={{ fontSize: isMobile ? '16px' : '18px', color: '#475569', maxWidth: '680px', margin: '0 auto 32px auto', lineHeight: '1.65' }}>Liens, filings, and entity status from official California public records, compiled into a clear PDF report in under 60 seconds.</p>
+          <div style={{ maxWidth: '920px', margin: '0 auto', padding: isMobile ? '20px 16px 56px 16px' : isShort ? '14px 20px 56px 20px' : '24px 20px 80px 20px', textAlign: 'center' }}>
+            <h1 style={{ fontSize: isMobile ? '28px' : isShort ? '38px' : '42px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.15', marginBottom: '4px' }}>Fast California Public-Record Research</h1>
+            <h2 style={{ fontSize: isMobile ? '21px' : isShort ? '27px' : '30px', fontWeight: 'bold', color: '#d97706', marginTop: '4px', marginBottom: isMobile ? '24px' : '28px' }}>for Hard Money Lenders, Legal Counsel<br />& Real Estate Professionals</h2>
+            <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65' }}>Liens, filings, and entity status from official California public records, compiled into a clear PDF report in under 60 seconds.</p>
 
-            <div style={{ maxWidth: '680px', margin: '0 auto 40px auto', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={{ backgroundColor: '#f8fafc', padding: isMobile ? '18px' : '22px 24px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+            <div style={{ maxWidth: '900px', margin: '0 auto 30px auto', textAlign: 'left', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '20px' }}>
+              <div style={{ flex: 1, backgroundColor: '#f8fafc', padding: isMobile ? '18px' : isShort ? '18px 22px' : '22px 24px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
                 <strong style={{ fontSize: isMobile ? '16px' : '17px', color: '#1e1b4b', display: 'block', marginBottom: '6px' }}>⚡ Faster Decisions</strong>
                 <p style={{ margin: '0', fontSize: isMobile ? '14px' : '15px', lineHeight: '1.6', color: '#475569' }}>Whether you are closing a loan or walking away from one, get the public-record picture quickly: liens, filings, and entity status in a report that is typically ready in under a minute.</p>
               </div>
-              <div style={{ backgroundColor: '#f8fafc', padding: isMobile ? '18px' : '22px 24px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+              <div style={{ flex: 1, backgroundColor: '#f8fafc', padding: isMobile ? '18px' : isShort ? '18px 22px' : '22px 24px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
                 <strong style={{ fontSize: isMobile ? '16px' : '17px', color: '#1e1b4b', display: 'block', marginBottom: '6px' }}>🛡️ Fewer Manual Errors</strong>
                 <p style={{ margin: '0', fontSize: isMobile ? '14px' : '15px', lineHeight: '1.6', color: '#475569' }}>Automated retrieval and a two-step verification check help reduce the typos and missed details that come with manual lookups and hand-keyed intake forms.</p>
               </div>
