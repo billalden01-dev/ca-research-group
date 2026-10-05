@@ -337,8 +337,9 @@ export default function App() {
                   <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', padding: '20px', borderRadius: '10px', textAlign: 'left', maxHeight: '200px', overflowY: 'scroll', fontSize: '13px', color: '#475569', marginBottom: '25px', lineHeight: '1.6' }}>
                     <strong>CA RESEARCH GROUP COMPLIANCE ASSURANCE PROVISIONS</strong>
                     <p style={{ margin: '8px 0' }}>By continuing, you acknowledge that reports are compiled from publicly available government records and are only as accurate and complete as the sources they come from. Public records can be incomplete, delayed, or contain errors. You agree to independently verify any information against the original sources before relying on it for any lending, investment, title, or legal decision.</p>
-                    <p style={{ margin: '8px 0' }}>CA Research Group is not a law firm and does not provide legal advice. Our reports are not title searches, title commitments, title insurance, appraisals, or legal opinions. Use of our services is subject to our Terms of Service.</p>
+                    <p style={{ margin: '8px 0' }}>CA Research Group is not a law firm and does not provide legal advice. Our reports are not title searches, title commitments, title insurance, appraisals, or legal opinions. Use of our services is subject to our <a href="/terms.html" target="_blank" rel="noopener" style={{ color: '#1d4ed8' }}>Terms of Service</a>.</p>
                   </div>
+                  <p style={{ fontSize: '13px', color: '#475569', margin: '-12px 0 22px 0' }}>Read the full <a href="/terms.html" target="_blank" rel="noopener" style={{ color: '#1d4ed8', fontWeight: 'bold' }}>Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener" style={{ color: '#1d4ed8', fontWeight: 'bold' }}>Privacy Policy</a> (open in a new tab).</p>
 
                   <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold', color: '#1e1b4b' }}>
                     <input type="checkbox" checked={agreed} onChange={(e) => handleCheckboxChange(e.target.checked)} style={{ transform: 'scale(1.2)', cursor: 'pointer' }} />
@@ -414,7 +415,7 @@ export default function App() {
 
                   <label style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', fontSize: '13px', color: '#475569', lineHeight: '1.5', cursor: 'pointer' }}>
                     <input type="checkbox" checked={purposeCertified} onChange={(e) => setPurposeCertified(e.target.checked)} style={{ marginTop: '3px', transform: 'scale(1.15)' }} required />
-                    <span>I certify that I will use reports from CA Research Group only for a lawful business purpose related to a real estate, lending, title, or legal matter. I will not use them to decide eligibility for credit, employment, insurance, or housing for any individual, and I understand they contain only information from public sources.</span>
+                    <span>I certify that I will use reports from CA Research Group only for a lawful business purpose related to a real estate, lending, title, or legal matter. I will not use them to decide eligibility for credit, employment, insurance, or housing for any individual, and I understand they contain only information from public sources. I agree to the <a href="/terms.html" target="_blank" rel="noopener" style={{ color: '#1d4ed8' }}>Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener" style={{ color: '#1d4ed8' }}>Privacy Policy</a>.</span>
                   </label>
 
                   <button type="submit" style={{ backgroundColor: '#1e1b4b', color: '#ffffff', fontSize: '15px', fontWeight: 'bold', border: 'none', borderRadius: '10px', padding: '14px', cursor: 'pointer', marginTop: '10px' }}>
@@ -491,6 +492,7 @@ export default function App() {
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
           <strong>LEGAL, DISCLAIMER & COMPLIANCE NOTICE</strong>
           <p style={{ margin: '10px 0 0 0', opacity: '0.85' }}>© 2026 CA Research Group, Public Records Verification & Due Diligence. All rights reserved. CA Research Group is not a law firm and does not provide legal advice. Our reports are not title searches, title commitments, title insurance, appraisals, or legal opinions. Reports are compiled from publicly available government records and are only as accurate and complete as the sources they come from. Public records can be incomplete, delayed, or contain errors. Reports are for informational purposes only and should be independently verified against the original sources before you rely on them for any lending, investment, title, or legal decision. Use of our services is subject to our Terms of Service.</p>
+          <p style={{ margin: '14px 0 0 0' }}><a href="/terms.html" style={{ color: '#fbbf24', fontWeight: 'bold' }}>Terms of Service</a><span style={{ opacity: 0.6, margin: '0 10px' }}>|</span><a href="/privacy.html" style={{ color: '#fbbf24', fontWeight: 'bold' }}>Privacy Policy</a></p>
         </div>
       </footer>
 
