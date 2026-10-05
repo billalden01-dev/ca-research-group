@@ -192,10 +192,10 @@ export default function App() {
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#ffffff', fontFamily: 'sans-serif', color: '#1e293b' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%', overflowX: 'hidden', backgroundColor: '#ffffff', fontFamily: 'sans-serif', color: '#1e293b' }}>
 
       {/* NAVBAR */}
-      <nav style={{ borderBottom: '1px solid #e2e8f0', padding: isMobile ? '12px 16px' : isShort ? '10px 30px' : '15px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ffffff', flexWrap: 'wrap', gap: '15px' }}>
+      <nav style={{ borderBottom: '1px solid #e2e8f0', padding: isMobile ? '12px 16px' : isShort ? '10px 30px' : '15px 30px', display: 'flex', justifyContent: isMobile ? 'center' : 'space-between', alignItems: 'center', backgroundColor: '#ffffff', flexWrap: 'wrap', gap: isMobile ? '10px' : '15px' }}>
         <img src="/logo-tight.png" alt="CA Research Group" onClick={() => handleNavigate('home')} style={{ height: isMobile ? '44px' : isShort ? '54px' : '62px', maxWidth: '100%', cursor: 'pointer' }} />
         <div style={{ display: 'flex', gap: isMobile ? '14px' : '20px', fontSize: isMobile ? '13px' : '14px' }}>
           <span onClick={() => handleNavigate('home')} style={navLink('home')}>Solutions</span>
@@ -210,8 +210,8 @@ export default function App() {
         {/* HOME COMPONENT */}
         {currentPage === 'home' && (
           <div style={{ maxWidth: '980px', margin: '0 auto', padding: isMobile ? '20px 16px 56px 16px' : isShort ? '14px 20px 56px 20px' : '24px 20px 80px 20px', textAlign: 'center' }}>
-            <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '27px' : isShort ? '36px' : '40px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.15', marginBottom: '4px' }}>Fast California Public-Record Research</h1>
-            <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '20px' : isShort ? '26px' : '29px', fontWeight: 'normal', color: '#d97706', marginTop: '4px', marginBottom: isMobile ? '24px' : '28px' }}>for Hard Money Lenders, Legal Counsel<br />& Real Estate Professionals</h2>
+            <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '27px' : isShort ? '36px' : '40px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.15', marginBottom: '4px', textWrap: 'balance' } as React.CSSProperties}>Fast California Public-Record Research</h1>
+            <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '20px' : isShort ? '26px' : '29px', fontWeight: 'normal', color: '#d97706', marginTop: '4px', marginBottom: isMobile ? '24px' : '28px', textWrap: 'balance' } as React.CSSProperties}>for Hard Money Lenders, Legal Counsel{isMobile ? ' ' : <br />}& Real Estate Professionals</h2>
             <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>Liens, filings, and entity status from official California public records, compiled and checked in two steps into a clear PDF report, typically in under 60 seconds.</p>
 
             <div style={{ maxWidth: '900px', margin: '0 auto 30px auto', textAlign: 'left', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '20px' }}>
@@ -235,8 +235,8 @@ export default function App() {
 
             {/* HERO BAND */}
             <div style={{ backgroundColor: '#1e1b4b', padding: isMobile ? '36px 16px 30px 16px' : '56px 20px 48px 20px', textAlign: 'center' }}>
-              <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '30px' : '44px', fontWeight: 'bold', color: '#ffffff', margin: '0 0 14px 0', lineHeight: '1.15' }}>Transparent Pricing<br />for Every Practice</h1>
-              <p style={{ fontSize: isMobile ? '15px' : '17px', color: '#cbd5e1', maxWidth: '620px', margin: '0 auto', lineHeight: '1.6' }}>From individual professionals to multi-user teams. No hidden fees. Cancel anytime.</p>
+              <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '30px' : '44px', fontWeight: 'bold', color: '#ffffff', margin: '0 0 14px 0', lineHeight: '1.15' }}>Transparent Pricing{isMobile ? <br /> : ' '}for Every Practice</h1>
+              <p style={{ fontSize: isMobile ? '15px' : '17px', color: '#cbd5e1', maxWidth: isMobile ? '620px' : '900px', margin: '0 auto', lineHeight: '1.6', textWrap: 'balance' } as React.CSSProperties}>From individual professionals to multi-user teams. No hidden fees. Cancel anytime.</p>
 
               {/* STEP STATUS INDICATOR */}
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: isMobile ? '8px' : '15px', flexWrap: 'wrap', marginTop: isMobile ? '22px' : '32px', fontSize: isMobile ? '12px' : '13px' }}>
@@ -282,7 +282,7 @@ export default function App() {
                           {dark && (
                             <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)', backgroundColor: '#d97706', color: '#ffffff', fontSize: '12px', fontWeight: 'bold', padding: '5px 16px', borderRadius: '999px' }}>Most popular</div>
                           )}
-                          <h3 style={{ fontFamily: SERIF, fontSize: '25px', fontWeight: 'bold', color: dark ? '#ffffff' : '#1e1b4b', margin: '0 0 12px 0' }}>{plan.name}</h3>
+                          <h3 style={{ fontFamily: SERIF, fontSize: isMobile ? '24px' : '21px', fontWeight: 'bold', color: dark ? '#ffffff' : '#1e1b4b', margin: '0 0 12px 0' }}>{plan.name}</h3>
                           <div style={{ fontFamily: SERIF, fontSize: isMobile ? '42px' : '50px', fontWeight: 'bold', color: dark ? '#d97706' : '#1e1b4b', lineHeight: '1' }}>${plan.price}<span style={{ fontFamily: 'sans-serif', fontSize: '16px', fontWeight: 'normal', color: dark ? '#cbd5e1' : '#64748b' }}> / mo</span></div>
                           <p style={{ fontSize: '14px', color: dark ? '#cbd5e1' : '#64748b', lineHeight: '1.5', margin: '14px 0 0 0' }}>{plan.tagline}</p>
                           <div style={{ height: '1px', backgroundColor: dark ? 'rgba(255,255,255,0.18)' : '#e2e8f0', margin: '22px 0' }} />
