@@ -118,6 +118,7 @@ export default function App() {
   const [targetEntityName, setTargetEntityName] = useState('');
   const [californiaCounty, setCaliforniaCounty] = useState('All Counties');
   const [corporateEmail, setCorporateEmail] = useState('');
+  const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
 
   const handleNavigate = (page: Page) => {
     setCurrentPage(page);
@@ -151,6 +152,10 @@ export default function App() {
     alert("Redirecting to secure Stripe Checkout for " + selectedTier + "...");
     window.location.href = stripeUrl;
   };
+
+  const selectedPlan = PLANS.find((p) => planLabel(p) === selectedTier);
+  const featuredPlan = PLANS.find((p) => p.featured);
+  const highlightId = hoveredPlan ?? (selectedPlan ? selectedPlan.id : featuredPlan ? featuredPlan.id : null);
 
   const stepStyle = (n: number): React.CSSProperties => ({
     color: wizardStep === n ? '#d97706' : '#ffffff',
@@ -206,10 +211,10 @@ export default function App() {
 
         {/* PRICING & SUBSCRIPTION WIZARD */}
         {currentPage === 'pricing' && (
-          <div>
+          <div style={{ backgroundColor: '#ffffff' }}>
 
             {/* HERO BAND */}
-            <div style={{ backgroundColor: '#1e1b4b', padding: '56px 20px 120px 20px', textAlign: 'center' }}>
+            <div style={{ backgroundColor: '#1e1b4b', padding: '56px 20px 48px 20px', textAlign: 'center' }}>
               <h1 style={{ fontFamily: SERIF, fontSize: '44px', fontWeight: 'bold', color: '#ffffff', margin: '0 0 16px 0', lineHeight: '1.15' }}>Transparent Pricing<br />for Every Practice</h1>
               <p style={{ fontSize: '17px', color: '#cbd5e1', maxWidth: '620px', margin: '0 auto', lineHeight: '1.6' }}>From individual professionals to multi-user teams. No hidden fees. Cancel anytime.</p>
 
@@ -223,19 +228,22 @@ export default function App() {
               </div>
             </div>
 
-            <div style={{ position: 'relative', maxWidth: '1140px', margin: '-70px auto 0 auto', padding: '0 20px 80px 20px' }}>
+            <div style={{ position: 'relative', maxWidth: '1140px', margin: '0 auto', padding: '56px 20px 80px 20px' }}>
 
               {/* STEP 1: RENDER TIERS */}
               {wizardStep === 1 && (
                 <div>
-                  <div style={{ display: 'flex', gap: '28px', justifyContent: 'center', flexWrap: 'wrap', alignItems: 'stretch', paddingTop: '20px' }}>
+                  <div style={{ backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '28px', padding: '56px 28px 40px 28px' }}>
+                  <div style={{ display: 'flex', gap: '28px', justifyContent: 'center', flexWrap: 'wrap', alignItems: 'stretch' }}>
                     {PLANS.map((plan) => {
                       const label = planLabel(plan);
-                      const isSelected = selectedTier === label;
+                      const isSelected = plan.id === highlightId;
                       const dark = plan.featured;
                       return (
                         <div
                           key={plan.id}
+                          onMouseEnter={() => setHoveredPlan(plan.id)}
+                          onMouseLeave={() => setHoveredPlan(null)}
                           style={{
                             position: 'relative',
                             backgroundColor: dark ? '#1e1b4b' : '#ffffff',
@@ -276,6 +284,7 @@ export default function App() {
                         </div>
                       );
                     })}
+                  </div>
                   </div>
                   <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748b', maxWidth: '640px', margin: '40px auto 0 auto', lineHeight: '1.6' }}>Reports are compiled from public records and should be independently verified. See the legal notice below.</p>
                 </div>
