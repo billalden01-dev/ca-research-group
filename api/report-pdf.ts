@@ -3,7 +3,7 @@
 //
 // Sample (made-up data, no key needed):
 //   https://caresearchgroup.com/api/report-pdf?sample=1
-// Real report (needs Vercel Environment Variables CA_SOS_API_KEY and LOOKUP_TOKEN):
+// Real report (Vercel Environment Variables: LOOKUP_TOKEN required; CA_SOS_API_KEY and COURTLISTENER_TOKEN switch on those sources):
 //   https://caresearchgroup.com/api/report-pdf?token=...&name=Acme Holdings LLC&address=123 Main St&company=Your Firm&email=you@firm.com&county=Los Angeles
 
 import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage, PDFImage } from 'pdf-lib';
@@ -35,11 +35,164 @@ export type ReportInput = {
   preparedFor: { company: string; email: string; role?: string };
   request: { propertyAddress: string; entityName?: string; county?: string; reportUse?: string };
   entitySearch: { searchedAt: Date; searchedFor: string; records: EntityRecord[] } | null;
+  entityNote?: string;
   verification: Verification | null;
+  sanctions: SanctionsResult | null;
+  courts: CourtResult | null;
 };
 
 export type Check = { label: string; result: 'Passed' | 'Flagged'; detail: string };
 export type Verification = { overall: 'Verified' | 'Needs attention'; checks: Check[] };
+
+export type SanctionsMatch = { checkedName: string; listedName: string; type: string; programs: string; score: number };
+export type SanctionsResult = { searchedAt: Date; namesChecked: string[]; available: boolean; matches: SanctionsMatch[] };
+
+export type CourtCase = { caseName: string; court: string; dateFiled: string; dateTerminated: string; docketNumber: string; url: string; bankruptcy: boolean; chapter: string };
+export type CourtResult = { searchedAt: Date; searchedFor: string; status: 'searched' | 'unavailable' | 'not_connected'; total: number; cases: CourtCase[] };
+
+const timeout = (ms: number) => AbortSignal.timeout(ms);
+
+// ---------- U.S. Treasury OFAC sanctions list (free, official) ----------
+
+const OFAC_BASE = 'https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports';
+type OfacEntry = { name: string; type: string; programs: string; tokens: Set<string> };
+let ofacCache: { loadedAt: number; entries: OfacEntry[] } | null = null;
+
+export function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (quoted) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else quoted = false;
+      } else field += ch;
+    } else if (ch === '"') quoted = true;
+    else if (ch === ',') {
+      row.push(field);
+      field = '';
+    } else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      row.push(field);
+      if (row.some((f) => f.trim())) rows.push(row);
+      row = [];
+      field = '';
+    } else field += ch;
+  }
+  row.push(field);
+  if (row.some((f) => f.trim())) rows.push(row);
+  return rows;
+}
+
+const ofacClean = (v: string | undefined) => {
+  const s = (v ?? '').trim();
+  return s === '-0-' ? '' : s;
+};
+
+async function loadOfac(): Promise<OfacEntry[]> {
+  if (ofacCache && Date.now() - ofacCache.loadedAt < 12 * 60 * 60 * 1000) return ofacCache.entries;
+  const [sdnRes, altRes] = await Promise.all([
+    fetch(`${OFAC_BASE}/SDN.CSV`, { signal: timeout(20000) }),
+    fetch(`${OFAC_BASE}/ALT.CSV`, { signal: timeout(20000) }),
+  ]);
+  if (!sdnRes.ok || !altRes.ok) throw new Error('OFAC list unavailable');
+  const byEnt = new Map<string, { type: string; programs: string }>();
+  const entries: OfacEntry[] = [];
+  for (const r of parseCsv(await sdnRes.text())) {
+    const name = ofacClean(r[1]);
+    if (!name) continue;
+    const meta = { type: ofacClean(r[2]) || 'entity', programs: ofacClean(r[3]) };
+    byEnt.set(ofacClean(r[0]), meta);
+    entries.push({ name, ...meta, tokens: new Set(normalizeName(name)) });
+  }
+  for (const r of parseCsv(await altRes.text())) {
+    const name = ofacClean(r[3]);
+    const meta = byEnt.get(ofacClean(r[0]));
+    if (!name || !meta) continue;
+    entries.push({ name: `${name} (alternate name)`, ...meta, tokens: new Set(normalizeName(name)) });
+  }
+  if (entries.length < 1000) throw new Error('OFAC list looked incomplete');
+  ofacCache = { loadedAt: Date.now(), entries };
+  return entries;
+}
+
+function tokenSimilarity(x: Set<string>, y: Set<string>): number {
+  if (!x.size || !y.size) return 0;
+  let shared = 0;
+  x.forEach((w) => {
+    if (y.has(w)) shared++;
+  });
+  return shared / new Set([...x, ...y]).size;
+}
+
+export async function screenSanctions(names: string[]): Promise<SanctionsResult> {
+  const unique: string[] = [];
+  const seenNames = new Set<string>();
+  for (const n of names.map((x) => x.trim()).filter(Boolean)) {
+    const key = normalizeName(n).join(' ');
+    if (!seenNames.has(key)) {
+      seenNames.add(key);
+      unique.push(n);
+    }
+  }
+  const searchedAt = new Date();
+  let entries: OfacEntry[];
+  try {
+    entries = await loadOfac();
+  } catch {
+    return { searchedAt, namesChecked: unique, available: false, matches: [] };
+  }
+  const matches: SanctionsMatch[] = [];
+  for (const checkedName of unique) {
+    const tokens = new Set(normalizeName(checkedName));
+    for (const e of entries) {
+      const score = tokenSimilarity(tokens, e.tokens);
+      if (score >= 0.8) matches.push({ checkedName, listedName: e.name, type: e.type, programs: e.programs, score });
+    }
+  }
+  matches.sort((a, b) => b.score - a.score);
+  const seen = new Set<string>();
+  const deduped = matches.filter((m) => !seen.has(m.listedName) && !!seen.add(m.listedName));
+  return { searchedAt, namesChecked: unique, available: true, matches: deduped.slice(0, 10) };
+}
+
+// ---------- Federal court and bankruptcy cases (CourtListener, free account) ----------
+
+const CL_SEARCH = 'https://www.courtlistener.com/api/rest/v4/search/';
+
+export async function searchFederalCases(name: string, token: string | undefined): Promise<CourtResult> {
+  const searchedAt = new Date();
+  if (!token) return { searchedAt, searchedFor: name, status: 'not_connected', total: 0, cases: [] };
+  try {
+    const params = new URLSearchParams({ type: 'r', party_name: `"${name}"`, order_by: 'dateFiled desc' });
+    const res = await fetch(`${CL_SEARCH}?${params}`, { headers: { Authorization: `Token ${token}` }, signal: timeout(20000) });
+    if (!res.ok) throw new Error(`CourtListener returned ${res.status}`);
+    const data = (await res.json()) as { count?: number; results?: Record<string, unknown>[] };
+    const cases: CourtCase[] = (data.results ?? []).slice(0, 10).map((r) => {
+      const court = str(r.court);
+      const courtId = str(r.court_id);
+      const url = str(r.docket_absolute_url);
+      return {
+        caseName: str(r.caseName ?? r.case_name),
+        court,
+        dateFiled: str(r.dateFiled).slice(0, 10),
+        dateTerminated: str(r.dateTerminated).slice(0, 10),
+        docketNumber: str(r.docketNumber),
+        url: url ? `https://www.courtlistener.com${url}` : '',
+        bankruptcy: /bankruptcy/i.test(court) || /b$/.test(courtId),
+        chapter: str(r.chapter),
+      };
+    });
+    return { searchedAt, searchedFor: name, status: 'searched', total: typeof data.count === 'number' ? data.count : cases.length, cases };
+  } catch {
+    return { searchedAt, searchedFor: name, status: 'unavailable', total: 0, cases: [] };
+  }
+}
 
 // ---------- Secretary of State lookups ----------
 
@@ -78,7 +231,7 @@ function entityList(data: unknown): SosRaw[] {
 }
 
 async function sosGet(path: string, apiKey: string): Promise<unknown> {
-  const res = await fetch(`${SOS_BASE}/${path}`, { headers: { 'Ocp-Apim-Subscription-Key': apiKey } });
+  const res = await fetch(`${SOS_BASE}/${path}`, { headers: { 'Ocp-Apim-Subscription-Key': apiKey }, signal: timeout(20000) });
   if (!res.ok) throw new Error(`Secretary of State API returned ${res.status}`);
   return res.json();
 }
@@ -223,6 +376,25 @@ const SAMPLE_INPUT: ReportInput = {
       { label: 'Status and standing', result: 'Passed', detail: 'Active, with good standing.' },
     ],
   },
+  sanctions: { searchedAt: new Date(), namesChecked: ['Sample Holdings LLC'], available: true, matches: [] },
+  courts: {
+    searchedAt: new Date(),
+    searchedFor: 'Sample Holdings LLC',
+    status: 'searched',
+    total: 1,
+    cases: [
+      {
+        caseName: 'In re Example Debtor, sample creditor Sample Holdings LLC',
+        court: 'United States Bankruptcy Court, C.D. California',
+        dateFiled: '2022-08-09',
+        dateTerminated: '2023-02-14',
+        docketNumber: '2:22-bk-00000',
+        url: '',
+        bankruptcy: true,
+        chapter: '7',
+      },
+    ],
+  },
 };
 
 // ---------- Look and feel ----------
@@ -243,7 +415,7 @@ const CONTENT_W = PAGE_W - MARGIN * 2;
 const FOOTER_SPACE = 60;
 
 const LIMITS_TEXT =
-  'This report is compiled from publicly available California government records and is only as accurate and complete as those sources at the time of the search. Public records can be incomplete, delayed, or contain errors. Verify all information against the original sources before relying on it for any lending, investment, title, or legal decision. CA Research Group is not a law firm and does not provide legal advice. This report is not a title search, title commitment, title insurance, appraisal, or legal opinion. It is not a consumer report and may not be used to determine any individual\'s eligibility for credit, employment, insurance, or housing.';
+  'This report is compiled from publicly available government and court records and is only as accurate and complete as those sources at the time of the search. Public records can be incomplete, delayed, or contain errors. Verify all information against the original sources before relying on it for any lending, investment, title, or legal decision. CA Research Group is not a law firm and does not provide legal advice. This report is not a title search, title commitment, title insurance, appraisal, or legal opinion. It is not a consumer report and may not be used to determine any individual\'s eligibility for credit, employment, insurance, or housing.';
 
 const fmtDate = (d: Date) =>
   d.toLocaleString('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
@@ -457,21 +629,42 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
   // Summary
   const records = input.entitySearch?.records ?? [];
   const entitySummary = !input.entitySearch
-    ? 'Not searched (no business or entity name provided).'
+    ? input.entityNote ?? 'Not searched (no business or entity name provided).'
     : records.length === 0
       ? `No matching entity found for "${input.entitySearch.searchedFor}".`
       : `${records.length} match${records.length === 1 ? '' : 'es'}. Top match: ${clean(records[0].name)}, status ${clean(records[0].status)}.`;
 
   const v = input.verification;
+  const sx = input.sanctions;
+  const sanctionsSummary = !sx
+    ? 'Not searched.'
+    : !sx.available
+      ? 'The sanctions list could not be reached at the time of the search. Search it directly before relying on this report.'
+      : sx.matches.length === 0
+        ? `No matches on the OFAC Specially Designated Nationals list for ${sx.namesChecked.map((n) => `"${n}"`).join(' or ')}.`
+        : `${sx.matches.length} possible name match${sx.matches.length === 1 ? '' : 'es'}. Review required (see section 2).`;
+  const ct = input.courts;
+  const bk = ct ? ct.cases.filter((c) => c.bankruptcy).length : 0;
+  const courtSummary = !ct
+    ? 'Not searched (no business name provided).'
+    : ct.status === 'not_connected'
+      ? 'Not yet included in reports.'
+      : ct.status === 'unavailable'
+        ? 'The court archive could not be reached at the time of the search.'
+        : ct.total === 0
+          ? 'No federal or bankruptcy cases found in the CourtListener archive.'
+          : `${ct.total} federal case${ct.total === 1 ? '' : 's'} found${bk ? `, including ${bk} bankruptcy case${bk === 1 ? '' : 's'}` : ''} (see section 3).`;
   w.heading('Summary of findings');
   w.table(
     ['Source', 'Searched', 'Result'],
     [190, 80, CONTENT_W - 270],
     [
       ['CA Secretary of State - business entity', input.entitySearch ? 'Yes' : 'No', v ? `${entitySummary} Two-step check: ${v.overall}.` : entitySummary],
+      ['U.S. Treasury OFAC sanctions list', sx ? (sx.available ? 'Yes' : 'Failed') : 'No', sanctionsSummary],
+      ['Federal court and bankruptcy cases', ct ? (ct.status === 'searched' ? 'Yes' : ct.status === 'not_connected' ? 'Coming soon' : 'Failed') : 'No', courtSummary],
       ['CA Secretary of State - UCC liens', 'Coming soon', 'Not yet included in reports.'],
       ['County recorder - recorded documents', 'Coming soon', 'Not yet included in reports.'],
-      ['Court records', 'Coming soon', 'Not yet included in reports.'],
+      ['California state court records', 'Coming soon', 'Not yet included in reports.'],
     ],
   );
 
@@ -497,7 +690,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
   // Section 1: entity detail
   w.heading('1. Business entity status');
   if (!input.entitySearch) {
-    w.paragraph('No business or entity name was provided with this request, so the Secretary of State business search was not run.');
+    w.paragraph(input.entityNote ?? 'No business or entity name was provided with this request, so the Secretary of State business search was not run.');
   } else if (records.length === 0) {
     w.paragraph(`The California Secretary of State business search returned no match for "${input.entitySearch.searchedFor}". Check the spelling or try the exact registered name.`);
   } else {
@@ -522,6 +715,50 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
     if (records.length > 3) w.paragraph(`${records.length - 3} more possible matches were found and are not shown.`, { color: MUTED, size: 9 });
     w.paragraph(
       `Source: California Secretary of State, Business Entity Public Search. Searched for "${input.entitySearch.searchedFor}" on ${fmtDate(input.entitySearch.searchedAt)}.`,
+      { size: 8.5, color: MUTED },
+    );
+  }
+
+  // Section 2: sanctions
+  if (sx) {
+    w.heading('2. Sanctions screening');
+    if (!sx.available) {
+      w.paragraph('The U.S. Treasury OFAC sanctions list could not be downloaded at the time of this search, so no screening result is available. Search it directly at sanctionssearch.ofac.treas.gov before relying on this report.');
+    } else if (sx.matches.length === 0) {
+      w.paragraph(`No matches were found on the U.S. Treasury OFAC Specially Designated Nationals (SDN) list, including alternate names, for: ${sx.namesChecked.map((n) => `"${n}"`).join(', ')}.`);
+    } else {
+      w.paragraph('The names below closely match entries on the OFAC SDN list. A name match alone does not mean this business is the sanctioned party. Confirm using addresses, identification numbers, and other details before taking action.', { gap: 8 });
+      w.table(
+        ['Name checked', 'Listed name', 'Program'],
+        [150, 220, CONTENT_W - 370],
+        sx.matches.map((m) => [m.checkedName, `${m.listedName} (${Math.round(m.score * 100)}% name match)`, m.programs || m.type]),
+      );
+    }
+    w.paragraph(`Source: U.S. Department of the Treasury, Office of Foreign Assets Control, SDN list. Screened on ${fmtDate(sx.searchedAt)}.`, { size: 8.5, color: MUTED });
+  }
+
+  // Section 3: federal courts
+  if (ct && ct.status !== 'not_connected') {
+    w.heading('3. Federal court and bankruptcy cases');
+    if (ct.status === 'unavailable') {
+      w.paragraph('The CourtListener federal court archive could not be reached at the time of this search. Search PACER (pacer.uscourts.gov) directly before relying on this report.');
+    } else if (ct.cases.length === 0) {
+      w.paragraph(`No federal or bankruptcy cases naming "${ct.searchedFor}" as a party were found in the CourtListener archive.`);
+    } else {
+      if (ct.total > ct.cases.length) w.paragraph(`Showing the ${ct.cases.length} most recent of ${ct.total} cases found.`, { size: 9, color: MUTED, gap: 4 });
+      w.table(
+        ['Case', 'Court', 'Filed / closed', 'Docket'],
+        [190, 145, 82, CONTENT_W - 417],
+        ct.cases.map((c) => [
+          `${c.caseName}${c.bankruptcy && c.chapter ? ` (Chapter ${c.chapter})` : ''}`,
+          c.court,
+          `${c.dateFiled || 'Unknown'}${c.dateTerminated ? ` / ${c.dateTerminated}` : ' / open or unknown'}`,
+          c.docketNumber || 'Not listed',
+        ]),
+      );
+    }
+    w.paragraph(
+      `Source: CourtListener (Free Law Project) archive of federal court and bankruptcy records, searched for party name "${ct.searchedFor}" on ${fmtDate(ct.searchedAt)}. This archive holds many but not all federal cases, so a "no cases found" result does not prove none exist. PACER is the complete federal source.`,
       { size: 8.5, color: MUTED },
     );
   }
@@ -554,21 +791,34 @@ const newReportId = (d: Date) => {
   return `CARG-${ymd}-${rand}`;
 };
 
-// Runs the full engine: search, two-step check, report data.
-export async function runEntityReport(
+// Runs the full engine: entity search + two-step check, sanctions screening, federal court search.
+export async function runReport(
   form: { company: string; email: string; role?: string; propertyAddress: string; entityName?: string; county?: string; reportUse?: string },
-  apiKey: string,
+  keys: { sosApiKey?: string; courtListenerToken?: string },
 ): Promise<ReportInput> {
   const now = new Date();
-  let entitySearch: ReportInput['entitySearch'] = null;
-  let verification: Verification | null = null;
   const name = (form.entityName ?? '').trim();
-  if (name) {
-    const records = await searchEntities(name, apiKey);
-    const confirmed = records[0]?.entityNumber ? await getEntityDetails(String(records[0].entityNumber), apiKey) : null;
+  let entitySearch: ReportInput['entitySearch'] = null;
+  let entityNote: string | undefined;
+  let verification: Verification | null = null;
+
+  const entityTask = (async () => {
+    if (!name) return;
+    if (!keys.sosApiKey) {
+      entityNote = 'Not yet included: the Secretary of State connection is still being set up.';
+      return;
+    }
+    const records = await searchEntities(name, keys.sosApiKey);
+    const confirmed = records[0]?.entityNumber ? await getEntityDetails(String(records[0].entityNumber), keys.sosApiKey) : null;
     entitySearch = { searchedAt: new Date(), searchedFor: name, records };
     verification = verifyEntity(name, records, confirmed);
-  }
+  })();
+  const courtTask = name ? searchFederalCases(name, keys.courtListenerToken) : Promise.resolve(null);
+
+  await entityTask;
+  const topName = (entitySearch as ReportInput['entitySearch'])?.records[0]?.name ?? '';
+  const [sanctions, courts] = await Promise.all([name ? screenSanctions([name, topName]) : Promise.resolve(null), courtTask]);
+
   return {
     sample: false,
     reportId: newReportId(now),
@@ -576,7 +826,10 @@ export async function runEntityReport(
     preparedFor: { company: form.company, email: form.email, role: form.role },
     request: { propertyAddress: form.propertyAddress, entityName: name || undefined, county: form.county, reportUse: form.reportUse },
     entitySearch,
+    entityNote,
     verification,
+    sanctions,
+    courts,
   };
 }
 
@@ -612,14 +865,13 @@ export async function GET(request: Request) {
     return pdfResponse(await buildReportPdf(input, await loadLogo(url.origin)), 'CA-Research-Group-Sample-Report.pdf');
   }
 
-  const apiKey = process.env.CA_SOS_API_KEY;
   const lookupToken = process.env.LOOKUP_TOKEN;
-  if (!apiKey || !lookupToken) return jsonError('Setup not finished: CA_SOS_API_KEY or LOOKUP_TOKEN is missing in Vercel. Add ?sample=1 to see the sample report.', 500);
+  if (!lookupToken) return jsonError('Setup not finished: LOOKUP_TOKEN is missing in Vercel. Add ?sample=1 to see the sample report.', 500);
   if (q('token') !== lookupToken) return jsonError('Not authorized.', 401);
   if (!q('address')) return jsonError('Add a property address, e.g. &address=123 Main St, Los Angeles', 400);
 
   try {
-    const input = await runEntityReport(
+    const input = await runReport(
       {
         company: q('company') || 'Not provided',
         email: q('email') || 'Not provided',
@@ -629,7 +881,7 @@ export async function GET(request: Request) {
         county: q('county') || undefined,
         reportUse: q('use') || undefined,
       },
-      apiKey,
+      { sosApiKey: process.env.CA_SOS_API_KEY, courtListenerToken: process.env.COURTLISTENER_TOKEN },
     );
     return pdfResponse(await buildReportPdf(input, await loadLogo(url.origin)), `CA-Research-Group-${input.reportId}.pdf`);
   } catch (err) {
