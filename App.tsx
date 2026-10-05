@@ -129,6 +129,8 @@ export default function App() {
   const [companyName, setCompanyName] = useState('');
   const [roleType, setRoleType] = useState('');
   const [purposeCertified, setPurposeCertified] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState('');
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState<boolean>(typeof window !== 'undefined' && window.innerWidth < 700);
   const [isShort, setIsShort] = useState<boolean>(typeof window !== 'undefined' && window.innerHeight < 800);
@@ -175,9 +177,38 @@ export default function App() {
       alert("Please complete all required fields, including the property address and the purpose certification.");
       return;
     }
-    const stripeUrl = 'https://stripe.com';
-    alert("Redirecting to secure Stripe Checkout for " + selectedTier + "...");
-    window.location.href = stripeUrl;
+    const plan = PLANS.find((p) => planLabel(p) === selectedTier);
+    if (!plan) return;
+    setPaying(true);
+    setPayError('');
+    fetch('/api/stripe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        plan: plan.id,
+        company: companyName,
+        role: roleType,
+        email: corporateEmail,
+        address: propertyAddress,
+        entity: targetEntityName,
+        county: californiaCounty,
+        use: reportUse,
+        certified: purposeCertified,
+      }),
+    })
+      .then((r) => r.json())
+      .then((d: { url?: string; error?: string }) => {
+        if (d.url) {
+          window.location.href = d.url;
+        } else {
+          setPayError(d.error || 'The payment page could not be opened. Please try again.');
+          setPaying(false);
+        }
+      })
+      .catch(() => {
+        setPayError('The payment page could not be opened. Please check your connection and try again.');
+        setPaying(false);
+      });
   };
 
   const selectedPlan = PLANS.find((p) => planLabel(p) === selectedTier);
@@ -418,9 +449,12 @@ export default function App() {
                     <span>I certify that I will use reports from CA Research Group only for a lawful business purpose related to a real estate, lending, title, or legal matter. I will not use them to decide eligibility for credit, employment, insurance, or housing for any individual, and I understand they contain only information from public sources. I agree to the <a href="/terms.html" target="_blank" rel="noopener" style={{ color: '#1d4ed8' }}>Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener" style={{ color: '#1d4ed8' }}>Privacy Policy</a>.</span>
                   </label>
 
-                  <button type="submit" style={{ backgroundColor: '#1e1b4b', color: '#ffffff', fontSize: '15px', fontWeight: 'bold', border: 'none', borderRadius: '10px', padding: '14px', cursor: 'pointer', marginTop: '10px' }}>
-                    Continue to Secure Payment ➔
+                  {payError && <p style={{ color: '#b91c1c', fontSize: '13px', textAlign: 'center', margin: '0' }}>{payError}</p>}
+
+                  <button type="submit" disabled={paying} style={{ backgroundColor: paying ? '#94a3b8' : '#1e1b4b', color: '#ffffff', fontSize: '15px', fontWeight: 'bold', border: 'none', borderRadius: '10px', padding: '14px', cursor: paying ? 'wait' : 'pointer', marginTop: '10px' }}>
+                    {paying ? 'Opening secure payment...' : 'Continue to Secure Payment ➔'}
                   </button>
+                  <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748b', margin: '-8px 0 0 0' }}>Payments are processed by Stripe. Your private report link is emailed right after payment.</p>
 
                   <button type="button" onClick={() => { setWizardStep(2); setAgreed(false); }} style={{ background: 'none', border: 'none', color: '#64748b', textDecoration: 'underline', cursor: 'pointer', alignSelf: 'center' }}>➔ Back to Terms</button>
                 </form>
