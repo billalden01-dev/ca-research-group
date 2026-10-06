@@ -23,7 +23,7 @@ const SITE = 'https://www.caresearchgroup.com';
 const PLANS: Record<string, { label: string; name: string; cents: number }> = {
   standard: { label: 'Standard Concierge ($499)', name: 'Standard Concierge', cents: 49900 },
   enterprise: { label: 'Enterprise Preferred ($799)', name: 'Enterprise Preferred', cents: 79900 },
-  institutional: { label: 'Institutional Unlimited ($999)', name: 'Institutional Unlimited', cents: 99900 },
+  institutional: { label: 'Institutional ($999)', name: 'Institutional', cents: 99900 },
 };
 
 const ROLES = [
