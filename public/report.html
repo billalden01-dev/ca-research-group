@@ -66,6 +66,7 @@
         <button id="go" type="submit">Run report</button>
       </form>
       <p class="note">Your PDF report opens in a new tab and can take up to a minute.<br>This link is private to your company. Please do not share it.</p>
+      <p class="note hidden" id="manageRow"><a id="manage" href="#" style="color:#1e1b4b;font-weight:bold">Manage or cancel your subscription</a></p>
     </div>
   </div>
 </div>
@@ -94,6 +95,7 @@
           $('usage').textContent = d.voucher
             ? 'Your complimentary report · good through ' + d.expiresText
             : (d.plan ? d.plan + ' · ' : '') + (d.limit === null ? d.used + ' reports this month (unlimited plan)' : d.used + ' of ' + d.limit + ' reports used this month');
+          if (!d.voucher) { $('manage').href = '/api/stripe?portal=' + encodeURIComponent(code); $('manageRow').classList.remove('hidden'); }
           if (!d.canRun) { $('go').disabled = true; $('go').textContent = d.voucher ? 'Not available' : 'Monthly limit reached'; }
         })
         .catch(function () { problem('We could not check your link just now. Please try again in a few minutes.'); });
