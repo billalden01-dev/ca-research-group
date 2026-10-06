@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Unsubscribe - CA Research Group</title>
+<link rel="icon" href="/favicon.png">
+<style>
+  body { margin: 0; background: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1e293b; }
+  .wrap { max-width: 480px; margin: 48px auto; padding: 0 16px; }
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 28px; box-shadow: 0 10px 28px rgba(30,27,75,0.08); text-align: center; }
+  .logo { height: 48px; display: block; margin: 0 auto 16px; }
+  h1 { font-family: Georgia, serif; color: #1e1b4b; font-size: 24px; margin: 0 0 8px; }
+  p { color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 18px; }
+  label { display: block; text-align: left; font-size: 13px; font-weight: bold; color: #1e1b4b; margin: 0 0 6px; }
+  input[type=email] { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; }
+  button { width: 100%; margin-top: 16px; padding: 14px; background: #1e1b4b; color: #fff; border: 0; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; }
+  .note { font-size: 12px; color: #64748b; margin: 16px 0 0; }
+</style>
+</head>
+<body>
+<div class="wrap"><div class="card">
+  <img class="logo" src="/logo-tight.png" alt="CA Research Group">
+  <h1>Unsubscribe</h1>
+  <p>Enter your email address and we will stop sending you marketing emails.</p>
+  <form method="post" action="/api/report-pdf">
+    <input type="hidden" name="unsubscribe" value="1">
+    <label for="email">Your email address</label>
+    <input id="email" name="email" type="email" required autocomplete="email" placeholder="you@company.com">
+    <button type="submit">Unsubscribe</button>
+  </form>
+  <p class="note">You can also reply "no thanks" to any of our emails.<br>CA Research Group LLC &middot; 1060 Lincoln Ave, Suite 20 #1081, San Jose, CA 95125</p>
+</div></div>
+</body>
+</html>
