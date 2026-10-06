@@ -123,6 +123,55 @@ function newLinkCode(): string {
 }
 
 const privateLink = (code: string) => `${SITE}/report.html?c=${code}`;
+const manageLink = (code: string) => `${SITE}/api/stripe?portal=${code}`;
+
+async function findByLinkCode(code: string): Promise<AirtableRecord | null> {
+  // Link codes are letters, numbers, dashes and underscores only, so they are safe inside the formula.
+  if (!/^[A-Za-z0-9_-]{12,64}$/.test(code)) return null;
+  const formula = encodeURIComponent(`{Link Code}='${code}'`);
+  const d = await airtable(`${CUSTOMERS_TABLE}?maxRecords=1&filterByFormula=${formula}`);
+  return d.records?.[0] ?? null;
+}
+
+// Stripe's hosted "manage subscription" page needs a saved configuration. Reuse one if it exists, otherwise make it once.
+async function portalConfiguration(): Promise<string> {
+  const list = await stripe('billing_portal/configurations?active=true&limit=1');
+  const existing = (list.data as { id: string }[] | undefined)?.[0]?.id;
+  if (existing) return existing;
+  const created = await stripe('billing_portal/configurations', {
+    business_profile: { headline: 'CA Research Group: manage your subscription', privacy_policy_url: `${SITE}/privacy.html`, terms_of_service_url: `${SITE}/terms.html` },
+    features: {
+      subscription_cancel: { enabled: true, mode: 'at_period_end', proration_behavior: 'none' },
+      payment_method_update: { enabled: true },
+      invoice_history: { enabled: true },
+      customer_update: { enabled: true, allowed_updates: { 0: 'email', 1: 'address', 2: 'name' } },
+    },
+  });
+  return String(created.id);
+}
+
+const htmlMessage = (title: string, message: string, status: number) =>
+  new Response(
+    `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${escapeHtml(title)} - CA Research Group</title><style>body{margin:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.k{max-width:520px;margin:60px auto;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:32px;text-align:center}img{height:48px;margin-bottom:16px}h1{font-family:Georgia,serif;color:#1e1b4b;font-size:22px;margin:0 0 12px}p{color:#475569;line-height:1.6;margin:0}</style></head><body><div class="k"><img src="/logo-tight.png" alt="CA Research Group"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}</p></div></body></html>`,
+    { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } },
+  );
+
+// Opens Stripe's secure page where a client can cancel, update their card, or see invoices.
+async function openPortal(code: string): Promise<Response> {
+  try {
+    const rec = await findByLinkCode(code);
+    if (!rec) return htmlMessage('Link not recognized', 'This link is not valid. Please contact william@caresearchgroup.com.', 404);
+    const customerId = str(rec.fields['Stripe Customer ID']);
+    if (!/^cus_[A-Za-z0-9]+$/.test(customerId)) {
+      return htmlMessage('Manage your plan', 'Your plan was not set up through online checkout. Please email william@caresearchgroup.com and we will help you change or cancel it.', 200);
+    }
+    const session = await stripe('billing_portal/sessions', { customer: customerId, return_url: privateLink(code), configuration: await portalConfiguration() });
+    return new Response(null, { status: 303, headers: { Location: str(session.url), 'Cache-Control': 'no-store' } });
+  } catch (err) {
+    console.error('Portal failed', err);
+    return htmlMessage('Temporarily unavailable', 'We could not open the subscription page just now. Please try again shortly or email william@caresearchgroup.com.', 503);
+  }
+}
 
 const STATUS_FROM_STRIPE: Record<string, string> = {
   active: 'Active',
@@ -150,7 +199,8 @@ async function sendWelcomeEmail(to: string, company: string, plan: string, code:
 <p><a href="${link}" style="display:inline-block;background:#1e1b4b;color:#ffffff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Open my report page</a></p>
 <p style="font-size:13px;color:#64748b;word-break:break-all">${link}</p>
 <p>Enter a property address or business name, and your PDF report opens right away and is emailed to you.</p>
-<p style="font-size:12px;color:#64748b">To cancel or change plans, reply to this email. See our <a href="${SITE}/terms.html">Terms of Service</a> and <a href="${SITE}/privacy.html">Privacy Policy</a>. CA Research Group is not a law firm and does not provide legal advice.</p>
+<p style="font-size:13px;color:#475569">You can update your card or cancel online any time: <a href="${manageLink(code)}">manage your subscription</a>.</p>
+<p style="font-size:12px;color:#64748b">To change plans, reply to this email. See our <a href="${SITE}/terms.html">Terms of Service</a> and <a href="${SITE}/privacy.html">Privacy Policy</a>. CA Research Group is not a law firm and does not provide legal advice.</p>
 </div>`;
   const notify = process.env.NOTIFY_EMAIL;
   const res = await fetch('https://api.resend.com/emails', {
@@ -307,6 +357,8 @@ export async function POST(request: Request) {
 
 // Welcome page: is the new account ready yet?
 export async function GET(request: Request) {
+  const portalCode = new URL(request.url).searchParams.get('portal');
+  if (portalCode !== null) return openPortal(portalCode);
   const sessionId = new URL(request.url).searchParams.get('session_id') ?? '';
   if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(sessionId)) return json({ error: 'Missing or invalid session.' }, 400);
   try {
