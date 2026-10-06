@@ -170,6 +170,17 @@ export default function App() {
       alert("Please complete all required fields, including the property address and the purpose certification.");
       return;
     }
+    const entityName = targetEntityName.trim();
+    if (entityName) {
+      if (/\b(\d{3}-?\d{2}-?\d{4}|\d{2}-?\d{7})\b/.test(entityName)) {
+        alert('Please do not enter tax ID or Social Security numbers. Enter the business name only, for example "Acme Holdings LLC".');
+        return;
+      }
+      if (!/\b(llc|lllp|llp|lp|inc|incorporated|corp|corporation|co|company|companies|ltd|limited|pc|pllc|trust|partnership|partners|holdings?|group|fund|bank|association|assn|foundation|property|properties|investments?|capital|ventures?|enterprises?|realty|development|developers?|lending|mortgage|financial|management|church|ministries|cooperative|coop)\b/i.test(entityName.replace(/\./g, ''))) {
+        alert('Business names only. Please include the entity type, for example "Acme Holdings LLC". We do not search individuals.');
+        return;
+      }
+    }
     const plan = PLANS.find((p) => planLabel(p) === selectedTier);
     if (!plan) return;
     setPaying(true);
