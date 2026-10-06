@@ -270,7 +270,7 @@ export default function App() {
             <div style={{ maxWidth: '900px', margin: '0 auto 30px auto', textAlign: 'left', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '20px' }}>
               <div style={{ flex: 1, backgroundColor: '#f8fafc', padding: isMobile ? '18px' : isShort ? '18px 22px' : '22px 24px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
                 <strong style={{ fontFamily: SERIF, fontSize: isMobile ? '17px' : '19px', color: '#1e1b4b', display: 'block', marginBottom: '6px' }}>⚡ Faster Decisions</strong>
-                <p style={{ margin: '0', fontSize: isMobile ? '14px' : '15px', lineHeight: '1.6', color: '#475569' }}>Closing a loan or walking away? Get public-record search results on a borrower or property, usually in under a minute.</p>
+                <p style={{ margin: '0', fontSize: isMobile ? '14px' : '15px', lineHeight: '1.6', color: '#475569' }}>Closing a loan or walking away? Get public-record search results on a business or property, usually in under a minute.</p>
               </div>
               <div style={{ flex: 1, backgroundColor: '#f8fafc', padding: isMobile ? '18px' : isShort ? '18px 22px' : '22px 24px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
                 <strong style={{ fontFamily: SERIF, fontSize: isMobile ? '17px' : '19px', color: '#1e1b4b', display: 'block', marginBottom: '6px' }}>🛡️ Fewer Manual Errors</strong>
