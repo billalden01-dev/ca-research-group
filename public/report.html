@@ -44,6 +44,7 @@
 
         <label for="name">Business or entity name (optional, businesses only, not individuals)</label>
         <input id="name" name="name" type="text" placeholder="e.g. Acme Holdings LLC">
+        <p id="nameErr" class="hidden" style="color:#b91c1c;font-size:13px;margin:6px 0 0"></p>
 
         <label for="county">County (optional)</label>
         <input id="county" name="county" type="text" placeholder="e.g. Los Angeles">
@@ -100,7 +101,19 @@
         .catch(function () { problem('We could not check your link just now. Please try again in a few minutes.'); });
     }
     if (!code) problem('This page needs your private report link. Please use the link CA Research Group sent you.'); else load();
-    $('f').addEventListener('submit', function () {
+    var BIZ = /\b(llc|lllp|llp|lp|inc|incorporated|corp|corporation|co|company|companies|ltd|limited|pc|pllc|trust|partnership|partners|holdings?|group|fund|bank|association|assn|foundation|property|properties|investments?|capital|ventures?|enterprises?|realty|development|developers?|lending|mortgage|financial|management|church|ministries|cooperative|coop)\b/i;
+    var IDNUM = /\b(\d{3}-?\d{2}-?\d{4}|\d{2}-?\d{7})\b/;
+    function nameProblem(n) {
+      n = n.trim();
+      if (!n) return '';
+      if (IDNUM.test(n)) return 'Please do not enter tax ID or Social Security numbers. Enter the business name only, for example "Acme Holdings LLC".';
+      if (!BIZ.test(n.replace(/\./g, ''))) return 'Business names only. Please include the entity type, for example "Acme Holdings LLC". We do not search individuals.';
+      return '';
+    }
+    $('name').addEventListener('input', function () { $('nameErr').classList.add('hidden'); });
+    $('f').addEventListener('submit', function (e) {
+      var np = nameProblem($('name').value);
+      if (np) { e.preventDefault(); $('nameErr').textContent = np; $('nameErr').classList.remove('hidden'); $('name').focus(); return; }
       $('go').disabled = true; $('go').textContent = 'Running report...';
       setTimeout(function () { $('go').disabled = false; $('go').textContent = 'Run report'; load(); }, 20000);
     });
