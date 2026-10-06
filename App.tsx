@@ -469,7 +469,7 @@ export default function App() {
           <div>
             <div style={{ backgroundColor: '#1e1b4b', padding: isMobile ? '36px 16px' : '56px 20px', textAlign: 'center' }}>
               <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '30px' : '42px', fontWeight: 'bold', color: '#ffffff', margin: '0 0 16px 0', lineHeight: '1.15' }}>How CA Research Group Works</h1>
-              <p style={{ fontSize: '17px', color: '#cbd5e1', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>Three steps from a property to a report you can act on.</p>
+              <p style={{ fontSize: '17px', color: '#cbd5e1', maxWidth: '460px', margin: '0 auto', lineHeight: '1.6', textWrap: 'balance' } as React.CSSProperties}>Three simple steps, from property address to finished report.</p>
             </div>
 
             <div style={{ maxWidth: '1000px', margin: '0 auto', padding: isMobile ? '36px 16px 56px 16px' : '60px 20px 80px 20px' }}>
