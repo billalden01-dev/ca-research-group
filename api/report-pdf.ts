@@ -727,6 +727,12 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       ['California state court records', 'Coming soon', 'Not yet included in reports.'],
     ],
   );
+  w.callout(
+    'Verify before you rely on this report',
+    'These are automated search results from public records. Public records can be incomplete, out of date, or wrong, and the same name can belong to unrelated businesses. Confirm anything important with the original source (the agency, court, or county) before making a lending, investment, or legal decision.',
+    SAMPLE_BG,
+    GOLD,
+  );
 
   // Verification
   if (v) {
@@ -853,6 +859,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
     p.drawText(left, { x: MARGIN, y: 28, size: 8, font: regular, color: MUTED });
     const right = `Page ${i + 1} of ${pages.length}`;
     p.drawText(right, { x: MARGIN + CONTENT_W - regular.widthOfTextAtSize(right, 8), y: 28, size: 8, font: regular, color: MUTED });
+    p.drawText('Public-record search results only. Verify with the original sources before relying on them.', { x: MARGIN, y: 16, size: 7, font: regular, color: MUTED });
   });
 
   return doc.save();
