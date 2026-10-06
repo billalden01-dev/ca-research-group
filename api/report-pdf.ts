@@ -863,6 +863,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
 const AIRTABLE_BASE = 'appi5Q5zd611aH9P3';
 const CUSTOMERS_TABLE = 'tblPwePeCA9vco2Oi';
 const REQUESTS_TABLE = 'tbl6xrbWaWhWetlh1';
+const DO_NOT_EMAIL_TABLE = 'tblBo87wj2whW0Bqf';
 
 type AirtableRecord = { id: string; fields: Record<string, unknown> };
 
@@ -944,6 +945,21 @@ export async function findCustomer(code: string): Promise<Customer | null> {
 }
 
 // Staff: create a complimentary report voucher (one free report, good for VOUCHER_DAYS days).
+// ---------- Do Not Email list (CAN-SPAM opt-outs; kept forever) ----------
+const EMAIL_OK = /^[^\s@'"\\]+@[^\s@'"\\]+\.[^\s@'"\\]+$/;
+async function onDoNotEmail(email: string): Promise<boolean> {
+  const formula = encodeURIComponent(`LOWER({Email})='${email.toLowerCase()}'`);
+  const d = await airtable(`${DO_NOT_EMAIL_TABLE}?maxRecords=1&filterByFormula=${formula}`);
+  return (d.records?.length ?? 0) > 0;
+}
+async function addDoNotEmail(email: string, how: string): Promise<void> {
+  if (await onDoNotEmail(email)) return;
+  await airtable(DO_NOT_EMAIL_TABLE, {
+    method: 'POST',
+    body: JSON.stringify({ typecast: true, records: [{ fields: { Email: email.toLowerCase(), 'Date Added': pacificToday(), How: how } }] }),
+  });
+}
+
 async function createVoucher(company: string, contactName: string, email: string): Promise<{ link: string; expires: string; id: string }> {
   const code = newLinkCode();
   const expires = addDays(pacificToday(), VOUCHER_DAYS);
@@ -1152,6 +1168,7 @@ export async function GET(request: Request) {
     const email = q('email').slice(0, 200);
     if (!company || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return jsonError('Enter the company name and a valid email.', 400);
     try {
+      if (EMAIL_OK.test(email) && (await onDoNotEmail(email))) return jsonError('This email is on the Do Not Email list because they asked not to be contacted. No voucher was made.', 409);
       const v = await createVoucher(company, q('contact').slice(0, 150), email);
       return new Response(JSON.stringify({ ok: true, link: v.link, expires: v.expires, expiresText: friendlyDate(v.expires) }), {
         headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
@@ -1193,6 +1210,18 @@ export async function POST(request: Request) {
     return htmlPage('Something went wrong', 'The request could not be read. Please go back and try again.', 400);
   }
   const g = (k: string) => String(form.get(k) ?? '').trim().slice(0, 300);
+
+  // Unsubscribe form (public/unsubscribe.html)
+  if (g('unsubscribe') === '1') {
+    const email = g('email').toLowerCase();
+    if (!EMAIL_OK.test(email)) return htmlPage('Check your email address', 'Please go back and enter a valid email address.', 400);
+    try {
+      await addDoNotEmail(email, 'Unsubscribe page');
+    } catch {
+      return htmlPage('Temporarily unavailable', 'We could not save your request just now. Please try again, or reply "no thanks" to any of our emails.', 503);
+    }
+    return htmlPage('You are unsubscribed', `We will not send marketing emails to ${email} again. If you are a subscriber, you will still get your report emails.`, 200);
+  }
 
   let customer: Customer | null;
   try {
