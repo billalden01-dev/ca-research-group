@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /run-report.html
+Disallow: /voucher.html
+Disallow: /report.html
+Disallow: /welcome.html
+
+Sitemap: https://www.caresearchgroup.com/sitemap.xml
