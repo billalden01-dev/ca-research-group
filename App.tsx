@@ -410,7 +410,7 @@ export default function App() {
                   </div>
 
                   <div style={fieldStyle}>
-                    <label style={labelStyle}>Business or Entity Name (optional)</label>
+                    <label style={labelStyle}>Business or Entity Name (optional, businesses only, not individuals)</label>
                     <input type="text" placeholder="e.g. Acme Holdings LLC" value={targetEntityName} onChange={(e) => setTargetEntityName(e.target.value)} style={inputStyle} />
                   </div>
 
@@ -432,7 +432,6 @@ export default function App() {
                       <option value="">Select one</option>
                       <option value="Loan underwriting">Loan underwriting</option>
                       <option value="Acquisition due diligence">Acquisition due diligence</option>
-                      <option value="Title or escrow">Title or escrow</option>
                       <option value="Legal matter">Legal matter</option>
                       <option value="Other">Other</option>
                     </select>
