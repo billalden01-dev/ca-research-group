@@ -879,6 +879,19 @@ async function airtable(path: string, init: { method?: string; body?: string } =
   return (await res.json()) as { records?: AirtableRecord[] };
 }
 
+// ---------- Businesses only: block names of individuals and tax ID / Social Security numbers ----------
+const BUSINESS_WORDS = /\b(llc|lllp|llp|lp|inc|incorporated|corp|corporation|co|company|companies|ltd|limited|pc|pllc|trust|partnership|partners|holdings?|group|fund|bank|association|assn|foundation|property|properties|investments?|capital|ventures?|enterprises?|realty|development|developers?|lending|mortgage|financial|management|church|ministries|cooperative|coop)\b/i;
+const ID_NUMBER = /\b(\d{3}-?\d{2}-?\d{4}|\d{2}-?\d{7})\b/;
+export const BUSINESS_ONLY_MESSAGE = 'Business names only. Please enter a registered business name that includes its entity type, for example "Acme Holdings LLC". We do not search individuals.';
+export const ID_NUMBER_MESSAGE = 'Please do not enter tax ID or Social Security numbers. Enter the business name only, for example "Acme Holdings LLC".';
+export function businessNameProblem(name: string): string | null {
+  const n = name.trim();
+  if (!n) return null;
+  if (ID_NUMBER.test(n)) return ID_NUMBER_MESSAGE;
+  if (!BUSINESS_WORDS.test(n.replace(/\./g, ''))) return BUSINESS_ONLY_MESSAGE;
+  return null;
+}
+
 export type Customer = { id: string; company: string; email: string; role: string; plan: string; used: number; limit: number; canRun: boolean; active: boolean; voucher: boolean; expires: string; expired: boolean; usedTotal: number };
 
 // A complimentary report voucher: one free report, good through the date in Voucher Expires (Pacific time).
@@ -1148,6 +1161,8 @@ export async function GET(request: Request) {
     }
   }
   if (!q('address')) return jsonError('Add a property address, e.g. &address=123 Main St, Los Angeles', 400);
+  const staffNameProblem = businessNameProblem(q('name'));
+  if (staffNameProblem) return jsonError(staffNameProblem, 400);
 
   try {
     const input = await runReport(
@@ -1192,6 +1207,8 @@ export async function POST(request: Request) {
   const entityName = g('name');
   if (!address) return htmlPage('Property address needed', 'Please go back and enter the property address or APN.', 400);
   if (g('certify') !== 'yes') return htmlPage('Certification needed', 'Please go back and check the purpose certification box.', 400);
+  const nameProblem = businessNameProblem(entityName);
+  if (nameProblem) return htmlPage('Business names only', nameProblem, 400);
 
   const base = {
     Customer: [customer.id],
