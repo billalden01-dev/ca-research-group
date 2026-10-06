@@ -83,8 +83,8 @@
           $('msg').value = 'Hi ' + first + ',\n\n' +
             'Here is a complimentary CA Research Group report for your next deal. Enter a California property address or business name and you will get a PDF with a sanctions screening and a federal court and bankruptcy search in about a minute:\n\n' +
             x.d.link + '\n\n' +
-            'The link is good through ' + x.d.expiresText + '.\n\n' +
-            'Best,\nBill Alden\nCA Research Group LLC\n1060 Lincoln Ave, Suite 20 #1081\nSan Jose, CA 95125\n\nIf you would rather not hear from me, just reply \"no thanks\" and I will not email again.';
+            'The link is good for one complimentary report through ' + x.d.expiresText + '. One per company, no purchase or card required.\n\n' +
+            'Best,\nBill Alden\nCA Research Group LLC\n1060 Lincoln Ave, Suite 20 #1081\nSan Jose, CA 95125\n\nIf you would rather not hear from me, reply \"no thanks\" or visit caresearchgroup.com/unsubscribe.html and I will not email again.';
           $('copyLink').onclick = function () { copy(x.d.link, $('copyLink'), 'Copy link'); };
           $('copyMsg').onclick = function () { copy($('msg').value, $('copyMsg'), 'Copy message'); };
           $('f').classList.add('hidden');
