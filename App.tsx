@@ -25,14 +25,11 @@ const PLANS: Plan[] = [
     tagline: 'For solo professionals and small teams.',
     featured: false,
     features: [
-      '10 comprehensive reports per month',
-      '1 seat (single user)',
-      'Full multi-domain findings matrix',
-      'Corporate standing & entity verification',
-      'Property lien & filing search',
-      'Litigation history scan',
-      'Downloadable PDF reports',
-      '60-day report archive',
+      '10 reports per month (about $50 each)',
+      'Sanctions screening (U.S. Treasury OFAC list)',
+      'Federal court & bankruptcy case search',
+      'PDF report in about a minute, emailed to you',
+      'Private company link: no login or password',
       'Email support',
     ],
   },
@@ -40,32 +37,26 @@ const PLANS: Plan[] = [
     id: 'enterprise',
     name: 'Enterprise Preferred',
     price: 799,
-    tagline: 'For active teams needing continuous monitoring.',
+    tagline: 'For active lending and legal teams.',
     featured: true,
     features: [
-      '25 comprehensive reports per month',
-      '3 seats included',
-      'Ongoing monitoring with email alerts',
-      'Full findings matrix with risk scoring',
-      'Priority processing',
-      '180-day report archive',
-      'Dedicated support channel',
+      '25 reports per month (about $32 each)',
+      'Everything in Standard Concierge',
+      'Best value for teams closing deals every week',
+      'Priority email support',
     ],
   },
   {
     id: 'institutional',
-    name: 'Institutional Unlimited',
+    name: 'Institutional',
     price: 999,
-    tagline: 'For high-volume firms with multi-user teams.',
+    tagline: 'For high-volume firms.',
     featured: false,
     features: [
-      'Unlimited comprehensive reports',
-      'Includes up to 10 seats',
-      'Extra seats at $49/mo each',
-      'Ongoing monitoring with email alerts',
-      'White-label report branding',
-      'Dedicated account manager',
-      '365-day report archive',
+      '75 reports per month (about $13 each)',
+      'Everything in Enterprise Preferred',
+      'Lowest cost per report',
+      'Direct support from our founder',
     ],
   },
 ];
@@ -77,27 +68,29 @@ const STEPS = [
   },
   {
     title: 'We pull and check the records',
-    body: 'Our system retrieves matching records from official California government sources, then runs a two-step verification check on what it finds.',
+    body: 'Our system searches official government and court sources for matching records and screens names against the U.S. Treasury sanctions list.',
   },
   {
     title: 'You get a PDF report',
-    body: 'Liens, filings, and entity status are compiled into a clear PDF report, typically in under 60 seconds.',
+    body: 'Your findings are compiled into a clear PDF report, typically in under 60 seconds, and emailed to you.',
   },
 ];
 
 const AFTER_SUBSCRIBE = [
-  'Choose a plan, fill in your details and the first property you want researched, then pay securely by card.',
+  'Choose a plan and accept our Terms of Service, then fill in your details and the first property you want researched, and pay securely by card.',
   'We email your company a private link. Bookmark it. There is no password to remember.',
   'Use that link any time to request another report. Each request counts toward your monthly plan.',
   'Your PDF report is sent to your work email.',
 ];
 
 const REPORT_ITEMS = [
-  'Corporate standing and entity verification',
-  'Property lien and filing search',
-  'Litigation history scan',
-  'A findings matrix that brings it all together',
+  'Sanctions screening against the U.S. Treasury OFAC list',
+  'Federal court and bankruptcy case search',
+  'A summary of findings, with the sources searched and their limits',
+  'A clear PDF report, emailed to you',
 ];
+
+const COMING_SOON = 'Coming soon to every plan: California entity status and standing (with our automated two-step check), property liens and UCC filings, and California state court cases.';
 
 const FAQS = [
   {
@@ -356,7 +349,8 @@ export default function App() {
                   </div>
                   </div>
                   <div style={{ marginTop: '40px' }}>{afterSubscribeBox}</div>
-                  <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748b', maxWidth: '640px', margin: '28px auto 0 auto', lineHeight: '1.6' }}>* Reports are compiled from public records and should be independently verified. See the legal notice below.</p>
+                  <p style={{ textAlign: 'center', fontSize: '14px', color: '#1e1b4b', maxWidth: '640px', margin: '28px auto 0 auto', lineHeight: '1.6', textWrap: 'balance' } as React.CSSProperties}>{COMING_SOON}</p>
+                  <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748b', maxWidth: '640px', margin: '12px auto 0 auto', lineHeight: '1.6' }}>* Reports are compiled from public records and should be independently verified. See the legal notice below.</p>
                 </div>
               )}
 
@@ -495,6 +489,7 @@ export default function App() {
                     </li>
                   ))}
                 </ul>
+                <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.6', margin: '16px 0 0 0' }}>{COMING_SOON}</p>
               </div>
 
               <div style={{ maxWidth: '640px', margin: '56px auto 0 auto', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '24px' }}>
