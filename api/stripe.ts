@@ -30,6 +30,8 @@ const ROLES = [
   'Hard money lender or lending institution',
   'Attorney or legal counsel',
   'Commercial real estate broker',
+  'Commercial real estate brokerage',
+  'Business broker',
   'Real estate investor',
   'Title or escrow company',
   'Other',
