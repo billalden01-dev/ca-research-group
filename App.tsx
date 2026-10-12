@@ -264,7 +264,7 @@ export default function App() {
         {currentPage === 'home' && (
           <div style={{ maxWidth: '980px', margin: '0 auto', padding: isMobile ? '20px 16px 56px 16px' : isShort ? '14px 20px 56px 20px' : '24px 20px 80px 20px', textAlign: 'center' }}>
             <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '32px' : isShort ? '46px' : '54px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.12', marginBottom: '6px', textWrap: 'balance' } as React.CSSProperties}>Fast California Public-Record Research</h1>
-            <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '22px' : isShort ? '30px' : '34px', fontWeight: 'normal', color: '#d97706', marginTop: '6px', marginBottom: isMobile ? '24px' : '28px', textWrap: 'balance' } as React.CSSProperties}>for Private Lenders, Real Estate Attorneys,{isMobile ? ' ' : <br />}Commercial Brokerages & Business Brokers</h2>
+            <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '22px' : isShort ? '30px' : '34px', fontWeight: 'normal', color: '#d97706', marginTop: '6px', marginBottom: isMobile ? '24px' : '28px', textWrap: 'balance' } as React.CSSProperties}>for Lenders, Business & Real Estate Attorneys,{isMobile ? ' ' : <br />}and Commercial Real Estate Brokers</h2>
             <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>Public-record search results, compiled into a clear PDF report in about a minute. Reports cover sanctions and federal court and bankruptcy records today, with entity status, lien and filing searches on the way.</p>
 
             <div style={{ maxWidth: '900px', margin: '0 auto 30px auto', textAlign: 'left', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '20px' }}>
@@ -401,7 +401,7 @@ export default function App() {
                     <label style={labelStyle}>Your Role</label>
                     <select value={roleType} onChange={(e) => setRoleType(e.target.value)} style={inputStyle} required>
                       <option value="">Select one</option>
-                      <option value="Hard money lender or lending institution">Private lender (business-purpose loans)</option>
+                      <option value="Hard money lender or lending institution">Private or hard money lender (business-purpose loans)</option>
                       <option value="Attorney or legal counsel">Attorney or legal counsel</option>
                       <option value="Commercial real estate brokerage">Commercial real estate brokerage</option>
                       <option value="Business broker">Business broker</option>
