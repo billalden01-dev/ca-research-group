@@ -90,7 +90,6 @@ const REPORT_ITEMS = [
   'A clear PDF report, emailed to you',
 ];
 
-const COMING_SOON = 'Coming soon to every plan: California entity status and standing (with our automated two-step check), property liens and UCC filings, and California state court cases.';
 
 const FAQS = [
   {
@@ -268,7 +267,7 @@ export default function App() {
           <div style={{ maxWidth: '980px', margin: '0 auto', padding: isMobile ? '20px 16px 56px 16px' : isShort ? '14px 20px 56px 20px' : '24px 20px 80px 20px', textAlign: 'center' }}>
             <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '32px' : isShort ? '46px' : '54px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.12', marginBottom: '6px', textWrap: 'balance' } as React.CSSProperties}>Fast California Public-Record Research</h1>
             <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '22px' : isShort ? '30px' : '34px', fontWeight: 'normal', color: '#d97706', marginTop: '6px', marginBottom: isMobile ? '24px' : '28px', textWrap: 'balance' } as React.CSSProperties}>for Lenders, Business & Real Estate Attorneys,{isMobile ? ' ' : <br />}and Commercial Real Estate Brokers</h2>
-            <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>Public-record search results, compiled into a clear PDF report in about a minute. Reports cover sanctions and federal court and bankruptcy records today, with entity status, lien and filing searches on the way.</p>
+            <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>Public-record search results, compiled into a clear PDF report in about a minute. Each report covers U.S. sanctions screening and federal court and bankruptcy records.</p>
 
             <div style={{ maxWidth: '900px', margin: '0 auto 30px auto', textAlign: 'left', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '20px' }}>
               <div style={{ flex: 1, backgroundColor: '#f8fafc', padding: isMobile ? '18px' : isShort ? '18px 22px' : '22px 24px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
@@ -363,7 +362,6 @@ export default function App() {
                   </div>
                   </div>
                   <div style={{ marginTop: '40px' }}>{afterSubscribeBox}</div>
-                  <p style={{ textAlign: 'center', fontSize: '14px', color: '#1e1b4b', maxWidth: '640px', margin: '28px auto 0 auto', lineHeight: '1.6', textWrap: 'balance' } as React.CSSProperties}>{COMING_SOON}</p>
                   <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748b', maxWidth: '640px', margin: '12px auto 0 auto', lineHeight: '1.6' }}>* Reports are compiled from public records and should be independently verified. See the legal notice below.</p>
                 </div>
               )}
@@ -437,7 +435,7 @@ export default function App() {
                   <div style={fieldStyle}>
                     <label style={labelStyle}>County</label>
                     <select value={californiaCounty} onChange={(e) => setCaliforniaCounty(e.target.value)} style={inputStyle}>
-                      <option value="All Counties">All Counties (Comprehensive Statewide)</option>
+                      <option value="All Counties">All Counties</option>
                       <option value="Los Angeles">Los Angeles County</option>
                       <option value="Orange">Orange County</option>
                       <option value="San Francisco">San Francisco County</option>
@@ -508,7 +506,6 @@ export default function App() {
                     </li>
                   ))}
                 </ul>
-                <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.6', margin: '16px 0 0 0' }}>{COMING_SOON}</p>
               </div>
 
               <div style={{ maxWidth: '640px', margin: '56px auto 0 auto', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '24px' }}>
