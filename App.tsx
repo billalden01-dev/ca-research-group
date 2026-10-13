@@ -121,6 +121,7 @@ export default function App() {
   const [reportUse, setReportUse] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [roleType, setRoleType] = useState('');
+  const [referredBy, setReferredBy] = useState('');
   const [purposeCertified, setPurposeCertified] = useState(false);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState('');
@@ -148,6 +149,7 @@ export default function App() {
     setReportUse('');
     setCompanyName('');
     setRoleType('');
+    setReferredBy('');
     setPurposeCertified(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -198,6 +200,7 @@ export default function App() {
         county: californiaCounty,
         use: reportUse,
         certified: purposeCertified,
+        referredBy,
       }),
     })
       .then((r) => r.json())
@@ -409,6 +412,11 @@ export default function App() {
                       <option value="Title or escrow company">Title or escrow company</option>
                       <option value="Other">Other</option>
                     </select>
+                  </div>
+
+                  <div style={fieldStyle}>
+                    <label style={labelStyle}>Who referred you? (optional)</label>
+                    <input type="text" placeholder="Name of the person or company" value={referredBy} onChange={(e) => setReferredBy(e.target.value)} style={inputStyle} maxLength={100} />
                   </div>
 
                   <div style={fieldStyle}>
