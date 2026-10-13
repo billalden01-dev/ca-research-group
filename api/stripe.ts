@@ -253,6 +253,7 @@ export async function handleCheckoutCompleted(session: StripeObj): Promise<strin
           'Link Code': code,
           'Stripe Customer ID': customerId,
           'Signed Up': new Date().toISOString().slice(0, 10),
+          'Referred By': clip(meta.referredBy, 100) || undefined,
           Notes: notes.join('\n'),
         },
       }],
@@ -329,6 +330,7 @@ async function createCheckout(request: Request): Promise<Response> {
     entity: clip(b.entity, 150),
     county: clip(b.county, 60) === 'All Counties' ? '' : clip(b.county, 60),
     use: clip(b.use, 60),
+    referredBy: clip(b.referredBy, 100),
     certified: 'yes',
   };
   try {
