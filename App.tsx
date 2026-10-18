@@ -250,7 +250,7 @@ export default function App() {
   const highlightId = hoveredPlan ?? (selectedPlan ? selectedPlan.id : featuredPlan ? featuredPlan.id : null);
 
   const stepStyle = (n: number): React.CSSProperties => ({
-    color: wizardStep === n ? '#e3c877' : '#ffffff',
+    color: wizardStep === n ? '#d6b968' : '#ffffff',
     opacity: wizardStep >= n ? 1 : 0.5,
     fontWeight: 'bold',
   });
@@ -260,7 +260,7 @@ export default function App() {
     fontWeight: 'bold',
     cursor: 'pointer',
     paddingBottom: '4px',
-    borderBottom: currentPage === page ? '2px solid #c4a047' : '2px solid transparent',
+    borderBottom: currentPage === page ? '2px solid #d6b968' : '2px solid transparent',
   });
 
   const afterSubscribeBox = (
@@ -284,6 +284,7 @@ export default function App() {
           <span onClick={() => handleNavigate('home')} style={navLink('home')}>Home</span>
           <span onClick={() => handleNavigate('how')} style={navLink('how')}>How It Works</span>
           <span onClick={() => handleNavigate('pricing')} style={navLink('pricing')}>Pricing</span>
+          <a href="/contact.html" style={{ color: '#1e1b4b', fontWeight: 'bold', textDecoration: 'none', paddingBottom: '4px', borderBottom: '2px solid transparent' }}>Contact</a>
         </div>
       </nav>
 
@@ -296,7 +297,7 @@ export default function App() {
             <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '32px' : isShort ? '46px' : '54px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.12', marginBottom: '6px', textWrap: 'balance' } as React.CSSProperties}>Fast California Public-Record Research</h1>
             <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '22px' : isShort ? '30px' : '34px', fontWeight: 'normal', color: '#b8963f', marginTop: '6px', marginBottom: isMobile ? '24px' : '28px', textWrap: 'balance' } as React.CSSProperties}>for Lenders, Business & Real Estate Attorneys,{isMobile ? ' ' : <br />}and Commercial Real Estate Brokers</h2>
             <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>Public-record search results, compiled into a clear PDF report in about a minute. Each report covers U.S. sanctions screening and federal court and bankruptcy records.</p>
-            <button type="button" onClick={() => handleNavigate('pricing')} style={{ background: 'linear-gradient(180deg, #e8d28e 0%, #d6b968 100%)', boxShadow: '0 4px 14px rgba(196,160,71,0.35)', color: '#1e1b4b', fontSize: isMobile ? '15px' : '17px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: isMobile ? '14px 22px' : '15px 34px', cursor: 'pointer', margin: isMobile ? '0 0 28px 0' : '0 0 32px 0' }}>Get Started: See Plans & Pricing →</button>
+            <button type="button" onClick={() => handleNavigate('pricing')} style={{ background: 'linear-gradient(180deg, #e8d28e 0%, #d6b968 100%)', boxShadow: '0 4px 14px rgba(214,185,104,0.35)', color: '#1e1b4b', fontSize: isMobile ? '15px' : '17px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: isMobile ? '14px 22px' : '15px 34px', cursor: 'pointer', margin: isMobile ? '0 0 28px 0' : '0 0 32px 0' }}>Get Started: See Plans & Pricing →</button>
 
             <div style={{ maxWidth: '900px', margin: '0 auto 30px auto', textAlign: 'left', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '20px' }}>
               <div style={{ flex: 1, backgroundColor: '#f8fafc', padding: isMobile ? '18px' : isShort ? '18px 22px' : '22px 24px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
@@ -313,7 +314,7 @@ export default function App() {
             <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '14px' : '20px', textAlign: 'left' }}>
               {STEPS.map((step, index) => (
                 <div key={step.title} style={{ flex: 1, display: 'flex', gap: '14px', alignItems: 'flex-start', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: isMobile ? '16px' : '20px 22px', boxShadow: '0 8px 22px rgba(30,27,75,0.06)' }}>
-                  <div style={{ flexShrink: 0, width: '36px', height: '36px', borderRadius: '999px', backgroundColor: '#1e1b4b', color: '#e3c877', fontFamily: SERIF, fontWeight: 'bold', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{index + 1}</div>
+                  <div style={{ flexShrink: 0, width: '36px', height: '36px', borderRadius: '999px', backgroundColor: '#1e1b4b', color: '#d6b968', fontFamily: SERIF, fontWeight: 'bold', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{index + 1}</div>
                   <div>
                     <strong style={{ fontFamily: SERIF, fontSize: isMobile ? '17px' : '18px', color: '#1e1b4b', display: 'block', marginBottom: '4px' }}>{step.title}</strong>
                     <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: '#475569' }}>{step.body}</p>
@@ -366,8 +367,8 @@ export default function App() {
                           style={{
                             position: 'relative',
                             backgroundColor: dark ? '#1e1b4b' : '#ffffff',
-                            border: isSelected ? '3px solid #c4a047' : dark ? '3px solid #1e1b4b' : '3px solid #e2e8f0',
-                            boxShadow: isSelected ? '0 0 0 4px rgba(196,160,71,0.28), 0 18px 40px rgba(30,27,75,0.18)' : dark ? '0 22px 44px rgba(30,27,75,0.3)' : '0 10px 28px rgba(30,27,75,0.1)',
+                            border: isSelected ? '3px solid #d6b968' : dark ? '3px solid #1e1b4b' : '3px solid #e2e8f0',
+                            boxShadow: isSelected ? '0 0 0 4px rgba(214,185,104,0.28), 0 18px 40px rgba(30,27,75,0.18)' : dark ? '0 22px 44px rgba(30,27,75,0.3)' : '0 10px 28px rgba(30,27,75,0.1)',
                             borderRadius: '20px',
                             padding: isMobile ? '28px 20px 22px 20px' : '34px 28px 28px 28px',
                             flex: isMobile ? '1 1 100%' : '1 1 0', minWidth: 0,
@@ -382,14 +383,14 @@ export default function App() {
                             <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(180deg, #e8d28e 0%, #d6b968 100%)', color: '#1e1b4b', fontSize: '12px', fontWeight: 'bold', padding: '5px 16px', borderRadius: '999px', whiteSpace: 'nowrap' }}>⭐ Best value</div>
                           )}
                           <h3 style={{ fontFamily: SERIF, fontSize: isMobile ? '24px' : '21px', fontWeight: 'bold', color: dark ? '#ffffff' : '#1e1b4b', margin: '0 0 12px 0' }}>{plan.name}</h3>
-                          <div style={{ fontFamily: SERIF, fontSize: isMobile ? '42px' : '50px', fontWeight: 'bold', color: dark ? '#e3c877' : '#1e1b4b', lineHeight: '1' }}>${plan.price}<span style={{ fontFamily: 'sans-serif', fontSize: '16px', fontWeight: 'normal', color: dark ? '#cbd5e1' : '#64748b' }}> / mo</span></div>
-                          <div style={{ fontSize: '15px', fontWeight: 'bold', color: dark ? '#e3c877' : '#9c7a26', margin: '10px 0 0 0' }}>${plan.perReport} per report</div>
+                          <div style={{ fontFamily: SERIF, fontSize: isMobile ? '42px' : '50px', fontWeight: 'bold', color: dark ? '#d6b968' : '#1e1b4b', lineHeight: '1' }}>${plan.price}<span style={{ fontFamily: 'sans-serif', fontSize: '16px', fontWeight: 'normal', color: dark ? '#cbd5e1' : '#64748b' }}> / mo</span></div>
+                          <div style={{ fontSize: '15px', fontWeight: 'bold', color: dark ? '#d6b968' : '#b8963f', margin: '10px 0 0 0' }}>${plan.perReport} per report</div>
                           <p style={{ fontSize: '14px', color: dark ? '#cbd5e1' : '#64748b', lineHeight: '1.5', margin: '10px 0 0 0' }}>{plan.tagline}</p>
                           <div style={{ height: '1px', backgroundColor: dark ? 'rgba(255,255,255,0.18)' : '#e2e8f0', margin: '22px 0' }} />
                           <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 28px 0', display: 'flex', flexDirection: 'column', gap: '11px', flex: 1 }}>
                             {plan.features.map((feature) => (
                               <li key={feature} style={{ display: 'flex', gap: '10px', fontSize: '14px', lineHeight: '1.4', color: dark ? '#e2e8f0' : '#475569' }}>
-                                <span style={{ color: dark ? '#e3c877' : '#9c7a26', fontWeight: 'bold' }}>✓</span>
+                                <span style={{ color: dark ? '#d6b968' : '#b8963f', fontWeight: 'bold' }}>✓</span>
                                 <span>{feature}</span>
                               </li>
                             ))}
@@ -427,7 +428,7 @@ export default function App() {
               {/* STEP 2: REVIEW TERMS */}
               {wizardStep === 2 && (
                 <div style={{ maxWidth: '640px', margin: '20px auto 0 auto', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: isMobile ? '22px' : '36px', boxShadow: '0 14px 36px rgba(30,27,75,0.12)', textAlign: 'center' }}>
-                  <h3 style={{ fontFamily: SERIF, color: '#1e1b4b', margin: '0 0 18px 0', fontSize: '22px' }}>Selected plan: <span style={{ color: '#9c7a26' }}>{selectedTier}</span></h3>
+                  <h3 style={{ fontFamily: SERIF, color: '#1e1b4b', margin: '0 0 18px 0', fontSize: '22px' }}>Selected plan: <span style={{ color: '#b8963f' }}>{selectedTier}</span></h3>
                   <p style={{ fontSize: '14px', color: '#475569', margin: '0 0 16px 0', lineHeight: '1.6' }}>Please read the notice below, then check both boxes to continue.</p>
                   <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', padding: '20px', borderRadius: '10px', textAlign: 'left', maxHeight: '200px', overflowY: 'scroll', fontSize: '13px', color: '#475569', marginBottom: '25px', lineHeight: '1.6' }}>
                     <strong>CA RESEARCH GROUP COMPLIANCE ASSURANCE PROVISIONS</strong>
@@ -437,12 +438,12 @@ export default function App() {
                   <p style={{ fontSize: '13px', color: '#475569', margin: '-12px 0 22px 0' }}>Read the full <a href="/terms.html" target="_blank" rel="noopener" style={{ color: '#1d4ed8', fontWeight: 'bold' }}>Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener" style={{ color: '#1d4ed8', fontWeight: 'bold' }}>Privacy Policy</a> (open in a new tab).</p>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
-                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer', fontSize: '14px', color: '#1e1b4b', lineHeight: '1.5', backgroundColor: agreed ? '#fbf7ea' : '#ffffff', border: agreed ? '2px solid #c4a047' : '2px solid #e2e8f0', borderRadius: '10px', padding: '14px' }}>
-                      <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ width: '20px', height: '20px', flexShrink: 0, marginTop: '1px', cursor: 'pointer', accentColor: '#9c7a26' }} />
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer', fontSize: '14px', color: '#1e1b4b', lineHeight: '1.5', backgroundColor: agreed ? '#fbf7ea' : '#ffffff', border: agreed ? '2px solid #d6b968' : '2px solid #e2e8f0', borderRadius: '10px', padding: '14px' }}>
+                      <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ width: '20px', height: '20px', flexShrink: 0, marginTop: '1px', cursor: 'pointer', accentColor: '#b8963f' }} />
                       <span>I agree to the <a href="/terms.html" target="_blank" rel="noopener" style={{ color: '#1d4ed8', fontWeight: 'bold' }}>Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener" style={{ color: '#1d4ed8', fontWeight: 'bold' }}>Privacy Policy</a>.</span>
                     </label>
-                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer', fontSize: '14px', color: '#1e1b4b', lineHeight: '1.5', backgroundColor: agreedAccuracy ? '#fbf7ea' : '#ffffff', border: agreedAccuracy ? '2px solid #c4a047' : '2px solid #e2e8f0', borderRadius: '10px', padding: '14px' }}>
-                      <input type="checkbox" checked={agreedAccuracy} onChange={(e) => setAgreedAccuracy(e.target.checked)} style={{ width: '20px', height: '20px', flexShrink: 0, marginTop: '1px', cursor: 'pointer', accentColor: '#9c7a26' }} />
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer', fontSize: '14px', color: '#1e1b4b', lineHeight: '1.5', backgroundColor: agreedAccuracy ? '#fbf7ea' : '#ffffff', border: agreedAccuracy ? '2px solid #d6b968' : '2px solid #e2e8f0', borderRadius: '10px', padding: '14px' }}>
+                      <input type="checkbox" checked={agreedAccuracy} onChange={(e) => setAgreedAccuracy(e.target.checked)} style={{ width: '20px', height: '20px', flexShrink: 0, marginTop: '1px', cursor: 'pointer', accentColor: '#b8963f' }} />
                       <span>{AGREE_ACCURACY_TEXT}</span>
                     </label>
                   </div>
@@ -561,7 +562,7 @@ export default function App() {
               <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center' }}>
                 {STEPS.map((step, index) => (
                   <div key={step.title} style={{ flex: '1 1 260px', maxWidth: '300px', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '28px', backgroundColor: '#ffffff', boxShadow: '0 10px 28px rgba(30,27,75,0.08)' }}>
-                    <div style={{ fontFamily: SERIF, fontSize: '34px', fontWeight: 'bold', color: '#9c7a26', lineHeight: '1' }}>{index + 1}</div>
+                    <div style={{ fontFamily: SERIF, fontSize: '34px', fontWeight: 'bold', color: '#b8963f', lineHeight: '1' }}>{index + 1}</div>
                     <h3 style={{ fontFamily: SERIF, fontSize: '20px', color: '#1e1b4b', margin: '14px 0 10px 0' }}>{step.title}</h3>
                     <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6', margin: 0 }}>{step.body}</p>
                   </div>
@@ -575,7 +576,7 @@ export default function App() {
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {REPORT_ITEMS.map((item) => (
                     <li key={item} style={{ display: 'flex', gap: '10px', fontSize: '15px', color: '#475569', lineHeight: '1.5' }}>
-                      <span style={{ color: '#9c7a26', fontWeight: 'bold' }}>✓</span>
+                      <span style={{ color: '#b8963f', fontWeight: 'bold' }}>✓</span>
                       <span>{item}</span>
                     </li>
                   ))}
@@ -611,7 +612,7 @@ export default function App() {
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
           <strong>LEGAL, DISCLAIMER & COMPLIANCE NOTICE</strong>
           <p style={{ margin: '10px 0 0 0', opacity: '0.85' }}>© 2026 CA Research Group, Public Records Verification & Due Diligence. All rights reserved. CA Research Group is not a law firm and does not provide legal advice. Our reports are not title searches, title commitments, title insurance, appraisals, or legal opinions. Reports are compiled from publicly available government records and are only as accurate and complete as the sources they come from. Public records can be incomplete, delayed, or contain errors. Reports are for informational purposes only and should be independently verified against the original sources before you rely on them for any lending, investment, title, or legal decision. Use of our services is subject to our Terms of Service.</p>
-          <p style={{ margin: '14px 0 0 0' }}><a href="/terms.html" style={{ color: '#e3c877', fontWeight: 'bold' }}>Terms of Service</a><span style={{ opacity: 0.6, margin: '0 10px' }}>|</span><a href="/privacy.html" style={{ color: '#e3c877', fontWeight: 'bold' }}>Privacy Policy</a><span style={{ opacity: 0.6, margin: '0 10px' }}>|</span><a href="/contact.html" style={{ color: '#e3c877', fontWeight: 'bold' }}>Contact Us</a></p>
+          <p style={{ margin: '14px 0 0 0' }}><a href="/terms.html" style={{ color: '#d6b968', fontWeight: 'bold' }}>Terms of Service</a><span style={{ opacity: 0.6, margin: '0 10px' }}>|</span><a href="/privacy.html" style={{ color: '#d6b968', fontWeight: 'bold' }}>Privacy Policy</a><span style={{ opacity: 0.6, margin: '0 10px' }}>|</span><a href="/contact.html" style={{ color: '#d6b968', fontWeight: 'bold' }}>Contact Us</a></p>
         </div>
       </footer>
 
