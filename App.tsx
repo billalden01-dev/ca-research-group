@@ -347,7 +347,7 @@ export default function App() {
                           style={{
                             position: 'relative',
                             backgroundColor: dark ? '#1e1b4b' : '#ffffff',
-                            border: isSelected ? '3px solid #d97706' : dark ? '1px solid #1e1b4b' : '1px solid #e2e8f0',
+                            border: isSelected ? '3px solid #d97706' : dark ? '3px solid #1e1b4b' : '3px solid #e2e8f0',
                             boxShadow: isSelected ? '0 0 0 4px rgba(217,119,6,0.2), 0 18px 40px rgba(30,27,75,0.18)' : dark ? '0 22px 44px rgba(30,27,75,0.3)' : '0 10px 28px rgba(30,27,75,0.1)',
                             borderRadius: '20px',
                             padding: isMobile ? '28px 20px 22px 20px' : '34px 28px 28px 28px',
