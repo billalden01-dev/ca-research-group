@@ -310,7 +310,7 @@ export default function App() {
             </div>
 
             <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '24px' : '30px', color: '#1e1b4b', margin: isMobile ? '8px 0 18px 0' : '12px 0 22px 0' }}>How it works</h2>
-            <div style={{ maxWidth: '900px', margin: '0 auto 34px auto', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '14px' : '20px', textAlign: 'left' }}>
+            <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '14px' : '20px', textAlign: 'left' }}>
               {STEPS.map((step, index) => (
                 <div key={step.title} onClick={index === 0 ? () => handleNavigate('pricing') : undefined} style={{ cursor: index === 0 ? 'pointer' : 'default', flex: 1, display: 'flex', gap: '14px', alignItems: 'flex-start', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: isMobile ? '16px' : '20px 22px', boxShadow: '0 8px 22px rgba(30,27,75,0.06)' }}>
                   <div style={{ flexShrink: 0, width: '36px', height: '36px', borderRadius: '999px', backgroundColor: '#1e1b4b', color: '#fbbf24', fontFamily: SERIF, fontWeight: 'bold', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{index + 1}</div>
@@ -322,7 +322,6 @@ export default function App() {
               ))}
             </div>
 
-            <button type="button" onClick={() => handleNavigate('pricing')} style={{ backgroundColor: '#1e1b4b', color: '#ffffff', fontSize: isMobile ? '15px' : '17px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: isMobile ? '14px 22px' : '16px 38px', cursor: 'pointer' }}>Get Started: See Plans & Pricing →</button>
           </div>
         )}
 
