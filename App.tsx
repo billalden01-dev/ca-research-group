@@ -77,6 +77,10 @@ const SINGLE: Plan = {
   features: [],
 };
 
+// The two required order-form checkboxes. Keep this wording in sync with api/stripe.ts (AGREEMENT_TEXT).
+const AGREE_TERMS_TEXT = 'I agree to the Terms of Service and Privacy Policy.';
+const AGREE_ACCURACY_TEXT = 'I understand reports are based on official public records, which may occasionally be incomplete or outdated, and that CA Research Group recommends doing my own due diligence before making any decision.';
+
 const LAUNCH_BANNER = 'Sign up by January 31, 2027 to lock in launch pricing for as long as you stay subscribed.';
 
 const STEPS = [
@@ -135,6 +139,7 @@ export default function App() {
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
   const [wizardStep, setWizardStep] = useState<number>(1);
   const [agreed, setAgreed] = useState(false);
+  const [agreedAccuracy, setAgreedAccuracy] = useState(false);
   const [targetEntityName, setTargetEntityName] = useState('');
   const [californiaCounty, setCaliforniaCounty] = useState('All Counties');
   const [corporateEmail, setCorporateEmail] = useState('');
@@ -164,6 +169,7 @@ export default function App() {
     setSelectedTier(null);
     setWizardStep(1);
     setAgreed(false);
+    setAgreedAccuracy(false);
     setTargetEntityName('');
     setCorporateEmail('');
     setPropertyAddress('');
@@ -180,15 +186,13 @@ export default function App() {
     setTimeout(() => setWizardStep(2), 500);
   };
 
-  const handleCheckboxChange = (isChecked: boolean) => {
-    setAgreed(isChecked);
-    if (isChecked) {
-      setTimeout(() => { setWizardStep(3); }, 300);
-    }
-  };
 
   const handleIntakeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!agreed || !agreedAccuracy) {
+      setWizardStep(2);
+      return;
+    }
     if (!selectedTier || !corporateEmail || !companyName || !roleType || !propertyAddress || !purposeCertified) {
       alert("Please complete all required fields, including the property address and the purpose certification.");
       return;
@@ -221,6 +225,8 @@ export default function App() {
         county: californiaCounty,
         use: reportUse,
         certified: purposeCertified,
+        agreedTerms: agreed,
+        agreedAccuracy,
         referredBy,
       }),
     })
@@ -409,7 +415,7 @@ export default function App() {
               {wizardStep === 2 && (
                 <div style={{ maxWidth: '640px', margin: '20px auto 0 auto', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: isMobile ? '22px' : '36px', boxShadow: '0 14px 36px rgba(30,27,75,0.12)', textAlign: 'center' }}>
                   <h3 style={{ fontFamily: SERIF, color: '#1e1b4b', margin: '0 0 18px 0', fontSize: '22px' }}>Selected plan: <span style={{ color: '#d97706' }}>{selectedTier}</span></h3>
-                  <p style={{ fontSize: '14px', color: '#475569', margin: '0 0 16px 0', lineHeight: '1.6' }}>Please read and accept these terms to continue.</p>
+                  <p style={{ fontSize: '14px', color: '#475569', margin: '0 0 16px 0', lineHeight: '1.6' }}>Please read the notice below, then check both boxes to continue.</p>
                   <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', padding: '20px', borderRadius: '10px', textAlign: 'left', maxHeight: '200px', overflowY: 'scroll', fontSize: '13px', color: '#475569', marginBottom: '25px', lineHeight: '1.6' }}>
                     <strong>CA RESEARCH GROUP COMPLIANCE ASSURANCE PROVISIONS</strong>
                     <p style={{ margin: '8px 0' }}>By continuing, you acknowledge that reports are compiled from publicly available government records and are only as accurate and complete as the sources they come from. Public records can be incomplete, delayed, or contain errors. You agree to independently verify any information against the original sources before relying on it for any lending, investment, title, or legal decision.</p>
@@ -417,10 +423,26 @@ export default function App() {
                   </div>
                   <p style={{ fontSize: '13px', color: '#475569', margin: '-12px 0 22px 0' }}>Read the full <a href="/terms.html" target="_blank" rel="noopener" style={{ color: '#1d4ed8', fontWeight: 'bold' }}>Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener" style={{ color: '#1d4ed8', fontWeight: 'bold' }}>Privacy Policy</a> (open in a new tab).</p>
 
-                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold', color: '#1e1b4b' }}>
-                    <input type="checkbox" checked={agreed} onChange={(e) => handleCheckboxChange(e.target.checked)} style={{ transform: 'scale(1.2)', cursor: 'pointer' }} />
-                    I have read and accept these terms
-                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer', fontSize: '14px', color: '#1e1b4b', lineHeight: '1.5', backgroundColor: agreed ? '#fffbeb' : '#ffffff', border: agreed ? '2px solid #d97706' : '2px solid #e2e8f0', borderRadius: '10px', padding: '14px' }}>
+                      <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ width: '20px', height: '20px', flexShrink: 0, marginTop: '1px', cursor: 'pointer', accentColor: '#d97706' }} />
+                      <span>I agree to the <a href="/terms.html" target="_blank" rel="noopener" style={{ color: '#1d4ed8', fontWeight: 'bold' }}>Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener" style={{ color: '#1d4ed8', fontWeight: 'bold' }}>Privacy Policy</a>.</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer', fontSize: '14px', color: '#1e1b4b', lineHeight: '1.5', backgroundColor: agreedAccuracy ? '#fffbeb' : '#ffffff', border: agreedAccuracy ? '2px solid #d97706' : '2px solid #e2e8f0', borderRadius: '10px', padding: '14px' }}>
+                      <input type="checkbox" checked={agreedAccuracy} onChange={(e) => setAgreedAccuracy(e.target.checked)} style={{ width: '20px', height: '20px', flexShrink: 0, marginTop: '1px', cursor: 'pointer', accentColor: '#d97706' }} />
+                      <span>{AGREE_ACCURACY_TEXT}</span>
+                    </label>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={!agreed || !agreedAccuracy}
+                    onClick={() => setWizardStep(3)}
+                    style={{ width: '100%', marginTop: '22px', backgroundColor: agreed && agreedAccuracy ? '#1e1b4b' : '#cbd5e1', color: '#ffffff', border: 'none', borderRadius: '10px', padding: '14px', fontSize: '15px', fontWeight: 'bold', cursor: agreed && agreedAccuracy ? 'pointer' : 'not-allowed' }}
+                  >
+                    Continue ➔
+                  </button>
+                  {(!agreed || !agreedAccuracy) && <p style={{ fontSize: '12px', color: '#64748b', margin: '8px 0 0 0' }}>Please check both boxes to continue.</p>}
 
                   <button type="button" onClick={() => setWizardStep(1)} style={{ background: 'none', border: 'none', color: '#64748b', textDecoration: 'underline', cursor: 'pointer', display: 'block', margin: '25px auto 0 auto' }}>➔ Back to Plans</button>
                 </div>
@@ -506,7 +528,7 @@ export default function App() {
                   </button>
                   <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748b', margin: '-8px 0 0 0' }}>Payments are processed by Stripe. Your private report link is emailed right after payment.</p>
 
-                  <button type="button" onClick={() => { setWizardStep(2); setAgreed(false); }} style={{ background: 'none', border: 'none', color: '#64748b', textDecoration: 'underline', cursor: 'pointer', alignSelf: 'center' }}>➔ Back to Terms</button>
+                  <button type="button" onClick={() => setWizardStep(2)} style={{ background: 'none', border: 'none', color: '#64748b', textDecoration: 'underline', cursor: 'pointer', alignSelf: 'center' }}>➔ Back to Terms</button>
                 </form>
               )}
 

@@ -28,6 +28,13 @@ const PLANS: Record<string, { label: string; name: string; cents: number; oneTim
   twentyfive: { label: '25 Reports ($499/mo)', name: '25 Reports per Month', cents: 49900 },
 };
 
+// The two required order-form checkboxes, word for word (keep in sync with App.tsx). Saved with each customer.
+const AGREEMENT_TEXT = [
+  'I agree to the Terms of Service and Privacy Policy.',
+  'I understand reports are based on official public records, which may occasionally be incomplete or outdated, and that CA Research Group recommends doing my own due diligence before making any decision.',
+];
+const TERMS_VERSION = 'Terms of Service effective October 18, 2026';
+
 const ROLES = [
   'Hard money lender or lending institution',
   'Attorney or legal counsel',
@@ -258,6 +265,10 @@ export async function handleCheckoutCompleted(session: StripeObj): Promise<strin
           'Stripe Customer ID': customerId,
           'Signed Up': new Date().toISOString().slice(0, 10),
           'Referred By': clip(meta.referredBy, 100) || undefined,
+          'Agreed At': meta.agreedAt || undefined,
+          'Agreement Record': meta.agreedAt
+            ? [`Checked both boxes on ${meta.agreedAt} (UTC)`, `By: ${email}${meta.company ? ` for ${clip(meta.company)}` : ''}${meta.agreedIp ? ` from IP ${meta.agreedIp}` : ''}`, `Version: ${TERMS_VERSION}`, ...AGREEMENT_TEXT.map((t, i) => `[x] ${i + 1}. ${t}`)].join('\n')
+            : undefined,
           Notes: notes.join('\n'),
         },
       }],
@@ -325,6 +336,8 @@ async function createCheckout(request: Request): Promise<Response> {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: 'Please enter a valid work email.' }, 400);
   if (!company || !role || !address) return json({ error: 'Please fill in your company, role, and the property address.' }, 400);
   if (b.certified !== true) return json({ error: 'Please check the purpose certification box.' }, 400);
+  if (b.agreedTerms !== true || b.agreedAccuracy !== true) return json({ error: 'Please go back and check both agreement boxes.' }, 400);
+  const ip = clip((request.headers.get('x-forwarded-for') ?? '').split(',')[0].trim(), 60);
 
   const meta = {
     plan: str(b.plan),
@@ -336,6 +349,8 @@ async function createCheckout(request: Request): Promise<Response> {
     use: clip(b.use, 60),
     referredBy: clip(b.referredBy, 100),
     certified: 'yes',
+    agreedAt: new Date().toISOString(),
+    agreedIp: ip,
   };
   try {
     const product_data = { name: `CA Research Group - ${plan.name}` };
