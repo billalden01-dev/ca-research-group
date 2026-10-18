@@ -56,7 +56,7 @@ async function saveToAirtable(name: string, company: string, email: string, mess
         fields: {
           Name: company ? `${name} (${company})` : name,
           Email: email,
-          Channel: 'Website contact form',
+          Channel: 'Inbound - our Contact page',
           'Date Contacted': today,
           Notes: `${message}${emailed ? '' : '\n\n[Email notification failed. Reply from here.]'}`,
         },
