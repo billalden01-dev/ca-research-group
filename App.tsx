@@ -86,7 +86,7 @@ const LAUNCH_BANNER = 'Sign up by January 31, 2027 to lock in launch pricing for
 const STEPS = [
   {
     title: 'Pick your plan',
-    body: 'Choose a monthly plan, or buy a single report for $59. See Plans & Pricing below.',
+    body: 'Choose a monthly plan, or buy a single report for $59.',
   },
   {
     title: 'Enter the business name',
