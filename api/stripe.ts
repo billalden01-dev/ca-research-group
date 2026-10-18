@@ -20,10 +20,12 @@ declare const process: { env: Record<string, string | undefined> };
 const SITE = 'https://www.caresearchgroup.com';
 
 // Prices live here on the server, so nobody can change them from the browser.
-const PLANS: Record<string, { label: string; name: string; cents: number }> = {
-  standard: { label: 'Standard Concierge ($499)', name: 'Standard Concierge', cents: 49900 },
-  enterprise: { label: 'Enterprise Preferred ($799)', name: 'Enterprise Preferred', cents: 79900 },
-  institutional: { label: 'Institutional ($999)', name: 'Institutional', cents: 99900 },
+// oneTime: a single report paid once (no subscription). The labels must match the Plan choices in Airtable.
+const PLANS: Record<string, { label: string; name: string; cents: number; oneTime?: boolean }> = {
+  single: { label: 'Single Report ($59)', name: 'Single Report', cents: 5900, oneTime: true },
+  five: { label: '5 Reports ($199/mo)', name: '5 Reports per Month', cents: 19900 },
+  ten: { label: '10 Reports ($299/mo)', name: '10 Reports per Month', cents: 29900 },
+  twentyfive: { label: '25 Reports ($499/mo)', name: '25 Reports per Month', cents: 49900 },
 };
 
 const ROLES = [
@@ -190,18 +192,18 @@ const STATUS_FROM_STRIPE: Record<string, string> = {
 
 const escapeHtml = (t: string) => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 
-async function sendWelcomeEmail(to: string, company: string, plan: string, code: string) {
+async function sendWelcomeEmail(to: string, company: string, plan: string, code: string, oneTime = false) {
   const key = process.env.RESEND_API_KEY;
   if (!key) throw new Error('RESEND_API_KEY is missing in Vercel.');
   const link = privateLink(code);
   const html = `<div style="font-family:-apple-system,Segoe UI,sans-serif;color:#1e293b;line-height:1.6;max-width:560px">
 <h2 style="font-family:Georgia,serif;color:#1e1b4b">Welcome to CA Research Group</h2>
-<p>Thank you for subscribing${company ? `, ${escapeHtml(company)}` : ''}. Your plan: <strong>${escapeHtml(plan)}</strong>.</p>
+<p>Thank you for ${oneTime ? 'your order' : 'subscribing'}${company ? `, ${escapeHtml(company)}` : ''}. Your ${oneTime ? 'purchase' : 'plan'}: <strong>${escapeHtml(plan)}</strong>.</p>
 <p>This is your company's private report link. No login is needed. Bookmark it and keep it private:</p>
 <p><a href="${link}" style="display:inline-block;background:#1e1b4b;color:#ffffff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Open my report page</a></p>
 <p style="font-size:13px;color:#64748b;word-break:break-all">${link}</p>
 <p>Enter a property address or business name, and your PDF report opens right away and is emailed to you.</p>
-<p style="font-size:13px;color:#475569">You can update your card or cancel online any time: <a href="${manageLink(code)}">manage your subscription</a>.</p>
+${oneTime ? '<p style="font-size:13px;color:#475569">Your single report can be run once from this link. Want more? Reply to this email to start a monthly plan.</p>' : `<p style="font-size:13px;color:#475569">You can update your card or cancel online any time: <a href="${manageLink(code)}">manage your subscription</a>.</p>`}
 <p style="font-size:12px;color:#64748b">To change plans, reply to this email. See our <a href="${SITE}/terms.html">Terms of Service</a> and <a href="${SITE}/privacy.html">Privacy Policy</a>. CA Research Group is not a law firm and does not provide legal advice.</p>
 </div>`;
   const notify = process.env.NOTIFY_EMAIL;
@@ -224,7 +226,9 @@ async function sendWelcomeEmail(to: string, company: string, plan: string, code:
 // ---------- Webhook handlers ----------
 
 export async function handleCheckoutCompleted(session: StripeObj): Promise<string> {
-  if (session.mode !== 'subscription') return 'ignored: not a subscription';
+  const sessionPlan = PLANS[str(((session.metadata ?? {}) as Record<string, string>).plan)];
+  const isOneTime = session.mode === 'payment' && !!sessionPlan?.oneTime;
+  if (session.mode !== 'subscription' && !isOneTime) return 'ignored: not a subscription or single report';
   const customerId = str(session.customer);
   if (!customerId) return 'ignored: no customer';
   const existing = await findByStripeCustomer(customerId);
@@ -235,7 +239,7 @@ export async function handleCheckoutCompleted(session: StripeObj): Promise<strin
   const plan = PLANS[meta.plan] ?? null;
   const email = clip(details.email || session.customer_email, 200);
   const code = newLinkCode();
-  const notes = [`Signed up through Stripe Checkout.`, `Subscription ${str(session.subscription)}`, `Checkout ${str(session.id)}`];
+  const notes = [`Signed up through Stripe Checkout.`, isOneTime ? 'Single report (one-time payment)' : `Subscription ${str(session.subscription)}`, `Checkout ${str(session.id)}`];
   if (meta.address) notes.push(`First property: ${meta.address}${meta.entity ? ` / ${meta.entity}` : ''}${meta.county ? ` / ${meta.county}` : ''}`);
 
   const created = await airtable(CUSTOMERS_TABLE, {
@@ -261,7 +265,7 @@ export async function handleCheckoutCompleted(session: StripeObj): Promise<strin
   });
   const recId = created.records?.[0]?.id ?? '';
   try {
-    if (email) await sendWelcomeEmail(email, clip(meta.company), plan?.label ?? 'your plan', code);
+    if (email) await sendWelcomeEmail(email, clip(meta.company), plan?.label ?? 'your plan', code, isOneTime);
   } catch (err) {
     console.error('Welcome email failed', err);
     await airtable(CUSTOMERS_TABLE, {
@@ -334,12 +338,13 @@ async function createCheckout(request: Request): Promise<Response> {
     certified: 'yes',
   };
   try {
+    const product_data = { name: `CA Research Group - ${plan.name}` };
     const session = await stripe('checkout/sessions', {
-      mode: 'subscription',
+      mode: plan.oneTime ? 'payment' : 'subscription',
       customer_email: email,
-      line_items: { 0: { quantity: 1, price_data: { currency: 'usd', unit_amount: plan.cents, recurring: { interval: 'month' }, product_data: { name: `CA Research Group - ${plan.name}` } } } },
+      line_items: { 0: { quantity: 1, price_data: plan.oneTime ? { currency: 'usd', unit_amount: plan.cents, product_data } : { currency: 'usd', unit_amount: plan.cents, recurring: { interval: 'month' }, product_data } } },
       metadata: meta,
-      subscription_data: { metadata: { plan: meta.plan, company } },
+      ...(plan.oneTime ? { customer_creation: 'always' } : { subscription_data: { metadata: { plan: meta.plan, company } } }),
       success_url: `${SITE}/welcome.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${SITE}/?checkout=canceled`,
       billing_address_collection: 'auto',

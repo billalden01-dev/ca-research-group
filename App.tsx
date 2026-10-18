@@ -6,6 +6,7 @@ type Plan = {
   id: string;
   name: string;
   price: number;
+  perReport: number;
   tagline: string;
   featured: boolean;
   features: string[];
@@ -19,47 +20,64 @@ const fieldStyle: React.CSSProperties = { display: 'flex', flexDirection: 'colum
 
 const PLANS: Plan[] = [
   {
-    id: 'standard',
-    name: 'Standard Concierge',
-    price: 499,
-    tagline: 'For solo professionals and small teams.',
+    id: 'five',
+    name: '5 Reports',
+    price: 199,
+    perReport: 40,
+    tagline: 'For occasional deals.',
     featured: false,
     features: [
-      '10 reports per month (about $50 each)',
+      '5 reports per month',
       'Sanctions screening (U.S. Treasury OFAC list)',
       'Federal court & bankruptcy case search',
       'PDF report in about a minute, emailed to you',
       'Private company link: no login or password',
-      'Email support',
     ],
   },
   {
-    id: 'enterprise',
-    name: 'Enterprise Preferred',
-    price: 799,
-    tagline: 'For active lending and legal teams.',
-    featured: true,
-    features: [
-      '25 reports per month (about $32 each)',
-      'Everything in Standard Concierge',
-      'Best value for teams closing deals every week',
-      'Priority email support',
-    ],
-  },
-  {
-    id: 'institutional',
-    name: 'Institutional',
-    price: 999,
-    tagline: 'For high-volume firms.',
+    id: 'ten',
+    name: '10 Reports',
+    price: 299,
+    perReport: 30,
+    tagline: 'For active brokers and lenders.',
     featured: false,
     features: [
-      '75 reports per month (about $13 each)',
-      'Everything in Enterprise Preferred',
-      'Lowest cost per report',
-      'Direct support from our founder',
+      '10 reports per month',
+      'Sanctions screening (U.S. Treasury OFAC list)',
+      'Federal court & bankruptcy case search',
+      'PDF report in about a minute, emailed to you',
+      'Private company link: no login or password',
+    ],
+  },
+  {
+    id: 'twentyfive',
+    name: '25 Reports',
+    price: 499,
+    perReport: 20,
+    tagline: 'For busy offices and teams.',
+    featured: true,
+    features: [
+      '25 reports per month',
+      'Sanctions screening (U.S. Treasury OFAC list)',
+      'Federal court & bankruptcy case search',
+      'PDF report in about a minute, emailed to you',
+      'Private company link: no login or password',
     ],
   },
 ];
+
+// A single report, paid once. Shown under the plan cards, not as a card.
+const SINGLE: Plan = {
+  id: 'single',
+  name: 'Single Report',
+  price: 59,
+  perReport: 59,
+  tagline: 'One report, paid once.',
+  featured: false,
+  features: [],
+};
+
+const LAUNCH_BANNER = 'Sign up by January 31, 2027 to lock in launch pricing for as long as you stay subscribed.';
 
 const STEPS = [
   {
@@ -79,7 +97,7 @@ const STEPS = [
 const AFTER_SUBSCRIBE = [
   'Choose a plan and accept our Terms of Service, then fill in your details and the first property you want researched, and pay securely by card.',
   'We email your company a private link. Bookmark it. There is no password to remember.',
-  'Use that link any time to request another report. Each request counts toward your monthly plan.',
+  'Use that link any time to request another report. Each request counts toward your monthly plan (or uses your single report).',
   'Your PDF report is sent to your work email.',
 ];
 
@@ -101,12 +119,16 @@ const FAQS = [
     a: 'Reports are only as current as the government sources they come from at the time of the search. Those sources can lag behind real events, so always verify against the originals.',
   },
   {
-    q: 'Can I cancel?',
-    a: 'Yes. Plans are monthly, and you can cancel anytime.',
+    q: 'Can I change or cancel my plan?',
+    a: 'Yes. Plans are monthly. Upgrade anytime (the difference is prorated) and cancel anytime. Unused reports do not roll over.',
+  },
+  {
+    q: 'Need more than 25 reports a month?',
+    a: 'We offer custom plans: 50 reports for $899 a month, or 100 reports for $1,499 a month. Need more than 100? Email william@caresearchgroup.com.',
   },
 ];
 
-const planLabel = (plan: Plan) => `${plan.name} ($${plan.price})`;
+const planLabel = (plan: Plan) => (plan.id === 'single' ? `${plan.name} ($${plan.price})` : `${plan.name} ($${plan.price}/mo)`);
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
@@ -182,7 +204,7 @@ export default function App() {
         return;
       }
     }
-    const plan = PLANS.find((p) => planLabel(p) === selectedTier);
+    const plan = [...PLANS, SINGLE].find((p) => planLabel(p) === selectedTier);
     if (!plan) return;
     setPaying(true);
     setPayError('');
@@ -291,7 +313,7 @@ export default function App() {
             {/* HERO BAND */}
             <div style={{ backgroundColor: '#1e1b4b', padding: isMobile ? '36px 16px 30px 16px' : '56px 20px 48px 20px', textAlign: 'center' }}>
               <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '30px' : '44px', fontWeight: 'bold', color: '#ffffff', margin: '0 0 14px 0', lineHeight: '1.15' }}>Transparent Pricing{isMobile ? <br /> : ' '}for Every Practice</h1>
-              <p style={{ fontSize: isMobile ? '15px' : '17px', color: '#cbd5e1', maxWidth: isMobile ? '620px' : '900px', margin: '0 auto', lineHeight: '1.6', textWrap: 'balance' } as React.CSSProperties}>From individual professionals to multi-user teams. No hidden fees. Cancel anytime.</p>
+              <p style={{ fontSize: isMobile ? '15px' : '17px', color: '#cbd5e1', maxWidth: isMobile ? '620px' : '900px', margin: '0 auto', lineHeight: '1.6', textWrap: 'balance' } as React.CSSProperties}>One price per company, shared by your whole team. No hidden fees. Upgrade or cancel anytime.</p>
 
               {/* STEP STATUS INDICATOR */}
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: isMobile ? '8px' : '15px', flexWrap: 'wrap', marginTop: isMobile ? '22px' : '32px', fontSize: isMobile ? '12px' : '13px' }}>
@@ -308,6 +330,9 @@ export default function App() {
               {/* STEP 1: RENDER TIERS */}
               {wizardStep === 1 && (
                 <div>
+                  <div style={{ maxWidth: '760px', margin: isMobile ? '0 auto 28px auto' : '0 auto 36px auto', backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '12px', padding: isMobile ? '12px 14px' : '14px 20px', textAlign: 'center', fontSize: isMobile ? '14px' : '15px', fontWeight: 'bold', color: '#92400e', lineHeight: '1.5', textWrap: 'balance' } as React.CSSProperties}>
+                    🎉 {LAUNCH_BANNER}
+                  </div>
                   <div style={{ backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '28px', padding: isMobile ? '44px 14px 28px 14px' : '56px 28px 40px 28px' }}>
                   <div style={{ display: 'flex', gap: isMobile ? '36px' : '28px', justifyContent: 'center', flexWrap: isMobile ? 'wrap' : 'nowrap', alignItems: 'stretch' }}>
                     {PLANS.map((plan) => {
@@ -335,11 +360,12 @@ export default function App() {
                           }}
                         >
                           {dark && (
-                            <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)', backgroundColor: '#d97706', color: '#ffffff', fontSize: '12px', fontWeight: 'bold', padding: '5px 16px', borderRadius: '999px' }}>Most popular</div>
+                            <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)', backgroundColor: '#d97706', color: '#ffffff', fontSize: '12px', fontWeight: 'bold', padding: '5px 16px', borderRadius: '999px', whiteSpace: 'nowrap' }}>⭐ Best value</div>
                           )}
                           <h3 style={{ fontFamily: SERIF, fontSize: isMobile ? '24px' : '21px', fontWeight: 'bold', color: dark ? '#ffffff' : '#1e1b4b', margin: '0 0 12px 0' }}>{plan.name}</h3>
                           <div style={{ fontFamily: SERIF, fontSize: isMobile ? '42px' : '50px', fontWeight: 'bold', color: dark ? '#d97706' : '#1e1b4b', lineHeight: '1' }}>${plan.price}<span style={{ fontFamily: 'sans-serif', fontSize: '16px', fontWeight: 'normal', color: dark ? '#cbd5e1' : '#64748b' }}> / mo</span></div>
-                          <p style={{ fontSize: '14px', color: dark ? '#cbd5e1' : '#64748b', lineHeight: '1.5', margin: '14px 0 0 0' }}>{plan.tagline}</p>
+                          <div style={{ fontSize: '15px', fontWeight: 'bold', color: dark ? '#fbbf24' : '#d97706', margin: '10px 0 0 0' }}>${plan.perReport} per report</div>
+                          <p style={{ fontSize: '14px', color: dark ? '#cbd5e1' : '#64748b', lineHeight: '1.5', margin: '10px 0 0 0' }}>{plan.tagline}</p>
                           <div style={{ height: '1px', backgroundColor: dark ? 'rgba(255,255,255,0.18)' : '#e2e8f0', margin: '22px 0' }} />
                           <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 28px 0', display: 'flex', flexDirection: 'column', gap: '11px', flex: 1 }}>
                             {plan.features.map((feature) => (
@@ -354,14 +380,27 @@ export default function App() {
                             onClick={() => handleTierSelection(label)}
                             style={{ width: '100%', backgroundColor: dark ? '#d97706' : '#1e1b4b', color: '#ffffff', border: 'none', borderRadius: '10px', padding: '14px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer' }}
                           >
-                            Select {plan.name}
+                            Choose {plan.name}
                           </button>
                         </div>
                       );
                     })}
                   </div>
+                  <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', justifyContent: 'center', gap: isMobile ? '10px' : '16px', marginTop: isMobile ? '28px' : '34px', textAlign: 'center' }}>
+                    <span style={{ fontFamily: SERIF, fontSize: isMobile ? '20px' : '22px', color: '#1e1b4b', fontWeight: 'bold' }}>Just need one? $59.</span>
+                    <button type="button" onClick={() => handleTierSelection(planLabel(SINGLE))} style={{ backgroundColor: '#ffffff', color: '#1e1b4b', border: '2px solid #1e1b4b', borderRadius: '10px', padding: '10px 20px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer' }}>Buy a single report</button>
+                  </div>
                   </div>
                   <div style={{ marginTop: '40px' }}>{afterSubscribeBox}</div>
+                  <div style={{ maxWidth: '640px', margin: '48px auto 0 auto' }}>
+                    <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '22px' : '26px', color: '#1e1b4b', margin: '0 0 12px 0' }}>Questions</h2>
+                    {FAQS.map((faq) => (
+                      <div key={faq.q} style={{ borderTop: '1px solid #e2e8f0', padding: '16px 0' }}>
+                        <h3 style={{ fontSize: '16px', color: '#1e1b4b', margin: '0 0 6px 0' }}>{faq.q}</h3>
+                        <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.7', margin: 0 }}>{faq.a}</p>
+                      </div>
+                    ))}
+                  </div>
                   <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748b', maxWidth: '640px', margin: '12px auto 0 auto', lineHeight: '1.6' }}>* Reports are compiled from public records and should be independently verified. See the legal notice below.</p>
                 </div>
               )}
