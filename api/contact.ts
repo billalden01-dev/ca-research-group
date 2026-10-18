@@ -83,12 +83,14 @@ export async function POST(request: Request) {
   if (!name || !message) return json({ error: 'Please enter your name and a message.' }, 400);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: 'Please enter a valid email address.' }, 400);
 
+  const problems: string[] = [];
   let emailed = false;
   try {
     await sendEmail(name, company, email, message);
     emailed = true;
   } catch (err) {
     console.error('Contact email failed', err);
+    problems.push(`email: ${err instanceof Error ? err.message : 'error'}`);
   }
   let saved = false;
   try {
@@ -96,7 +98,10 @@ export async function POST(request: Request) {
     saved = true;
   } catch (err) {
     console.error('Contact save failed', err);
+    problems.push(`airtable: ${err instanceof Error ? err.message : 'error'}`);
   }
-  if (!emailed && !saved) return json({ error: `Your message could not be sent just now. Please email us at ${TO}.` }, 502);
+  // On preview links only (never on the live site), show the technical reason to help fix problems.
+  const preview = new URL(request.url).hostname.endsWith('.vercel.app');
+  if (!emailed && !saved) return json({ error: `Your message could not be sent just now. Please email us at ${TO}.`, ...(preview ? { debug: problems } : {}) }, 502);
   return json({ ok: true });
 }
