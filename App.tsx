@@ -379,7 +379,7 @@ export default function App() {
                           }}
                         >
                           {dark && (
-                            <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)', backgroundColor: '#c4a047', color: '#1e1b4b', fontSize: '12px', fontWeight: 'bold', padding: '5px 16px', borderRadius: '999px', whiteSpace: 'nowrap' }}>⭐ Best value</div>
+                            <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(180deg, #e8d28e 0%, #d6b968 100%)', color: '#1e1b4b', fontSize: '12px', fontWeight: 'bold', padding: '5px 16px', borderRadius: '999px', whiteSpace: 'nowrap' }}>⭐ Best value</div>
                           )}
                           <h3 style={{ fontFamily: SERIF, fontSize: isMobile ? '24px' : '21px', fontWeight: 'bold', color: dark ? '#ffffff' : '#1e1b4b', margin: '0 0 12px 0' }}>{plan.name}</h3>
                           <div style={{ fontFamily: SERIF, fontSize: isMobile ? '42px' : '50px', fontWeight: 'bold', color: dark ? '#e3c877' : '#1e1b4b', lineHeight: '1' }}>${plan.price}<span style={{ fontFamily: 'sans-serif', fontSize: '16px', fontWeight: 'normal', color: dark ? '#cbd5e1' : '#64748b' }}> / mo</span></div>
@@ -397,7 +397,7 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => handleTierSelection(label)}
-                            style={{ width: '100%', backgroundColor: dark ? '#c4a047' : '#1e1b4b', color: dark ? '#1e1b4b' : '#ffffff', border: 'none', borderRadius: '10px', padding: '14px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer' }}
+                            style={{ width: '100%', background: dark ? 'linear-gradient(180deg, #e8d28e 0%, #d6b968 100%)' : '#1e1b4b', color: dark ? '#1e1b4b' : '#ffffff', border: 'none', borderRadius: '10px', padding: '14px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer' }}
                           >
                             Choose {plan.name}
                           </button>
