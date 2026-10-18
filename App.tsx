@@ -598,7 +598,7 @@ export default function App() {
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
           <strong>LEGAL, DISCLAIMER & COMPLIANCE NOTICE</strong>
           <p style={{ margin: '10px 0 0 0', opacity: '0.85' }}>© 2026 CA Research Group, Public Records Verification & Due Diligence. All rights reserved. CA Research Group is not a law firm and does not provide legal advice. Our reports are not title searches, title commitments, title insurance, appraisals, or legal opinions. Reports are compiled from publicly available government records and are only as accurate and complete as the sources they come from. Public records can be incomplete, delayed, or contain errors. Reports are for informational purposes only and should be independently verified against the original sources before you rely on them for any lending, investment, title, or legal decision. Use of our services is subject to our Terms of Service.</p>
-          <p style={{ margin: '14px 0 0 0' }}><a href="/terms.html" style={{ color: '#fbbf24', fontWeight: 'bold' }}>Terms of Service</a><span style={{ opacity: 0.6, margin: '0 10px' }}>|</span><a href="/privacy.html" style={{ color: '#fbbf24', fontWeight: 'bold' }}>Privacy Policy</a></p>
+          <p style={{ margin: '14px 0 0 0' }}><a href="/terms.html" style={{ color: '#fbbf24', fontWeight: 'bold' }}>Terms of Service</a><span style={{ opacity: 0.6, margin: '0 10px' }}>|</span><a href="/privacy.html" style={{ color: '#fbbf24', fontWeight: 'bold' }}>Privacy Policy</a><span style={{ opacity: 0.6, margin: '0 10px' }}>|</span><a href="/contact.html" style={{ color: '#fbbf24', fontWeight: 'bold' }}>Contact Us</a></p>
         </div>
       </footer>
 
