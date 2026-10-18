@@ -85,16 +85,16 @@ const LAUNCH_BANNER = 'Sign up by January 31, 2027 to lock in launch pricing for
 
 const STEPS = [
   {
-    title: 'Tell us what to research',
-    body: 'Enter the property address or APN, the county, and the business or entity name if there is one. A short form keeps each request accurate.',
+    title: 'Pick your plan',
+    body: 'Choose a monthly plan, or buy a single report for $59.',
   },
   {
-    title: 'We pull and check the records',
-    body: 'Our system searches official government and court sources for matching records and screens names against the U.S. Treasury sanctions list.',
+    title: 'Enter the business name',
+    body: 'Type the LLC or company on the other side of your deal. Business names only, never individuals.',
   },
   {
-    title: 'You get a PDF report',
-    body: 'Your findings are compiled into a clear PDF report, typically in under 60 seconds, and emailed to you.',
+    title: 'Get your PDF report',
+    body: 'In minutes, pulled from official public records: federal court and bankruptcy cases, plus government watch-list screening.',
   },
 ];
 
@@ -306,6 +306,19 @@ export default function App() {
                 <strong style={{ fontFamily: SERIF, fontSize: isMobile ? '17px' : '19px', color: '#1e1b4b', display: 'block', marginBottom: '6px' }}>🛡️ Fewer Manual Errors</strong>
                 <p style={{ margin: '0', fontSize: isMobile ? '14px' : '15px', lineHeight: '1.6', color: '#475569' }}>Automated searches pull names and records straight from the source, reducing typos and missed details from manual lookups.</p>
               </div>
+            </div>
+
+            <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '24px' : '30px', color: '#1e1b4b', margin: isMobile ? '8px 0 18px 0' : '12px 0 22px 0' }}>How it works</h2>
+            <div style={{ maxWidth: '900px', margin: '0 auto 34px auto', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '14px' : '20px', textAlign: 'left' }}>
+              {STEPS.map((step, index) => (
+                <div key={step.title} style={{ flex: 1, display: 'flex', gap: '14px', alignItems: 'flex-start', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: isMobile ? '16px' : '20px 22px', boxShadow: '0 8px 22px rgba(30,27,75,0.06)' }}>
+                  <div style={{ flexShrink: 0, width: '36px', height: '36px', borderRadius: '999px', backgroundColor: '#1e1b4b', color: '#fbbf24', fontFamily: SERIF, fontWeight: 'bold', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{index + 1}</div>
+                  <div>
+                    <strong style={{ fontFamily: SERIF, fontSize: isMobile ? '17px' : '18px', color: '#1e1b4b', display: 'block', marginBottom: '4px' }}>{step.title}</strong>
+                    <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: '#475569' }}>{step.body}</p>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <button type="button" onClick={() => handleNavigate('pricing')} style={{ backgroundColor: '#1e1b4b', color: '#ffffff', fontSize: isMobile ? '15px' : '17px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: isMobile ? '14px 22px' : '16px 38px', cursor: 'pointer' }}>See Plans & Pricing →</button>
@@ -541,7 +554,7 @@ export default function App() {
           <div>
             <div style={{ backgroundColor: '#1e1b4b', padding: isMobile ? '36px 16px' : '56px 20px', textAlign: 'center' }}>
               <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '30px' : '42px', fontWeight: 'bold', color: '#ffffff', margin: '0 0 16px 0', lineHeight: '1.15' }}>How CA Research Group Works</h1>
-              <p style={{ fontSize: '17px', color: '#cbd5e1', maxWidth: '460px', margin: '0 auto', lineHeight: '1.6', textWrap: 'balance' } as React.CSSProperties}>Three simple steps, from property address to finished report.</p>
+              <p style={{ fontSize: '17px', color: '#cbd5e1', maxWidth: '460px', margin: '0 auto', lineHeight: '1.6', textWrap: 'balance' } as React.CSSProperties}>Three simple steps, from business name to finished report.</p>
             </div>
 
             <div style={{ maxWidth: '1000px', margin: '0 auto', padding: isMobile ? '36px 16px 56px 16px' : '60px 20px 80px 20px' }}>
