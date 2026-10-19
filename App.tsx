@@ -309,7 +309,7 @@ export default function App() {
             <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>Public-record search results, compiled into a clear PDF report in about a minute. Each report shows who owns and manages the business, UCC liens, federal court and bankruptcy records, and U.S. sanctions screening.</p>
             <button type="button" onClick={() => handleNavigate('pricing')} style={{ background: 'linear-gradient(180deg, #e8d28e 0%, #d6b968 100%)', boxShadow: '0 4px 14px rgba(214,185,104,0.35)', color: '#1e1b4b', fontSize: isMobile ? '15px' : '17px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: isMobile ? '14px 22px' : '15px 34px', cursor: 'pointer', margin: isMobile ? '0 0 28px 0' : '0 0 32px 0' }}>Get Started: See Plans & Pricing →</button>
 
-            <div style={{ maxWidth: '820px', margin: isMobile ? '0 auto 30px auto' : '0 auto 40px auto' }}>
+            <div style={{ maxWidth: '620px', margin: isMobile ? '0 auto 30px auto' : '0 auto 40px auto' }}>
               <video
                 controls
                 preload="none"
