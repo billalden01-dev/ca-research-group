@@ -459,12 +459,12 @@ const SAMPLE_INPUT: ReportInput = {
 // ---------- Look and feel ----------
 
 const NAVY = rgb(30 / 255, 27 / 255, 75 / 255);
-const GOLD = rgb(217 / 255, 119 / 255, 6 / 255);
+const GOLD = rgb(184 / 255, 150 / 255, 63 / 255); // brand gold (matches the website)
 const TEXT = rgb(51 / 255, 65 / 255, 85 / 255);
 const MUTED = rgb(100 / 255, 116 / 255, 139 / 255);
 const LINE = rgb(226 / 255, 232 / 255, 240 / 255);
 const PANEL = rgb(248 / 255, 250 / 255, 252 / 255);
-const SAMPLE_BG = rgb(255 / 255, 247 / 255, 237 / 255);
+const SAMPLE_BG = rgb(251 / 255, 247 / 255, 234 / 255); // soft cream
 const WHITE = rgb(1, 1, 1);
 
 const PAGE_W = 612;
