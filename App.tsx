@@ -161,6 +161,7 @@ export default function App() {
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState('');
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
+  const [showVideo, setShowVideo] = useState(false);
   const [isMobile, setIsMobile] = useState<boolean>(typeof window !== 'undefined' && window.innerWidth < 700);
   const [isShort, setIsShort] = useState<boolean>(typeof window !== 'undefined' && window.innerHeight < 800);
 
@@ -307,26 +308,20 @@ export default function App() {
             <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '22px' : isShort ? '30px' : '34px', fontWeight: 500, color: '#9f7f2b', marginTop: '6px', marginBottom: isMobile ? '24px' : '28px', textWrap: 'balance' } as React.CSSProperties}>for Commercial Real Estate & Business Brokers,{isMobile ? ' ' : <br />}Investors, and Private & Hard Money Lenders</h2>
             <p style={{ fontSize: isMobile ? '14px' : '15px', color: '#64748b', margin: isMobile ? '-14px auto 22px auto' : '-16px auto 26px auto', lineHeight: '1.5', textWrap: 'balance' } as React.CSSProperties}>Also a great fit for attorneys,{isMobile ? <br /> : ' '}landlords, and property managers.</p>
             <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>Public-record search results, compiled into a clear PDF report in about a minute. Each report shows who owns and manages the business, UCC liens, federal court and bankruptcy records, and U.S. sanctions screening.</p>
-            <button type="button" onClick={() => handleNavigate('pricing')} style={{ background: 'linear-gradient(180deg, #e8d28e 0%, #d6b968 100%)', boxShadow: '0 4px 14px rgba(214,185,104,0.35)', color: '#1e1b4b', fontSize: isMobile ? '15px' : '17px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: isMobile ? '14px 22px' : '15px 34px', cursor: 'pointer', margin: isMobile ? '0 0 28px 0' : '0 0 32px 0' }}>Get Started: See Plans & Pricing →</button>
+            <button type="button" onClick={() => handleNavigate('pricing')} style={{ background: 'linear-gradient(180deg, #e8d28e 0%, #d6b968 100%)', boxShadow: '0 4px 14px rgba(214,185,104,0.35)', color: '#1e1b4b', fontSize: isMobile ? '15px' : '17px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: isMobile ? '14px 22px' : '15px 34px', cursor: 'pointer', margin: '0 0 14px 0' }}>Get Started: See Plans & Pricing →</button>
+            <div style={{ margin: isMobile ? '0 0 26px 0' : '0 0 30px 0' }}>
+              <button type="button" onClick={() => setShowVideo(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1e1b4b', fontSize: isMobile ? '15px' : '16px', fontWeight: 'bold', textDecoration: 'underline', textDecorationColor: '#d6b968', textUnderlineOffset: '4px', padding: '6px' }}>▶ Watch a 50-second intro from our founder</button>
+            </div>
 
-            <div style={{ maxWidth: '620px', margin: isMobile ? '0 auto 30px auto' : '0 auto 40px auto' }}>
-              <video
-                controls
-                preload="none"
-                playsInline
-                poster="/intro-video-poster.jpg"
-                style={{ width: '100%', display: 'block', borderRadius: '16px', border: '3px solid #d6b968', boxShadow: '0 16px 40px rgba(30,27,75,0.22)', backgroundColor: '#1e1b4b' }}
-              >
-                <source src="/intro-video.mp4" type="video/mp4" />
-              </video>
-              <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', rowGap: '6px', columnGap: '28px', margin: '18px auto 0 auto', fontSize: isMobile ? '14px' : '15px', color: '#475569' }}>
-                <span style={{ whiteSpace: 'nowrap' }}>⚡ <strong style={{ color: '#1e1b4b' }}>Faster decisions:</strong> results in about a minute</span>
-                <span style={{ whiteSpace: 'nowrap' }}>🛡️ <strong style={{ color: '#1e1b4b' }}>Fewer errors:</strong> pulled straight from the source</span>
+            <div style={{ maxWidth: '900px', margin: '0 auto 30px auto', textAlign: 'left', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '20px' }}>
+              <div style={{ flex: 1, backgroundColor: '#f8fafc', padding: isMobile ? '18px' : isShort ? '18px 22px' : '22px 24px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+                <strong style={{ fontFamily: SERIF, fontSize: isMobile ? '17px' : '19px', color: '#1e1b4b', display: 'block', marginBottom: '6px' }}>⚡ Faster Decisions</strong>
+                <p style={{ margin: '0', fontSize: isMobile ? '14px' : '15px', lineHeight: '1.6', color: '#475569' }}>Closing a loan or walking away? Get public-record search results on a business or property, usually in under a minute.</p>
               </div>
-              <p style={{ fontSize: isMobile ? '13px' : '14px', color: '#64748b', margin: '12px auto 0 auto', lineHeight: '1.5', textWrap: 'balance' } as React.CSSProperties}>
-                Coming soon: California county court records for attorneys and lenders.{' '}
-                <a href="/contact.html" style={{ color: '#9f7f2b', fontWeight: 'bold' }}>Join the list</a>
-              </p>
+              <div style={{ flex: 1, backgroundColor: '#f8fafc', padding: isMobile ? '18px' : isShort ? '18px 22px' : '22px 24px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+                <strong style={{ fontFamily: SERIF, fontSize: isMobile ? '17px' : '19px', color: '#1e1b4b', display: 'block', marginBottom: '6px' }}>🛡️ Fewer Manual Errors</strong>
+                <p style={{ margin: '0', fontSize: isMobile ? '14px' : '15px', lineHeight: '1.6', color: '#475569' }}>Automated searches pull names and records straight from the source, reducing typos and missed details from manual lookups.</p>
+              </div>
             </div>
 
             <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '24px' : '30px', color: '#1e1b4b', margin: isMobile ? '8px 0 18px 0' : '12px 0 22px 0' }}>How it works</h2>
@@ -614,6 +609,21 @@ export default function App() {
         )}
 
       </main>
+
+      {showVideo && (
+        <div onClick={() => setShowVideo(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,14,40,0.82)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', width: '100%', maxWidth: '860px' }}>
+            <button type="button" aria-label="Close video" onClick={() => setShowVideo(false)} style={{ position: 'absolute', top: '-44px', right: 0, background: 'none', border: 'none', color: '#ffffff', fontSize: '30px', cursor: 'pointer', lineHeight: 1 }}>×</button>
+            <video controls autoPlay playsInline poster="/intro-video-poster.jpg" style={{ width: '100%', display: 'block', borderRadius: '14px', border: '3px solid #d6b968', backgroundColor: '#1e1b4b' }}>
+              <source src="/intro-video.mp4" type="video/mp4" />
+            </video>
+            <p style={{ color: '#e2e8f0', fontSize: '14px', textAlign: 'center', margin: '14px 0 0 0', lineHeight: '1.5' }}>
+              Coming soon: California county court records for attorneys and lenders.{' '}
+              <a href="/contact.html" style={{ color: '#d6b968', fontWeight: 'bold' }}>Join the list</a>
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* FOOTER */}
       <footer style={{ backgroundColor: '#1e1b4b', padding: '40px 20px', fontSize: '12px', color: '#ffffff', lineHeight: '1.7', borderTop: '1px solid #334155' }}>
