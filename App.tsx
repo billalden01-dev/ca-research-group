@@ -99,7 +99,7 @@ const STEPS = [
 ];
 
 const AFTER_SUBSCRIBE = [
-  'Choose a plan and accept our Terms of Service, then fill in your details and the first property you want researched, and pay securely by card.',
+  'Choose a plan and accept our Terms of Service, then fill in your details and the first business you want researched, and pay securely by card.',
   'We email your company a private link. Bookmark it. There is no password to remember.',
   'Use that link any time to request another report. Each request counts toward your monthly plan (or uses your single report).',
   'Your PDF report is sent to your work email.',
@@ -193,12 +193,12 @@ export default function App() {
       setWizardStep(2);
       return;
     }
-    if (!selectedTier || !corporateEmail || !companyName || !roleType || !propertyAddress || !purposeCertified) {
-      alert("Please complete all required fields, including the property address and the purpose certification.");
+    const entityName = targetEntityName.trim();
+    if (!selectedTier || !corporateEmail || !companyName || !roleType || !entityName || !purposeCertified) {
+      alert("Please complete all required fields, including the business name and the purpose certification.");
       return;
     }
-    const entityName = targetEntityName.trim();
-    if (entityName) {
+    {
       if (/\b(\d{3}-?\d{2}-?\d{4}|\d{2}-?\d{7})\b/.test(entityName)) {
         alert('Please do not enter tax ID or Social Security numbers. Enter the business name only, for example "Acme Holdings LLC".');
         return;
@@ -467,7 +467,7 @@ export default function App() {
               {wizardStep === 3 && (
                 <form onSubmit={handleIntakeSubmit} style={{ maxWidth: '540px', margin: '20px auto 0 auto', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: isMobile ? '22px' : '36px', boxShadow: '0 14px 36px rgba(30,27,75,0.12)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   <h3 style={{ fontFamily: SERIF, color: '#1e1b4b', textAlign: 'center', margin: '0 0 6px 0', fontSize: '22px' }}>Your Details & First Report</h3>
-                  <p style={{ textAlign: 'center', fontSize: '13px', color: '#64748b', margin: '0 0 6px 0', lineHeight: '1.6' }}>Plan: {selectedTier}<br />Tell us about your firm and the first property you want researched.</p>
+                  <p style={{ textAlign: 'center', fontSize: '13px', color: '#64748b', margin: '0 0 6px 0', lineHeight: '1.6' }}>Plan: {selectedTier}<br />Tell us about your firm and the first business you want researched.</p>
 
                   <div style={fieldStyle}>
                     <label style={labelStyle}>Your Company or Firm</label>
@@ -499,13 +499,13 @@ export default function App() {
                   </div>
 
                   <div style={fieldStyle}>
-                    <label style={labelStyle}>Property Address or APN</label>
-                    <input type="text" placeholder="e.g. 123 Main St, Los Angeles, or APN" value={propertyAddress} onChange={(e) => setPropertyAddress(e.target.value)} style={inputStyle} required />
+                    <label style={labelStyle}>Business Name (businesses only, not individuals)</label>
+                    <input type="text" placeholder="e.g. Acme Holdings LLC" value={targetEntityName} onChange={(e) => setTargetEntityName(e.target.value)} style={inputStyle} required />
                   </div>
 
                   <div style={fieldStyle}>
-                    <label style={labelStyle}>Business or Entity Name (optional, businesses only, not individuals)</label>
-                    <input type="text" placeholder="e.g. Acme Holdings LLC" value={targetEntityName} onChange={(e) => setTargetEntityName(e.target.value)} style={inputStyle} />
+                    <label style={labelStyle}>Property Address or APN (optional)</label>
+                    <input type="text" placeholder="e.g. 123 Main St, Los Angeles, or APN" value={propertyAddress} onChange={(e) => setPropertyAddress(e.target.value)} style={inputStyle} />
                   </div>
 
                   <div style={fieldStyle}>

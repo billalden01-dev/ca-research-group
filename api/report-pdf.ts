@@ -678,8 +678,8 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
     ['Prepared for', input.preparedFor.company],
     ['Contact email', input.preparedFor.email],
     ...(input.preparedFor.role ? ([['Role', input.preparedFor.role]] as [string, string][]) : []),
-    ['Property address / APN', input.request.propertyAddress],
-    ['Business or entity', input.request.entityName || 'None provided'],
+    ['Business name', input.request.entityName || 'None provided'],
+    ['Property address / APN', input.request.propertyAddress || 'Not provided'],
     ['County', input.request.county || 'Not specified'],
     ['Intended use', input.request.reportUse || 'Not specified'],
     ['Report generated', fmtDate(input.generatedAt)],
@@ -1027,7 +1027,7 @@ export async function emailReport(to: string, input: ReportInput, pdf: Uint8Arra
   if (!key) return { sent: false, detail: 'RESEND_API_KEY is not set.' };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return { sent: false, detail: 'No valid contact email on file.' };
   const from = process.env.RESEND_FROM || 'CA Research Group <onboarding@resend.dev>';
-  const what = input.request.entityName ? `${input.request.entityName} - ${input.request.propertyAddress}` : input.request.propertyAddress;
+  const what = [input.request.entityName, input.request.propertyAddress].filter(Boolean).join(' - ') || 'your request';
   const html = `<div style="font-family:Arial,sans-serif;color:#1e293b;max-width:560px">
 <p style="font-size:18px;color:#1e1b4b;font-weight:bold;margin:0 0 12px">Your public records report is ready</p>
 <p style="margin:0 0 12px">Attached is report <strong>${escapeHtml(input.reportId)}</strong> for <strong>${escapeHtml(what)}</strong>.</p>
@@ -1184,7 +1184,7 @@ export async function GET(request: Request) {
       return jsonError(err instanceof Error ? err.message : 'Voucher could not be created.', 502);
     }
   }
-  if (!q('address')) return jsonError('Add a property address, e.g. &address=123 Main St, Los Angeles', 400);
+  if (!q('name')) return jsonError('Add a business name, e.g. &name=Acme Holdings LLC', 400);
   const staffNameProblem = businessNameProblem(q('name'));
   if (staffNameProblem) return jsonError(staffNameProblem, 400);
 
@@ -1241,7 +1241,7 @@ export async function POST(request: Request) {
 
   const address = g('address');
   const entityName = g('name');
-  if (!address) return htmlPage('Property address needed', 'Please go back and enter the property address or APN.', 400);
+  if (!entityName.trim()) return htmlPage('Business name needed', 'Please go back and enter the business name, for example "Acme Holdings LLC".', 400);
   if (g('certify') !== 'yes') return htmlPage('Certification needed', 'Please go back and check the purpose certification box.', 400);
   const nameProblem = businessNameProblem(entityName);
   if (nameProblem) return htmlPage('Business names only', nameProblem, 400);

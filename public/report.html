@@ -39,12 +39,12 @@
       <form id="f" method="post" action="/api/report-pdf" target="_blank">
         <input type="hidden" name="c" id="code">
 
-        <label for="address">Property address or APN</label>
-        <input id="address" name="address" type="text" required placeholder="e.g. 123 Main St, Los Angeles, CA">
-
-        <label for="name">Business or entity name (optional, businesses only, not individuals)</label>
-        <input id="name" name="name" type="text" placeholder="e.g. Acme Holdings LLC">
+        <label for="name">Business name (businesses only, not individuals)</label>
+        <input id="name" name="name" type="text" required placeholder="e.g. Acme Holdings LLC">
         <p id="nameErr" class="hidden" style="color:#b91c1c;font-size:13px;margin:6px 0 0"></p>
+
+        <label for="address">Property address or APN (optional)</label>
+        <input id="address" name="address" type="text" placeholder="e.g. 123 Main St, Los Angeles, CA">
 
         <label for="county">County (optional)</label>
         <input id="county" name="county" type="text" placeholder="e.g. Los Angeles">
@@ -105,7 +105,7 @@
     var IDNUM = /\b(\d{3}-?\d{2}-?\d{4}|\d{2}-?\d{7})\b/;
     function nameProblem(n) {
       n = n.trim();
-      if (!n) return '';
+      if (!n) return 'Please enter the business name, for example "Acme Holdings LLC".';
       if (IDNUM.test(n)) return 'Please do not enter tax ID or Social Security numbers. Enter the business name only, for example "Acme Holdings LLC".';
       if (!BIZ.test(n.replace(/\./g, ''))) return 'Business names only. Please include the entity type, for example "Acme Holdings LLC". We do not search individuals.';
       return '';
