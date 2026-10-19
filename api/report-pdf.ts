@@ -9,6 +9,7 @@
 //   https://caresearchgroup.com/report.html?c=LINK_CODE
 
 import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage, PDFImage } from 'pdf-lib';
+import { LOGO_PNG_BASE64 } from '../lib/logo-data';
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -1118,14 +1119,16 @@ export async function runReport(
   };
 }
 
-async function loadLogo(origin: string): Promise<Uint8Array | undefined> {
+async function loadLogo(_origin: string): Promise<Uint8Array | undefined> {
+  // The logo is built in (lib/logo-data.ts), so it shows on every report, including preview links.
   try {
-    const res = await fetch(new URL('/logo-tight.png', origin));
-    if (res.ok) return new Uint8Array(await res.arrayBuffer());
+    const bin = atob(LOGO_PNG_BASE64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
   } catch {
-    // no logo, the report falls back to text
+    return undefined; // falls back to text
   }
-  return undefined;
 }
 
 const pdfResponse = (pdf: Uint8Array, filename: string) =>
