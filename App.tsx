@@ -309,15 +309,20 @@ export default function App() {
             <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>Public-record search results, compiled into a clear PDF report in about a minute. Each report shows who owns and manages the business, UCC liens, federal court and bankruptcy records, and U.S. sanctions screening.</p>
             <button type="button" onClick={() => handleNavigate('pricing')} style={{ background: 'linear-gradient(180deg, #e8d28e 0%, #d6b968 100%)', boxShadow: '0 4px 14px rgba(214,185,104,0.35)', color: '#1e1b4b', fontSize: isMobile ? '15px' : '17px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: isMobile ? '14px 22px' : '15px 34px', cursor: 'pointer', margin: isMobile ? '0 0 28px 0' : '0 0 32px 0' }}>Get Started: See Plans & Pricing →</button>
 
-            <div style={{ maxWidth: '900px', margin: '0 auto 30px auto', textAlign: 'left', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '20px' }}>
-              <div style={{ flex: 1, backgroundColor: '#f8fafc', padding: isMobile ? '18px' : isShort ? '18px 22px' : '22px 24px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
-                <strong style={{ fontFamily: SERIF, fontSize: isMobile ? '17px' : '19px', color: '#1e1b4b', display: 'block', marginBottom: '6px' }}>⚡ Faster Decisions</strong>
-                <p style={{ margin: '0', fontSize: isMobile ? '14px' : '15px', lineHeight: '1.6', color: '#475569' }}>Closing a loan or walking away? Get public-record search results on a business or property, usually in under a minute.</p>
-              </div>
-              <div style={{ flex: 1, backgroundColor: '#f8fafc', padding: isMobile ? '18px' : isShort ? '18px 22px' : '22px 24px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
-                <strong style={{ fontFamily: SERIF, fontSize: isMobile ? '17px' : '19px', color: '#1e1b4b', display: 'block', marginBottom: '6px' }}>🛡️ Fewer Manual Errors</strong>
-                <p style={{ margin: '0', fontSize: isMobile ? '14px' : '15px', lineHeight: '1.6', color: '#475569' }}>Automated searches pull names and records straight from the source, reducing typos and missed details from manual lookups.</p>
-              </div>
+            <div style={{ maxWidth: '820px', margin: isMobile ? '0 auto 30px auto' : '0 auto 40px auto' }}>
+              <video
+                controls
+                preload="none"
+                playsInline
+                poster="/intro-video-poster.jpg"
+                style={{ width: '100%', display: 'block', borderRadius: '16px', border: '3px solid #d6b968', boxShadow: '0 16px 40px rgba(30,27,75,0.22)', backgroundColor: '#1e1b4b' }}
+              >
+                <source src="/intro-video.mp4" type="video/mp4" />
+              </video>
+              <p style={{ fontSize: isMobile ? '13px' : '14px', color: '#64748b', margin: '14px auto 0 auto', lineHeight: '1.5', textWrap: 'balance' } as React.CSSProperties}>
+                Coming soon: UCC liens and more court records for attorneys and lenders.{' '}
+                <a href="/contact.html" style={{ color: '#9f7f2b', fontWeight: 'bold' }}>Join the list</a>
+              </p>
             </div>
 
             <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '24px' : '30px', color: '#1e1b4b', margin: isMobile ? '8px 0 18px 0' : '12px 0 22px 0' }}>How it works</h2>
