@@ -508,17 +508,6 @@ export default function App() {
                     <input type="text" placeholder="e.g. 123 Main St, Los Angeles, or APN" value={propertyAddress} onChange={(e) => setPropertyAddress(e.target.value)} style={inputStyle} />
                   </div>
 
-                  <div style={fieldStyle}>
-                    <label style={labelStyle}>County</label>
-                    <select value={californiaCounty} onChange={(e) => setCaliforniaCounty(e.target.value)} style={inputStyle}>
-                      <option value="All Counties">All Counties</option>
-                      <option value="Los Angeles">Los Angeles County</option>
-                      <option value="Orange">Orange County</option>
-                      <option value="San Francisco">San Francisco County</option>
-                      <option value="Santa Clara">Santa Clara County</option>
-                      <option value="San Diego">San Diego County</option>
-                    </select>
-                  </div>
 
                   <div style={fieldStyle}>
                     <label style={labelStyle}>How will you use this report? (optional)</label>
