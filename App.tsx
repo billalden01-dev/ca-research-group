@@ -319,7 +319,11 @@ export default function App() {
               >
                 <source src="/intro-video.mp4" type="video/mp4" />
               </video>
-              <p style={{ fontSize: isMobile ? '13px' : '14px', color: '#64748b', margin: '14px auto 0 auto', lineHeight: '1.5', textWrap: 'balance' } as React.CSSProperties}>
+              <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'center', alignItems: 'center', gap: isMobile ? '6px' : '28px', margin: '18px auto 0 auto', fontSize: isMobile ? '14px' : '15px', color: '#475569' }}>
+                <span>⚡ <strong style={{ color: '#1e1b4b' }}>Faster decisions:</strong> results in about a minute</span>
+                <span>🛡️ <strong style={{ color: '#1e1b4b' }}>Fewer errors:</strong> pulled straight from the source</span>
+              </div>
+              <p style={{ fontSize: isMobile ? '13px' : '14px', color: '#64748b', margin: '12px auto 0 auto', lineHeight: '1.5', textWrap: 'balance' } as React.CSSProperties}>
                 Coming soon: California county court records for attorneys and lenders.{' '}
                 <a href="/contact.html" style={{ color: '#9f7f2b', fontWeight: 'bold' }}>Join the list</a>
               </p>
