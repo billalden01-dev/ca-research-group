@@ -320,7 +320,7 @@ export default function App() {
                 <source src="/intro-video.mp4" type="video/mp4" />
               </video>
               <p style={{ fontSize: isMobile ? '13px' : '14px', color: '#64748b', margin: '14px auto 0 auto', lineHeight: '1.5', textWrap: 'balance' } as React.CSSProperties}>
-                Coming soon: UCC liens and more court records for attorneys and lenders.{' '}
+                Coming soon: California county court records for attorneys and lenders.{' '}
                 <a href="/contact.html" style={{ color: '#9f7f2b', fontWeight: 'bold' }}>Join the list</a>
               </p>
             </div>
