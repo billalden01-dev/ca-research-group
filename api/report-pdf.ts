@@ -371,6 +371,11 @@ export async function fetchSoi(url: string): Promise<{ pdf: Uint8Array; parsed: 
       return null;
     }
     const pdf = new Uint8Array(await res.arrayBuffer());
+    const head = String.fromCharCode(...pdf.subarray(0, 5));
+    if (head !== '%PDF-') {
+      lastSoiProblem = `state site did not send a PDF (${res.headers.get('content-type') ?? '?'}, ${pdf.length} bytes): ${new TextDecoder().decode(pdf.subarray(0, 160)).replace(/\s+/g, ' ')}`;
+      return null;
+    }
     let text = '';
     try {
       const { getDocumentProxy } = await import('unpdf');
