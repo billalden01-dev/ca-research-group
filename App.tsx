@@ -319,7 +319,7 @@ export default function App() {
                 </span>
                 <span style={{ display: 'block' }}>
                   <span style={{ display: 'block', color: '#1e1b4b', fontSize: isMobile ? '15px' : '16px', fontWeight: 'bold' }}>Watch the 1-minute video</span>
-                  <span style={{ display: 'block', color: '#64748b', fontSize: isMobile ? '13px' : '14px', marginTop: '2px' }}>See how it works, from our founder</span>
+                  <span style={{ display: 'block', color: '#64748b', fontSize: isMobile ? '13px' : '14px', marginTop: '2px' }}>How it works, from founder Bill Alden</span>
                 </span>
               </button>
             </div>
