@@ -1174,8 +1174,8 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
   // Owners and managers
   if (pp) {
     section('Owners and managers', 70);
-    if (pp.officers.length === 0 && !pp.note) {
-      w.paragraph('No owners, managers, or officers are listed on the latest Statement of Information on file.');
+    if (pp.officers.length === 0) {
+      if (!pp.note) w.paragraph('No owners, managers, or officers are listed on the latest Statement of Information on file.');
     } else {
       w.table(
         ['Name', 'Role', 'Address on file'],
