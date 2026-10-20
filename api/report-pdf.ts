@@ -747,7 +747,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
     ? 'Not yet included in reports.'
     : pp.officers.length === 0
       ? 'No owners or managers are listed on the latest Statement of Information.'
-      : `${plural(pp.officers.length, 'owner or manager')} listed${pp.statementDate ? ` on the Statement of Information filed ${pp.statementDate}` : ''}: ${pp.officers.slice(0, 3).map((o) => o.name).join('; ')}${pp.officers.length > 3 ? '; and others' : ''}.`;
+      : `${pp.officers.length} ${pp.officers.length === 1 ? 'owner or manager' : 'owners or managers'} listed${pp.statementDate ? ` on the Statement of Information filed ${pp.statementDate}` : ''}: ${pp.officers.slice(0, 3).map((o) => o.name).join('; ')}${pp.officers.length > 3 ? '; and others' : ''}.`;
   const uc = input.ucc;
   const activeUcc = uc ? uc.filings.filter((f) => /active/i.test(f.status)).length : 0;
   const uccSummary = !uc
@@ -808,7 +808,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
     w.paragraph(`The California Secretary of State business search returned no match for "${input.entitySearch.searchedFor}". Check the spelling or try the exact registered name.`);
   } else {
     records.slice(0, 3).forEach((e, i) => {
-      w.ensure(100);
+      w.ensure(330); // keep one business's details together on one page
       if (records.length > 1) w.paragraph(`Match ${i + 1} of ${records.length}`, { font: bold, color: GOLD, size: 10, gap: 2 });
       w.keyValues([
         ['Entity name', clean(e.name)],
