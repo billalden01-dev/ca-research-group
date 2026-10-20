@@ -430,8 +430,9 @@ async function cobaltGet(path: string, params: Record<string, string>, key: stri
 }
 
 // One lookup: the business record plus its UCC liens.
-export async function cobaltLookup(name: string, key: string): Promise<Raw> {
-  return cobaltGet('/v1/search', { searchQuery: name, state: 'california', liveData: 'true', uccData: 'true' }, key);
+// `dummy` asks the provider for free made-up answers ('complete', 'incomplete', 'failed', ...) to test our handling.
+export async function cobaltLookup(name: string, key: string, dummy?: string): Promise<Raw> {
+  return cobaltGet('/v1/search', { searchQuery: name, state: 'california', liveData: 'true', uccData: 'true', ...(dummy ? { test: dummy } : {}) }, key, dummy ? 30000 : 100000);
 }
 
 const niceDay = (v: string) => {
@@ -1506,7 +1507,7 @@ const newReportId = (d: Date) => {
 // Runs the full engine: entity search + two-step check, sanctions screening, federal court search.
 export async function runReport(
   form: { company: string; email: string; role?: string; propertyAddress: string; entityName?: string; county?: string; reportUse?: string },
-  keys: { sosApiKey?: string; courtListenerToken?: string; cobaltKey?: string; cobaltRaw?: Raw },
+  keys: { sosApiKey?: string; courtListenerToken?: string; cobaltKey?: string; cobaltRaw?: Raw; cobaltDummy?: string },
 ): Promise<ReportInput & { cobaltRaw?: Raw; soiPdf?: { pdf: Uint8Array; date: string } }> {
   const now = new Date();
   const name = (form.entityName ?? '').trim();
@@ -1521,7 +1522,7 @@ export async function runReport(
   const entityTask = (async () => {
     if (!name) return;
     if (keys.cobaltRaw || keys.cobaltKey) {
-      cobaltRaw = keys.cobaltRaw ?? (await cobaltLookup(name, keys.cobaltKey as string));
+      cobaltRaw = keys.cobaltRaw ?? (await cobaltLookup(name, keys.cobaltKey as string, keys.cobaltDummy));
       const soiRef = soiUrlFrom(cobaltRaw);
       const soi = soiRef ? await fetchSoi(soiRef.url) : null;
       if (soi) soiPdf = { pdf: soi.pdf, date: soiRef?.date ?? '' };
@@ -1623,7 +1624,7 @@ export async function GET(request: Request) {
     try {
       const input = await runReport(
         { company: 'CA Research Group (internal test)', email: 'william@caresearchgroup.com', propertyAddress: q('address'), entityName: q('name'), reportUse: 'Internal test' },
-        { courtListenerToken: process.env.COURTLISTENER_TOKEN, cobaltKey: process.env.COBALT_API_KEY },
+        { courtListenerToken: process.env.COURTLISTENER_TOKEN, cobaltKey: process.env.COBALT_API_KEY, cobaltDummy: q('dummy') || undefined },
       );
       if (q('format') === 'json') return new Response(JSON.stringify({ ok: true, name: q('name'), cobaltRaw: input.cobaltRaw }, null, 2), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
       const res = pdfResponse(await buildReportPdf(input, await loadLogo(url.origin)), `CA-Research-Group-TEST-${input.reportId}.pdf`);
