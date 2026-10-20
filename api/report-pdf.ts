@@ -26,6 +26,7 @@ export type EntityRecord = {
   standingFTB?: string | null;
   standingAgent?: string | null;
   address?: string | null;
+  mailingAddress?: string | null;
   agent?: string | null;
   agentAddress?: string | null;
 };
@@ -41,7 +42,17 @@ export type ReportInput = {
   verification: Verification | null;
   sanctions: SanctionsResult | null;
   courts: CourtResult | null;
+  people?: PeopleResult | null;
+  ucc?: UccResult | null;
 };
+
+// Owners and managers, from the business's latest Statement of Information
+export type Officer = { name: string; title: string; address?: string };
+export type PeopleResult = { searchedAt: Date; statementDate?: string; officers: Officer[]; note?: string };
+
+// UCC liens (financing statements) filed against the business
+export type UccFiling = { fileNumber: string; type: string; filed: string; lapse: string; status: string; securedParty: string; collateral?: string };
+export type UccResult = { searchedAt: Date; searchedFor: string; status: 'searched' | 'unavailable'; filings: UccFiling[] };
 
 export type Check = { label: string; result: 'Passed' | 'Flagged'; detail: string };
 export type Verification = { overall: 'Verified' | 'Needs attention'; checks: Check[] };
@@ -386,7 +397,6 @@ const SAMPLE_INPUT: ReportInput = {
   request: {
     propertyAddress: '123 Example Street, Los Angeles, CA 90000',
     entityName: 'Sample Holdings LLC',
-    county: 'Los Angeles',
     reportUse: 'Loan underwriting',
   },
   entitySearch: {
@@ -405,6 +415,7 @@ const SAMPLE_INPUT: ReportInput = {
         standingFTB: 'Good',
         standingAgent: 'Good',
         address: '456 Sample Ave, Suite 100, Los Angeles, CA 90000',
+        mailingAddress: 'PO Box 0000, Los Angeles, CA 90000',
         agent: 'Example Registered Agent Inc.',
         agentAddress: '789 Placeholder Blvd, Sacramento, CA 95800',
       },
@@ -413,14 +424,31 @@ const SAMPLE_INPUT: ReportInput = {
   verification: {
     overall: 'Verified',
     checks: [
-      { label: 'Step 1: Found in Secretary of State search', result: 'Passed', detail: '1 result returned; top result SAMPLE HOLDINGS LLC (#000000000000).' },
-      { label: 'Step 2: Confirmed by entity-number lookup', result: 'Passed', detail: 'Second lookup matched the search result on name, number, status, type, and standing.' },
-      { label: 'Name match', result: 'Passed', detail: 'Exact match for "Sample Holdings LLC".' },
+      { label: 'Step 1: Name match', result: 'Passed', detail: 'Exact match for "Sample Holdings LLC" (match confidence 100%).' },
+      { label: 'Step 2: Checked against the filed Statement of Information', result: 'Passed', detail: 'Business name, entity number, address, and managers on the filed Statement of Information match the state record.' },
       { label: 'Similar business names', result: 'Passed', detail: 'No other businesses with a closely similar name.' },
       { label: 'Status and standing', result: 'Passed', detail: 'Active, with good standing.' },
     ],
   },
-  sanctions: { searchedAt: new Date(), namesChecked: ['Sample Holdings LLC'], available: true, matches: [] },
+  people: {
+    searchedAt: new Date(),
+    statementDate: '2025-04-10',
+    officers: [
+      { name: 'Alex Sample', title: 'Manager', address: '456 Sample Ave, Suite 100, Los Angeles, CA 90000' },
+      { name: 'Sample Capital Partners LLC', title: 'Managing Member', address: '900 Example Way, Irvine, CA 92600' },
+      { name: 'Jordan Example', title: 'Chief Executive Officer', address: '456 Sample Ave, Suite 100, Los Angeles, CA 90000' },
+    ],
+  },
+  ucc: {
+    searchedAt: new Date(),
+    searchedFor: 'Sample Holdings LLC',
+    status: 'searched',
+    filings: [
+      { fileNumber: 'U000000000000', type: 'UCC-1 Financing Statement', filed: '2023-09-12', lapse: '2028-09-12', status: 'Active', securedParty: 'Example Community Bank', collateral: 'All assets of the debtor' },
+      { fileNumber: 'U000000000001', type: 'UCC-1 Financing Statement', filed: '2018-02-20', lapse: '2023-02-20', status: 'Lapsed', securedParty: 'Sample Equipment Finance Co.', collateral: 'Equipment' },
+    ],
+  },
+  sanctions: { searchedAt: new Date(), namesChecked: ['Sample Holdings LLC', 'Sample Capital Partners LLC'], available: true, matches: [] },
   courts: {
     searchedAt: new Date(),
     searchedFor: 'Sample Holdings LLC',
@@ -661,7 +689,8 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
   // Title
   w.page.drawText('Public Records Report', { x: MARGIN, y: w.y - 24, size: 24, font: serif, color: NAVY });
   w.y -= 34;
-  w.paragraph(`Prepared for ${input.preparedFor.company}`, { size: 11, color: MUTED, gap: 14 });
+  w.paragraph(`Prepared for ${input.preparedFor.company}`, { size: 11, color: MUTED, gap: 4 });
+  w.paragraph(`Records current as of ${fmtDate(input.entitySearch?.searchedAt ?? input.generatedAt)}`, { size: 10.5, font: bold, color: NAVY, gap: 14 });
 
   if (input.sample) {
     w.callout(
@@ -679,8 +708,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
     ['Contact email', input.preparedFor.email],
     ...(input.preparedFor.role ? ([['Role', input.preparedFor.role]] as [string, string][]) : []),
     ['Business name', input.request.entityName || 'None provided'],
-    ['Property address / APN', input.request.propertyAddress || 'Not provided'],
-    ['County', input.request.county || 'Not specified'],
+    ['Property address (optional)', input.request.propertyAddress || 'Not provided'],
     ['Intended use', input.request.reportUse || 'Not specified'],
     ['Report generated', fmtDate(input.generatedAt)],
   ]);
@@ -701,7 +729,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       ? 'The sanctions list could not be reached at the time of the search. Search it directly before relying on this report.'
       : sx.matches.length === 0
         ? `No matches on the OFAC Specially Designated Nationals list for ${sx.namesChecked.map((n) => `"${n}"`).join(' or ')}.`
-        : `${sx.matches.length} possible name match${sx.matches.length === 1 ? '' : 'es'}. Review required (see section 2).`;
+        : `${sx.matches.length} possible name match${sx.matches.length === 1 ? '' : 'es'}. Review required (see Sanctions screening below).`;
   const ct = input.courts;
   const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
   const debtorCount = ct ? ct.bankruptcyCases.filter((c) => c.kind.includes('debtor')).length : 0;
@@ -713,16 +741,32 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
         ? 'The court archive could not be reached at the time of the search.'
         : ct.total === 0
           ? 'No federal or bankruptcy cases found in the CourtListener archive.'
-          : `${plural(ct.total, 'federal case')} found, including ${plural(ct.bankruptcyTotal, 'case')} in bankruptcy courts${debtorCount ? `. ${plural(debtorCount, 'filing')} where the company may be the debtor - review` : ''} (see sections 3 and 4).`;
+          : `${plural(ct.total, 'federal case')} found, including ${plural(ct.bankruptcyTotal, 'case')} in bankruptcy courts${debtorCount ? `. ${plural(debtorCount, 'filing')} where the company may be the debtor - review` : ''} (see the court sections below).`;
+  const pp = input.people;
+  const peopleSummary = !pp
+    ? 'Not yet included in reports.'
+    : pp.officers.length === 0
+      ? 'No owners or managers are listed on the latest Statement of Information.'
+      : `${plural(pp.officers.length, 'owner or manager')} listed${pp.statementDate ? ` on the Statement of Information filed ${pp.statementDate}` : ''}: ${pp.officers.slice(0, 3).map((o) => o.name).join('; ')}${pp.officers.length > 3 ? '; and others' : ''}.`;
+  const uc = input.ucc;
+  const activeUcc = uc ? uc.filings.filter((f) => /active/i.test(f.status)).length : 0;
+  const uccSummary = !uc
+    ? 'Not yet included in reports.'
+    : uc.status === 'unavailable'
+      ? 'UCC records could not be reached at the time of the search.'
+      : uc.filings.length === 0
+        ? 'No UCC liens found against this business.'
+        : `${plural(activeUcc, 'active UCC lien')} and ${plural(uc.filings.length - activeUcc, 'lapsed or ended filing')} found.`;
   w.heading('Summary of findings');
   w.table(
     ['Source', 'Searched', 'Result'],
     [190, 80, CONTENT_W - 270],
     [
       ['CA Secretary of State - business entity', input.entitySearch ? 'Yes' : 'No', v ? `${entitySummary} Two-step check: ${v.overall}.` : entitySummary],
+      ['Owners and managers', pp ? 'Yes' : 'Coming soon', peopleSummary],
+      ['CA Secretary of State - UCC liens', uc ? (uc.status === 'searched' ? 'Yes' : 'Failed') : 'Coming soon', uccSummary],
       ['U.S. Treasury OFAC sanctions list', sx ? (sx.available ? 'Yes' : 'Failed') : 'No', sanctionsSummary],
       ['Federal court and bankruptcy cases', ct ? (ct.status === 'searched' ? 'Yes' : ct.status === 'not_connected' ? 'Coming soon' : 'Failed') : 'No', courtSummary],
-      ['CA Secretary of State - UCC liens', 'Coming soon', 'Not yet included in reports.'],
       ['County recorder - recorded documents', 'Coming soon', 'Not yet included in reports.'],
       ['California state court records', 'Coming soon', 'Not yet included in reports.'],
     ],
@@ -736,12 +780,12 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
 
   // Verification
   if (v) {
-    w.heading('Automated two-step verification', 190);
+    w.heading('Automated two-step check', 190);
     const ok = v.overall === 'Verified';
     w.callout(
       ok ? 'RESULT: VERIFIED' : 'RESULT: NEEDS ATTENTION',
       ok
-        ? 'The business record was found by name, then confirmed by a second, separate lookup using its official entity number. All checks passed.'
+        ? 'The business was matched by name, then checked against its filed Statement of Information. All checks passed.'
         : 'One or more checks were flagged below. Review the flagged items and confirm them directly with the Secretary of State before relying on this report.',
       ok ? rgb(240 / 255, 253 / 255, 244 / 255) : SAMPLE_BG,
       ok ? rgb(21 / 255, 128 / 255, 61 / 255) : rgb(185 / 255, 28 / 255, 28 / 255),
@@ -753,8 +797,11 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
     );
   }
 
-  // Section 1: entity detail
-  w.heading('1. Business entity status');
+  let sec = 0;
+  const section = (title: string, keepWith?: number) => w.heading(`${++sec}. ${title}`, keepWith);
+
+  // Business entity detail
+  section('Business entity status');
   if (!input.entitySearch) {
     w.paragraph(input.entityNote ?? 'No business or entity name was provided with this request, so the Secretary of State business search was not run.');
   } else if (records.length === 0) {
@@ -774,20 +821,58 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
         ['Standing - Franchise Tax Board', clean(e.standingFTB)],
         ['Standing - Registered agent', clean(e.standingAgent)],
         ['Principal address', clean(e.address)],
+        ...(e.mailingAddress ? ([['Mailing address', clean(e.mailingAddress)]] as [string, string][]) : []),
         ['Registered agent', clean(e.agent)],
         ['Agent address', clean(e.agentAddress)],
       ]);
     });
     if (records.length > 3) w.paragraph(`${records.length - 3} more possible matches were found and are not shown.`, { color: MUTED, size: 9 });
     w.paragraph(
-      `Source: California Secretary of State, Business Entity Public Search. Searched for "${input.entitySearch.searchedFor}" on ${fmtDate(input.entitySearch.searchedAt)}.`,
+      `Source: official California state business records (Secretary of State). Searched for "${input.entitySearch.searchedFor}" on ${fmtDate(input.entitySearch.searchedAt)}.`,
       { size: 8.5, color: MUTED },
     );
   }
 
-  // Section 2: sanctions
+  // Owners and managers
+  if (pp) {
+    section('Owners and managers', 70);
+    if (pp.officers.length === 0) {
+      w.paragraph('No owners, managers, or officers are listed on the latest Statement of Information on file.');
+    } else {
+      w.table(
+        ['Name', 'Role', 'Address on file'],
+        [170, 120, CONTENT_W - 290],
+        pp.officers.map((o) => [o.name, o.title, o.address || 'Not listed']),
+      );
+    }
+    if (pp.note) w.paragraph(pp.note, { size: 9, color: MUTED });
+    w.paragraph(
+      `Source: the business's Statement of Information${pp.statementDate ? ` filed ${pp.statementDate}` : ''}, from official California state business records. Checked on ${fmtDate(pp.searchedAt)}. A business can change its owners or managers before filing a new statement.`,
+      { size: 8.5, color: MUTED },
+    );
+  }
+
+  // UCC liens
+  if (uc) {
+    section('UCC liens', 70);
+    if (uc.status === 'unavailable') {
+      w.paragraph('UCC records could not be reached at the time of this search. Search them directly with the California Secretary of State before relying on this report.');
+    } else if (uc.filings.length === 0) {
+      w.paragraph(`No UCC financing statements naming "${uc.searchedFor}" as the debtor were found.`);
+    } else {
+      w.paragraph('A UCC lien shows that a lender or vendor has claimed a security interest in the business\'s property, such as equipment or all of its assets. An active lien means that claim is still on file.', { size: 9, color: MUTED, gap: 6 });
+      w.table(
+        ['Secured party', 'Status', 'Filed', 'Lapses', 'File number'],
+        [170, 62, 66, 66, CONTENT_W - 364],
+        uc.filings.map((f) => [`${f.securedParty}${f.collateral ? `\nCollateral: ${f.collateral}` : ''}`, f.status, f.filed || '-', f.lapse || '-', f.fileNumber || '-']),
+      );
+    }
+    w.paragraph(`Source: official California state business records (Secretary of State UCC filings). Searched for debtor name "${uc.searchedFor}" on ${fmtDate(uc.searchedAt)}.`, { size: 8.5, color: MUTED });
+  }
+
+  // Sanctions
   if (sx) {
-    w.heading('2. Sanctions screening', 50);
+    section('Sanctions screening', 50);
     if (!sx.available) {
       w.paragraph('The U.S. Treasury OFAC sanctions list could not be downloaded at the time of this search, so no screening result is available. Search it directly at sanctionssearch.ofac.treas.gov before relying on this report.');
     } else if (sx.matches.length === 0) {
@@ -818,7 +903,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
         ]),
       );
 
-    w.heading('3. Bankruptcy court cases', 70);
+    section('Bankruptcy court cases', 70);
     if (ct.status === 'unavailable') {
       w.paragraph('The CourtListener federal court archive could not be reached at the time of this search. Search PACER (pacer.uscourts.gov) directly before relying on this report.');
     } else if (ct.bankruptcyCases.length === 0) {
@@ -832,7 +917,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
     }
 
     if (ct.status === 'searched') {
-      w.heading('4. Other federal court cases', 70);
+      section('Other federal court cases', 70);
       if (ct.otherCases.length === 0) {
         w.paragraph(`No other federal court cases naming "${ct.searchedFor}" as a party were found in the CourtListener archive.`);
       } else {
