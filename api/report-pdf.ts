@@ -502,7 +502,7 @@ const CONTENT_W = PAGE_W - MARGIN * 2;
 const FOOTER_SPACE = 60;
 
 const LIMITS_TEXT =
-  'This report is compiled from publicly available government and court records and is only as accurate and complete as those sources at the time of the search. Public records can be incomplete, delayed, or contain errors. Verify all information against the original sources before relying on it for any lending, investment, title, or legal decision. CA Research Group is not a law firm and does not provide legal advice. This report is not a title search, title commitment, title insurance, appraisal, or legal opinion. It is not a consumer report and may not be used to determine any individual\'s eligibility for credit, employment, insurance, or housing.';
+  'This report does not include county recorder documents (such as deeds or liens recorded with a county) or California state court cases. This report is compiled from publicly available government and court records and is only as accurate and complete as those sources at the time of the search. Public records can be incomplete, delayed, or contain errors. Verify all information against the original sources before relying on it for any lending, investment, title, or legal decision. CA Research Group is not a law firm and does not provide legal advice. This report is not a title search, title commitment, title insurance, appraisal, or legal opinion. It is not a consumer report and may not be used to determine any individual\'s eligibility for credit, employment, insurance, or housing.';
 
 const fmtDate = (d: Date) =>
   d.toLocaleString('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
@@ -767,8 +767,6 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       ['CA Secretary of State - UCC liens', uc ? (uc.status === 'searched' ? 'Yes' : 'Failed') : 'Coming soon', uccSummary],
       ['U.S. Treasury OFAC sanctions list', sx ? (sx.available ? 'Yes' : 'Failed') : 'No', sanctionsSummary],
       ['Federal court and bankruptcy cases', ct ? (ct.status === 'searched' ? 'Yes' : ct.status === 'not_connected' ? 'Coming soon' : 'Failed') : 'No', courtSummary],
-      ['County recorder - recorded documents', 'Coming soon', 'Not yet included in reports.'],
-      ['California state court records', 'Coming soon', 'Not yet included in reports.'],
     ],
   );
   w.callout(
