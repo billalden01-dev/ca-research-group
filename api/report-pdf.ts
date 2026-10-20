@@ -8,7 +8,7 @@
 // Client report (needs AIRTABLE_TOKEN): each customer's private page posts here.
 //   https://caresearchgroup.com/report.html?c=LINK_CODE
 
-import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage, PDFImage } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage, PDFImage, PDFString } from 'pdf-lib';
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -48,7 +48,7 @@ export type ReportInput = {
 
 // Owners and managers, from the business's latest Statement of Information
 export type Officer = { name: string; title: string; address?: string };
-export type PeopleResult = { searchedAt: Date; statementDate?: string; officers: Officer[]; note?: string };
+export type PeopleResult = { searchedAt: Date; statementDate?: string; statementUrl?: string; officers: Officer[]; note?: string };
 
 // UCC liens (financing statements) filed against the business
 export type UccFiling = { fileNumber: string; type: string; filed: string; lapse: string; status: string; securedParty: string; collateral?: string };
@@ -363,7 +363,7 @@ export async function fetchSoi(url: string): Promise<{ pdf: Uint8Array; parsed: 
   }
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36', Accept: 'application/pdf,*/*' },
+      headers: { Accept: 'application/pdf' },
       signal: timeout(25000),
     });
     if (!res.ok) {
@@ -511,8 +511,11 @@ export function fromCobalt(name: string, raw: Raw, searchedAt: Date, soiParsed?:
     ? {
         searchedAt: asOf,
         statementDate: soi ? str(soi.date) : undefined,
+        statementUrl: soi && /^https:\/\/bizfileonline\.sos\.ca\.gov\//.test(str(soi.url)) ? str(soi.url) : undefined,
         officers,
-        note: soiUnreadable && !officers.length ? 'The latest Statement of Information could not be read automatically (it may be a scanned paper filing). A copy is attached to the report email; please review it for the owners and managers.' : undefined,
+        note: soiUnreadable && !officers.length
+          ? `The owners and managers are listed on the business's Statement of Information${soi && str(soi.date) ? ` filed ${str(soi.date)}` : ''}. Open the filing on the California Secretary of State's website using the link below.`
+          : undefined,
       }
     : null;
 
@@ -565,7 +568,17 @@ export function fromCobalt(name: string, raw: Raw, searchedAt: Date, soiParsed?:
     if (!soi) {
       step2 = { label: 'Step 2: Checked against the filed Statement of Information', result: 'Flagged', detail: 'No Statement of Information was found in the state record. California businesses must file one every one or two years; a missing filing can be a warning sign.' };
     } else if (!soiParsed || !soiParsed.readable) {
-      step2 = { label: 'Step 2: Checked against the filed Statement of Information', result: 'Flagged', detail: `A Statement of Information${filed} is on file, but it could not be read automatically. Please review the attached copy.` };
+      const due = Date.parse(str(top.nextReportDueDate));
+      const filedAt = Date.parse(str(soi.date));
+      const current = Number.isFinite(due) ? due > Date.now() : Number.isFinite(filedAt) && Date.now() - filedAt < 2 * 365 * 86400000;
+      const dueText = Number.isFinite(due) ? niceDay(new Date(due).toISOString()) : '';
+      step2 = {
+        label: 'Step 2: Statement of Information on file and current',
+        result: current ? 'Passed' : 'Flagged',
+        detail: current
+          ? `A Statement of Information was filed${filed.replace(' filed', '')} and is current${dueText ? ` (the next one is due ${dueText})` : ''}.`
+          : `The business's Statement of Information appears overdue${dueText ? ` (it was due ${dueText})` : ''}. Overdue filings can lead to penalties or suspension of the business.`,
+      };
     } else {
       const diffs: string[] = [];
       if (soiParsed.entityNumber && str(top.sosId) && soiParsed.entityNumber.replace(/\D/g, '') !== str(top.sosId).replace(/\D/g, '')) diffs.push('entity number');
@@ -872,6 +885,25 @@ class Writer {
     this.y -= opts.gap ?? 6;
   }
 
+  // Blue underlined text that opens a web address when clicked
+  link(text: string, url: string, size = 10) {
+    this.ensure(size * 2);
+    const width = this.bold.widthOfTextAtSize(text, size);
+    const y = this.y - size;
+    const color = rgb(29 / 255, 78 / 255, 216 / 255);
+    this.page.drawText(text, { x: MARGIN, y, size, font: this.bold, color });
+    this.page.drawLine({ start: { x: MARGIN, y: y - 1.5 }, end: { x: MARGIN + width, y: y - 1.5 }, thickness: 0.6, color });
+    const annot = this.doc.context.obj({
+      Type: 'Annot',
+      Subtype: 'Link',
+      Rect: [MARGIN, y - 3, MARGIN + width, y + size],
+      Border: [0, 0, 0],
+      A: { Type: 'Action', S: 'URI', URI: PDFString.of(url) },
+    });
+    this.page.node.addAnnot(this.doc.context.register(annot));
+    this.y -= size * 1.45 + 8;
+  }
+
   heading(text: string, keepWith = 80) {
     this.ensure(44 + keepWith);
     this.y -= 10;
@@ -1050,8 +1082,8 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
   const peopleSummary = !pp
     ? 'Not yet included in reports.'
     : pp.officers.length === 0
-      ? pp.note
-        ? 'The latest Statement of Information could not be read automatically. See the attached copy.'
+      ? pp.statementUrl
+        ? `Listed on the Statement of Information${pp.statementDate ? ` filed ${pp.statementDate}` : ''} (link in this report).`
         : 'No owners or managers are listed on the latest Statement of Information.'
       : `${pp.officers.length} ${pp.officers.length === 1 ? 'owner or manager' : 'owners or managers'} listed${pp.statementDate ? ` on the Statement of Information filed ${pp.statementDate}` : ''}: ${pp.officers.slice(0, 3).map((o) => o.name).join('; ')}${pp.officers.length > 3 ? '; and others' : ''}.`;
   const uc = input.ucc;
@@ -1142,7 +1174,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
   // Owners and managers
   if (pp) {
     section('Owners and managers', 70);
-    if (pp.officers.length === 0) {
+    if (pp.officers.length === 0 && !pp.note) {
       w.paragraph('No owners, managers, or officers are listed on the latest Statement of Information on file.');
     } else {
       w.table(
@@ -1151,7 +1183,8 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
         pp.officers.map((o) => [o.name, o.title, o.address || 'Not listed']),
       );
     }
-    if (pp.note) w.paragraph(pp.note, { size: 9, color: MUTED });
+    if (pp.note) w.paragraph(pp.note, { gap: 4 });
+    if (pp.statementUrl) w.link(`View the Statement of Information${pp.statementDate ? ` filed ${pp.statementDate}` : ''} (opens the state's website)`, pp.statementUrl);
     w.paragraph(
       `Source: the business's Statement of Information${pp.statementDate ? ` filed ${pp.statementDate}` : ''}, from official California state business records. Checked on ${fmtDate(pp.searchedAt)}. A business can change its owners or managers before filing a new statement.`,
       { size: 8.5, color: MUTED },
