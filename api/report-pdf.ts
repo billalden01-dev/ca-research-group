@@ -301,6 +301,87 @@ export async function getEntityDetails(entityNumber: string, apiKey: string): Pr
 }
 
 
+
+// ---------- Statement of Information (filed with the CA Secretary of State) ----------
+// Electronically filed statements are text PDFs, so the managers, members and officers can be read from them.
+// Older scanned statements have no text; the report then says so and the filing is attached for review.
+
+export type SoiParsed = { entityName: string; entityNumber: string; principalAddress: string; mailingAddress: string; people: Officer[]; readable: boolean };
+
+const SOI_HEADINGS = /^(Agent for Service of Process|Type of Business|Email Notifications|Labor Judgment|Electronic Signature|STATE OF CALIFORNIA|Entity Details|Additional Information|Chief Executive Officer|Secretary|Chief Financial Officer|Director|Officers|Manager\(s\) or Member\(s\)|Principal Address|Mailing Address|Attention|For Office Use Only|Page \d)/i;
+const looksLikeAddressLine = (l: string) => /\d/.test(l) && /,/.test(l);
+
+export function parseSoiText(text: string): SoiParsed {
+  const lines = text.split('\n').map((l) => l.replace(/\s+$/, '')).filter((l) => l.trim());
+  const after = (label: RegExp) => {
+    const i = lines.findIndex((l) => label.test(l));
+    if (i < 0) return '';
+    const first = lines[i].replace(label, '').trim();
+    const next = lines[i + 1] && looksLikeAddressLine(lines[i + 1]) && !/ {3}/.test(lines[i + 1]) ? `, ${lines[i + 1].trim()}` : '';
+    return (first + next).replace(/\s{2,}/g, ' ').trim();
+  };
+  const people: Officer[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    // Header rows look like "Manager or Member Name   Manager or Member Address" or "CEO Name   CEO Address"
+    const h = lines[i].match(/^(.+?) Name\s{2,}.*Address/);
+    if (!h) continue;
+    const role = h[1].trim();
+    for (let j = i + 1; j < lines.length; j++) {
+      const l = lines[j].trim();
+      if (/^None Entered$/i.test(l)) break;
+      if (/ Name\s{2,}.*Address/.test(l) || (SOI_HEADINGS.test(l) && !/ {3}/.test(l))) break;
+      const parts = l.split(/\s{3,}/);
+      if (parts.length >= 2) {
+        people.push({ name: parts[0].trim(), title: role === 'CEO' ? 'Chief Executive Officer' : role, address: parts.slice(1).join(' ').trim() });
+      } else if (people.length && looksLikeAddressLine(l)) {
+        const last = people[people.length - 1];
+        last.address = `${last.address ? `${last.address}, ` : ''}${l}`;
+      } else {
+        break;
+      }
+      i = j;
+    }
+  }
+  const entityName = after(/^(Limited Liability Company|Corporation|Entity) Name\s{2,}/i);
+  const entityNumber = after(/^Entity No\.\s{2,}/i);
+  return {
+    entityName,
+    entityNumber,
+    principalAddress: after(/^Principal Address\s{2,}/i),
+    mailingAddress: after(/^Mailing Address\s{2,}/i),
+    people,
+    readable: Boolean(entityName || entityNumber || people.length),
+  };
+}
+
+export async function fetchSoi(url: string): Promise<{ pdf: Uint8Array; parsed: SoiParsed } | null> {
+  if (!/^https:\/\/bizfileonline\.sos\.ca\.gov\//.test(url)) return null;
+  try {
+    const res = await fetch(url, { signal: timeout(25000) });
+    if (!res.ok) return null;
+    const pdf = new Uint8Array(await res.arrayBuffer());
+    let text = '';
+    try {
+      const { getDocumentProxy } = await import('unpdf');
+      const doc = await getDocumentProxy(new Uint8Array(pdf));
+      for (let p = 1; p <= doc.numPages; p++) {
+        const tc = await (await doc.getPage(p)).getTextContent();
+        text += tc.items.map((it: any) => `${it.str ?? ''}${it.hasEOL ? '\n' : ' '}`).join('') + '\n';
+      }
+    } catch (err) {
+      console.error('Statement of Information text could not be read', err instanceof Error ? err.message : err);
+    }
+    return { pdf, parsed: parseSoiText(text) };
+  } catch {
+    return null;
+  }
+}
+
+const sameAddr = (a: string, b: string) => {
+  const n = (x: string) => x.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return Boolean(a && b) && (n(a).startsWith(n(b).slice(0, 12)) || n(b).startsWith(n(a).slice(0, 12)));
+};
+
 // ---------- Official California state business records (via our records provider) ----------
 // Never name the provider in reports or marketing. Reports say "official California state business records".
 
@@ -357,7 +438,16 @@ function cobaltRecord(r: Raw): EntityRecord {
 }
 
 // Turns the provider's answer into report sections. Works on a saved answer too, so tests don't spend lookups.
-export function fromCobalt(name: string, raw: Raw, searchedAt: Date): Pick<ReportInput, 'entitySearch' | 'entityNote' | 'verification' | 'people' | 'ucc'> {
+export function soiUrlFrom(raw: Raw): { url: string; date: string } | null {
+  const top = Array.isArray(raw.results) ? raw.results[0] : null;
+  const docs: Raw[] = top && Array.isArray(top.documents) ? top.documents : [];
+  const soi = docs
+    .filter((d) => /statement of information/i.test(str(d.name)) && str(d.url))
+    .sort((a, b) => (Date.parse(str(b.date)) || 0) - (Date.parse(str(a.date)) || 0))[0];
+  return soi ? { url: str(soi.url), date: str(soi.date) } : null;
+}
+
+export function fromCobalt(name: string, raw: Raw, searchedAt: Date, soiParsed?: SoiParsed | null): Pick<ReportInput, 'entitySearch' | 'entityNote' | 'verification' | 'people' | 'ucc'> {
   const results: Raw[] = Array.isArray(raw.results) ? raw.results : [];
   const alternatives: Raw[] = Array.isArray(raw.alternativeResults) ? raw.alternativeResults : [];
   const message = str(raw.message);
@@ -389,10 +479,19 @@ export function fromCobalt(name: string, raw: Raw, searchedAt: Date): Pick<Repor
   const soi = docs
     .filter((d) => /statement of information/i.test(str(d.name)))
     .sort((a, b) => (Date.parse(str(b.date)) || 0) - (Date.parse(str(a.date)) || 0))[0];
-  const officers: Officer[] = (top && Array.isArray(top.officers) ? top.officers : [])
+  const listed: Officer[] = (top && Array.isArray(top.officers) ? top.officers : [])
     .filter((o: Raw) => str(o.name) && !/^(false|no|former)$/i.test(str(o.current)))
     .map((o: Raw) => ({ name: str(o.name), title: str(o.title) || 'Not listed', address: joinAddr(o.streetAddress, o.city, o.state, o.zip) || undefined }));
-  const people: PeopleResult | null = top ? { searchedAt: asOf, statementDate: soi ? str(soi.date) : undefined, officers } : null;
+  const officers: Officer[] = soiParsed?.people.length ? soiParsed.people : listed;
+  const soiUnreadable = Boolean(soi) && (!soiParsed || !soiParsed.readable);
+  const people: PeopleResult | null = top
+    ? {
+        searchedAt: asOf,
+        statementDate: soi ? str(soi.date) : undefined,
+        officers,
+        note: soiUnreadable && !officers.length ? 'The latest Statement of Information could not be read automatically (it may be a scanned paper filing). A copy is attached to the report email; please review it for the owners and managers.' : undefined,
+      }
+    : null;
 
   // UCC liens
   let ucc: UccResult | null = null;
@@ -403,7 +502,10 @@ export function fromCobalt(name: string, raw: Raw, searchedAt: Date): Pick<Repor
       searchedAt: asOf,
       searchedFor: str(top.title) || name,
       status: failed ? 'unavailable' : 'searched',
-      filings: filings.map((f) => ({
+      filings: filings
+        .slice()
+        .sort((a, b) => Number(/active/i.test(str(b.status))) - Number(/active/i.test(str(a.status))) || (Date.parse(str(b.filingDate)) || 0) - (Date.parse(str(a.filingDate)) || 0))
+        .map((f) => ({
         fileNumber: str(f.fileNumber),
         type: str(f.type),
         filed: str(f.filingDate),
@@ -435,15 +537,29 @@ export function fromCobalt(name: string, raw: Raw, searchedAt: Date): Pick<Repor
         ? `${ours === 100 ? 'Exact' : 'Close'} match for "${name}": ${str(top.title)} (#${str(top.sosId)}), match confidence ${score}%.`
         : `Weak match for "${name}" (match confidence ${score}%). The record found, ${str(top.title)}, may be a different business.`,
     });
-    checks.push({
-      label: 'Step 2: Checked against the filed Statement of Information',
-      result: soi && officers.length ? 'Passed' : 'Flagged',
-      detail: soi && officers.length
-        ? `A Statement of Information${str(soi.date) ? ` filed ${str(soi.date)}` : ''} is on file with the state, and the owners and managers on record are listed in this report.`
-        : soi
-          ? 'A Statement of Information is on file, but no owners or managers were listed in the state record. Review the filing directly.'
-          : 'No Statement of Information was found in the state record. California businesses must file one every one or two years; a missing filing can be a warning sign.',
-    });
+    const filed = soi && str(soi.date) ? ` filed ${str(soi.date)}` : '';
+    let step2: Check;
+    if (!soi) {
+      step2 = { label: 'Step 2: Checked against the filed Statement of Information', result: 'Flagged', detail: 'No Statement of Information was found in the state record. California businesses must file one every one or two years; a missing filing can be a warning sign.' };
+    } else if (!soiParsed || !soiParsed.readable) {
+      step2 = { label: 'Step 2: Checked against the filed Statement of Information', result: 'Flagged', detail: `A Statement of Information${filed} is on file, but it could not be read automatically. Please review the attached copy.` };
+    } else {
+      const diffs: string[] = [];
+      if (soiParsed.entityNumber && str(top.sosId) && soiParsed.entityNumber.replace(/\D/g, '') !== str(top.sosId).replace(/\D/g, '')) diffs.push('entity number');
+      if (soiParsed.entityName && nameSimilarity(soiParsed.entityName, str(top.title)) < 0.8) diffs.push('business name');
+      const recAddr = joinAddr(top.physicalAddressStreet, top.physicalAddressCity);
+      if (soiParsed.principalAddress && recAddr && !sameAddr(soiParsed.principalAddress, recAddr)) diffs.push('principal address');
+      step2 = {
+        label: 'Step 2: Checked against the filed Statement of Information',
+        result: diffs.length || !officers.length ? 'Flagged' : 'Passed',
+        detail: diffs.length
+          ? `The Statement of Information${filed} does not match the state record on: ${diffs.join(', ')}. Review both before relying on this report.`
+          : officers.length
+            ? `The Statement of Information${filed} matches the state record on business name, entity number, and principal address. It lists ${officers.length} ${officers.length === 1 ? 'owner or manager' : 'owners or managers'}, shown in this report.`
+            : `The Statement of Information${filed} matches the state record, but lists no owners or managers. Review the attached copy.`,
+      };
+    }
+    checks.push(step2);
     const lookalikes = [...results.slice(1).map((r) => str(r.title)), ...alternatives.map((a) => str(a.businessName))].filter((t) => t && nameSimilarity(name, t) >= 0.8);
     checks.push({
       label: 'Similar business names',
@@ -1272,7 +1388,7 @@ function toBase64(bytes: Uint8Array): string {
 
 // Sends the finished PDF. Until caresearchgroup.com is verified in Resend, set no RESEND_FROM:
 // Resend's test sender (onboarding@resend.dev) can only deliver to the Resend account owner's own email.
-export async function emailReport(to: string, input: ReportInput, pdf: Uint8Array, opts: { voucher?: boolean } = {}): Promise<{ sent: boolean; detail: string }> {
+export async function emailReport(to: string, input: ReportInput, pdf: Uint8Array, opts: { voucher?: boolean; soiPdf?: { pdf: Uint8Array; date: string } } = {}): Promise<{ sent: boolean; detail: string }> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return { sent: false, detail: 'RESEND_API_KEY is not set.' };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return { sent: false, detail: 'No valid contact email on file.' };
@@ -1300,7 +1416,10 @@ ${opts.voucher ? `<div style="background:#fffbeb;border:1px solid #fde68a;border
         subject: `Your CA Research Group report ${input.reportId}`,
         reply_to: 'william@caresearchgroup.com',
         html,
-        attachments: [{ filename: `CA-Research-Group-${input.reportId}.pdf`, content: toBase64(pdf) }],
+        attachments: [
+          { filename: `CA-Research-Group-${input.reportId}.pdf`, content: toBase64(pdf) },
+          ...(opts.soiPdf ? [{ filename: `Statement-of-Information${opts.soiPdf.date ? `-${opts.soiPdf.date.replace(/\//g, '-')}` : ''}.pdf`, content: toBase64(opts.soiPdf.pdf) }] : []),
+        ],
       }),
       signal: timeout(20000),
     });
@@ -1330,7 +1449,7 @@ const newReportId = (d: Date) => {
 export async function runReport(
   form: { company: string; email: string; role?: string; propertyAddress: string; entityName?: string; county?: string; reportUse?: string },
   keys: { sosApiKey?: string; courtListenerToken?: string; cobaltKey?: string; cobaltRaw?: Raw },
-): Promise<ReportInput & { cobaltRaw?: Raw }> {
+): Promise<ReportInput & { cobaltRaw?: Raw; soiPdf?: { pdf: Uint8Array; date: string } }> {
   const now = new Date();
   const name = (form.entityName ?? '').trim();
   let entitySearch: ReportInput['entitySearch'] = null;
@@ -1339,12 +1458,16 @@ export async function runReport(
   let people: PeopleResult | null = null;
   let ucc: UccResult | null = null;
   let cobaltRaw: Raw | undefined;
+  let soiPdf: { pdf: Uint8Array; date: string } | undefined;
 
   const entityTask = (async () => {
     if (!name) return;
     if (keys.cobaltRaw || keys.cobaltKey) {
       cobaltRaw = keys.cobaltRaw ?? (await cobaltLookup(name, keys.cobaltKey as string));
-      const parts = fromCobalt(name, cobaltRaw, now);
+      const soiRef = soiUrlFrom(cobaltRaw);
+      const soi = soiRef ? await fetchSoi(soiRef.url) : null;
+      if (soi) soiPdf = { pdf: soi.pdf, date: soiRef?.date ?? '' };
+      const parts = fromCobalt(name, cobaltRaw, now, soi?.parsed ?? null);
       entitySearch = parts.entitySearch;
       entityNote = parts.entityNote;
       verification = parts.verification;
@@ -1381,6 +1504,7 @@ export async function runReport(
     people,
     ucc,
     cobaltRaw,
+    soiPdf,
   };
 }
 
@@ -1581,7 +1705,7 @@ export async function POST(request: Request) {
     );
     const pdf = await buildReportPdf(input, await loadLogo(url.origin));
     const courtsSearched = input.courts?.status === 'searched';
-    const mail = await emailReport(customer.email, input, pdf, { voucher: customer.voucher });
+    const mail = await emailReport(customer.email, input, pdf, { voucher: customer.voucher, soiPdf: input.soiPdf });
     await updateRequest(requestId, {
       Notes: mail.sent ? mail.detail : `Email not sent: ${mail.detail}`,
       'Report ID': input.reportId,
