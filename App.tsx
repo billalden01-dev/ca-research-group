@@ -313,10 +313,8 @@ export default function App() {
               <button type="button" onClick={() => setShowVideo(true)} aria-label="Play the 1-minute video" style={{ display: 'inline-flex', alignItems: 'center', gap: '14px', background: '#ffffff', border: '1px solid #e6d6a3', borderRadius: '14px', padding: '8px 18px 8px 8px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(30,27,75,0.08)', textAlign: 'left', fontFamily: 'inherit' }}>
                 <span style={{ position: 'relative', width: isMobile ? '60px' : '68px', height: isMobile ? '60px' : '68px', flex: '0 0 auto', borderRadius: '10px', overflow: 'hidden', display: 'block' }}>
                   <img src="/founder-thumb.jpg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                  <span style={{ position: 'absolute', inset: 0, background: 'rgba(30,27,75,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <span style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#d6b968', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>
-                      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5 L10.5 6 L3 10.5 Z" fill="#1e1b4b" /></svg>
-                    </span>
+                  <span style={{ position: 'absolute', right: '4px', bottom: '4px', width: '24px', height: '24px', borderRadius: '50%', background: '#d6b968', border: '2px solid #ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>
+                    <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 1.5 L10.5 6 L3.5 10.5 Z" fill="#1e1b4b" /></svg>
                   </span>
                 </span>
                 <span style={{ display: 'block' }}>
