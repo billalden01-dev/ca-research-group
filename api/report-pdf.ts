@@ -354,11 +354,22 @@ export function parseSoiText(text: string): SoiParsed {
   };
 }
 
+export let lastSoiProblem = '';
 export async function fetchSoi(url: string): Promise<{ pdf: Uint8Array; parsed: SoiParsed } | null> {
-  if (!/^https:\/\/bizfileonline\.sos\.ca\.gov\//.test(url)) return null;
+  lastSoiProblem = '';
+  if (!/^https:\/\/bizfileonline\.sos\.ca\.gov\//.test(url)) {
+    lastSoiProblem = 'not a state filing link';
+    return null;
+  }
   try {
-    const res = await fetch(url, { signal: timeout(25000) });
-    if (!res.ok) return null;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36', Accept: 'application/pdf,*/*' },
+      signal: timeout(25000),
+    });
+    if (!res.ok) {
+      lastSoiProblem = `state site returned ${res.status}`;
+      return null;
+    }
     const pdf = new Uint8Array(await res.arrayBuffer());
     let text = '';
     try {
@@ -369,10 +380,13 @@ export async function fetchSoi(url: string): Promise<{ pdf: Uint8Array; parsed: 
         text += tc.items.map((it: any) => `${it.str ?? ''}${it.hasEOL ? '\n' : ' '}`).join('') + '\n';
       }
     } catch (err) {
-      console.error('Statement of Information text could not be read', err instanceof Error ? err.message : err);
+      lastSoiProblem = `text reader: ${err instanceof Error ? err.message : String(err)}`;
+      console.error('Statement of Information text could not be read', lastSoiProblem);
     }
+    if (!lastSoiProblem && !text.trim()) lastSoiProblem = 'no text in the filing (scanned?)';
     return { pdf, parsed: parseSoiText(text) };
-  } catch {
+  } catch (err) {
+    lastSoiProblem = `download: ${err instanceof Error ? err.message : String(err)}`;
     return null;
   }
 }
@@ -415,6 +429,10 @@ export async function cobaltLookup(name: string, key: string): Promise<Raw> {
   return cobaltGet('/v1/search', { searchQuery: name, state: 'california', liveData: 'true', uccData: 'true' }, key);
 }
 
+const niceDay = (v: string) => {
+  const t = Date.parse(v);
+  return v && Number.isFinite(t) ? new Date(t).toLocaleDateString('en-US', { timeZone: 'UTC', year: 'numeric', month: 'long', day: 'numeric' }) : '';
+};
 const joinAddr = (...parts: unknown[]) => parts.map(str).filter(Boolean).join(', ');
 const pct = (n: unknown) => {
   const v = Number(n);
@@ -428,7 +446,7 @@ function cobaltRecord(r: Raw): EntityRecord {
     type: [str(r.entityType), str(r.entitySubType)].filter(Boolean).join(' - '),
     status: str(r.status),
     statusDate: str(r.inactiveDate) || null,
-    filingDate: str(r.normalizedFilingDate) || str(r.filingDate),
+    filingDate: niceDay(str(r.normalizedFilingDate)) || str(r.filingDate),
     jurisdiction: str(r.stateOfFormation),
     address: joinAddr(r.physicalAddressStreet, r.physicalAddressCity, r.physicalAddressState, r.physicalAddressZip),
     mailingAddress: joinAddr(r.mailingAddressStreet, r.mailingAddressCity, r.mailingAddressState, r.mailingAddressZip),
@@ -1027,7 +1045,9 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
   const peopleSummary = !pp
     ? 'Not yet included in reports.'
     : pp.officers.length === 0
-      ? 'No owners or managers are listed on the latest Statement of Information.'
+      ? pp.note
+        ? 'The latest Statement of Information could not be read automatically. See the attached copy.'
+        : 'No owners or managers are listed on the latest Statement of Information.'
       : `${pp.officers.length} ${pp.officers.length === 1 ? 'owner or manager' : 'owners or managers'} listed${pp.statementDate ? ` on the Statement of Information filed ${pp.statementDate}` : ''}: ${pp.officers.slice(0, 3).map((o) => o.name).join('; ')}${pp.officers.length > 3 ? '; and others' : ''}.`;
   const uc = input.ucc;
   const activeUcc = uc ? uc.filings.filter((f) => /active/i.test(f.status)).length : 0;
@@ -1047,7 +1067,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       ['Owners and managers', pp ? 'Yes' : 'Coming soon', peopleSummary],
       ['CA Secretary of State - UCC liens', uc ? (uc.status === 'searched' ? 'Yes' : 'Failed') : 'Coming soon', uccSummary],
       ['U.S. Treasury OFAC sanctions list', sx ? (sx.available ? 'Yes' : 'Failed') : 'No', sanctionsSummary],
-      ['Federal court and bankruptcy cases', ct ? (ct.status === 'searched' ? 'Yes' : ct.status === 'not_connected' ? 'Coming soon' : 'Failed') : 'No', courtSummary],
+      ...(ct && ct.status === 'not_connected' ? [] : [['Federal court and bankruptcy cases', ct ? (ct.status === 'searched' ? 'Yes' : 'Failed') : 'No', courtSummary]]),
     ],
   );
   w.callout(
@@ -1080,7 +1100,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
   const section = (title: string, keepWith?: number) => w.heading(`${++sec}. ${title}`, keepWith);
 
   // Business entity detail
-  section('Business entity status');
+  section('Business entity status', 330);
   if (!input.entitySearch) {
     w.paragraph(input.entityNote ?? 'No business or entity name was provided with this request, so the Secretary of State business search was not run.');
   } else if (records.length === 0) {
@@ -1568,7 +1588,9 @@ export async function GET(request: Request) {
         { courtListenerToken: process.env.COURTLISTENER_TOKEN, cobaltKey: process.env.COBALT_API_KEY },
       );
       if (q('format') === 'json') return new Response(JSON.stringify({ ok: true, name: q('name'), cobaltRaw: input.cobaltRaw }, null, 2), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
-      return pdfResponse(await buildReportPdf(input, await loadLogo(url.origin)), `CA-Research-Group-TEST-${input.reportId}.pdf`);
+      const res = pdfResponse(await buildReportPdf(input, await loadLogo(url.origin)), `CA-Research-Group-TEST-${input.reportId}.pdf`);
+      res.headers.set('X-Soi-Status', lastSoiProblem || (input.soiPdf ? 'read' : 'none'));
+      return res;
     } catch (err) {
       return jsonError(err instanceof Error ? err.message : 'Test failed.', 502);
     }
@@ -1626,7 +1648,9 @@ export async function POST(request: Request) {
         { company: 'CA Research Group (internal test)', email: 'william@caresearchgroup.com', propertyAddress: '', entityName: b.name, reportUse: 'Internal test' },
         { courtListenerToken: process.env.COURTLISTENER_TOKEN, cobaltRaw: b.cobaltRaw },
       );
-      return pdfResponse(await buildReportPdf(input, await loadLogo(url.origin)), `CA-Research-Group-TEST-${input.reportId}.pdf`);
+      const res = pdfResponse(await buildReportPdf(input, await loadLogo(url.origin)), `CA-Research-Group-TEST-${input.reportId}.pdf`);
+      res.headers.set('X-Soi-Status', lastSoiProblem || (input.soiPdf ? 'read' : 'none'));
+      return res;
     } catch (err) {
       return jsonError(err instanceof Error ? err.message : 'Test failed.', 502);
     }
