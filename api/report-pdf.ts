@@ -300,7 +300,172 @@ export async function getEntityDetails(entityNumber: string, apiKey: string): Pr
   return list.length ? toRecord(list[0]) : null;
 }
 
-// ---------- Automated two-step check ----------
+
+// ---------- Official California state business records (via our records provider) ----------
+// Never name the provider in reports or marketing. Reports say "official California state business records".
+
+const COBALT_BASE = 'https://apigateway.cobaltintelligence.com';
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+type Raw = Record<string, any>;
+
+// Calls the provider, waiting (retryId) when the state's website is slow. Failed searches are not charged.
+async function cobaltGet(path: string, params: Record<string, string>, key: string, maxWaitMs = 100000): Promise<Raw> {
+  const started = Date.now();
+  let retryId = '';
+  for (;;) {
+    const qs = new URLSearchParams(retryId ? { retryId, state: params.state } : params);
+    const res = await fetch(`${COBALT_BASE}${path}?${qs}`, { headers: { 'x-api-key': key, Accept: 'application/json' }, signal: timeout(60000) });
+    const body = (await res.json().catch(() => ({}))) as Raw;
+    const code = Number(body.statusCode ?? res.status);
+    if (code === 202 && body.retryId) {
+      retryId = String(body.retryId);
+      if (Date.now() - started > maxWaitMs) throw new Error('The state records website is taking longer than usual. Please try again in a few minutes.');
+      await sleep(5000);
+      continue;
+    }
+    if (code === 429) throw new Error('State records lookup limit reached. Please contact CA Research Group.');
+    if (code === 401 || code === 403) throw new Error('State records connection is not authorized (check COBALT_API_KEY in Vercel).');
+    return { ...body, statusCode: code };
+  }
+}
+
+// One lookup: the business record plus its UCC liens.
+export async function cobaltLookup(name: string, key: string): Promise<Raw> {
+  return cobaltGet('/v1/search', { searchQuery: name, state: 'california', liveData: 'true', uccData: 'true' }, key);
+}
+
+const joinAddr = (...parts: unknown[]) => parts.map(str).filter(Boolean).join(', ');
+const pct = (n: unknown) => {
+  const v = Number(n);
+  return Number.isFinite(v) ? Math.round((v <= 1 ? v * 100 : v)) : null;
+};
+
+function cobaltRecord(r: Raw): EntityRecord {
+  return {
+    name: str(r.title),
+    entityNumber: str(r.sosId),
+    type: [str(r.entityType), str(r.entitySubType)].filter(Boolean).join(' - '),
+    status: str(r.status),
+    statusDate: str(r.inactiveDate) || null,
+    filingDate: str(r.normalizedFilingDate) || str(r.filingDate),
+    jurisdiction: str(r.stateOfFormation),
+    address: joinAddr(r.physicalAddressStreet, r.physicalAddressCity, r.physicalAddressState, r.physicalAddressZip),
+    mailingAddress: joinAddr(r.mailingAddressStreet, r.mailingAddressCity, r.mailingAddressState, r.mailingAddressZip),
+    agent: str(r.agentName),
+    agentAddress: joinAddr(r.agentStreetAddress, r.agentCity, r.agentState, r.agentZip),
+  };
+}
+
+// Turns the provider's answer into report sections. Works on a saved answer too, so tests don't spend lookups.
+export function fromCobalt(name: string, raw: Raw, searchedAt: Date): Pick<ReportInput, 'entitySearch' | 'entityNote' | 'verification' | 'people' | 'ucc'> {
+  const results: Raw[] = Array.isArray(raw.results) ? raw.results : [];
+  const alternatives: Raw[] = Array.isArray(raw.alternativeResults) ? raw.alternativeResults : [];
+  const message = str(raw.message);
+  if (Number(raw.statusCode) >= 500 && results.length === 0) {
+    return {
+      entitySearch: null,
+      entityNote: 'The California state business records search could not be completed at the time of this report. Please run the report again shortly.',
+      verification: null,
+      people: null,
+      ucc: null,
+    };
+  }
+
+  const top = results[0];
+  // When the live state search was unavailable, records come from the most recent stored copy; show that date.
+  const stored = /recent results|maintenance|database/i.test(message) && top && Number(top.updatedAt) > 0;
+  const asOf = stored ? new Date(Number(top.updatedAt)) : searchedAt;
+
+  const records = results.map(cobaltRecord);
+  if (!top && alternatives.length) {
+    alternatives.slice(0, 3).forEach((a) =>
+      records.push({ name: str(a.businessName), entityNumber: str(a.sosId), status: str(a.status), address: joinAddr(a.street, a.city, a.state, a.zip), agent: str(a.agentName) }),
+    );
+  }
+  const entitySearch = { searchedAt: asOf, searchedFor: name, records };
+
+  // Owners and managers + Statement of Information
+  const docs: Raw[] = top && Array.isArray(top.documents) ? top.documents : [];
+  const soi = docs
+    .filter((d) => /statement of information/i.test(str(d.name)))
+    .sort((a, b) => (Date.parse(str(b.date)) || 0) - (Date.parse(str(a.date)) || 0))[0];
+  const officers: Officer[] = (top && Array.isArray(top.officers) ? top.officers : [])
+    .filter((o: Raw) => str(o.name) && !/^(false|no|former)$/i.test(str(o.current)))
+    .map((o: Raw) => ({ name: str(o.name), title: str(o.title) || 'Not listed', address: joinAddr(o.streetAddress, o.city, o.state, o.zip) || undefined }));
+  const people: PeopleResult | null = top ? { searchedAt: asOf, statementDate: soi ? str(soi.date) : undefined, officers } : null;
+
+  // UCC liens
+  let ucc: UccResult | null = null;
+  if (top) {
+    const filings: Raw[] = Array.isArray(top.uccData) ? top.uccData : [];
+    const failed = top.uccSucceeded === false;
+    ucc = {
+      searchedAt: asOf,
+      searchedFor: str(top.title) || name,
+      status: failed ? 'unavailable' : 'searched',
+      filings: filings.map((f) => ({
+        fileNumber: str(f.fileNumber),
+        type: str(f.type),
+        filed: str(f.filingDate),
+        lapse: str(f.lapseDate),
+        status: str(f.status) || 'Not listed',
+        securedParty: (Array.isArray(f.securedParties) ? f.securedParties : []).map((p: Raw) => str(p.name)).filter(Boolean).join('; ') || 'Not listed',
+      })),
+    };
+  }
+
+  // Automated two-step check
+  const checks: Check[] = [];
+  if (!top) {
+    checks.push({
+      label: 'Step 1: Name match',
+      result: 'Flagged',
+      detail: alternatives.length
+        ? `No exact match for "${name}". ${alternatives.length} similar name${alternatives.length === 1 ? ' was' : 's were'} found and ${alternatives.length === 1 ? 'is' : 'are'} listed below. Confirm the exact registered name.`
+        : `No business named "${name}" was found in California state business records.`,
+    });
+  } else {
+    const ours = Math.round(nameSimilarity(name, str(top.title)) * 100);
+    const theirs = pct(top.confidenceLevel);
+    const score = theirs === null ? ours : Math.max(ours, theirs);
+    checks.push({
+      label: 'Step 1: Name match',
+      result: score >= 80 ? 'Passed' : 'Flagged',
+      detail: score >= 80
+        ? `${ours === 100 ? 'Exact' : 'Close'} match for "${name}": ${str(top.title)} (#${str(top.sosId)}), match confidence ${score}%.`
+        : `Weak match for "${name}" (match confidence ${score}%). The record found, ${str(top.title)}, may be a different business.`,
+    });
+    checks.push({
+      label: 'Step 2: Checked against the filed Statement of Information',
+      result: soi && officers.length ? 'Passed' : 'Flagged',
+      detail: soi && officers.length
+        ? `A Statement of Information${str(soi.date) ? ` filed ${str(soi.date)}` : ''} is on file with the state, and the owners and managers on record are listed in this report.`
+        : soi
+          ? 'A Statement of Information is on file, but no owners or managers were listed in the state record. Review the filing directly.'
+          : 'No Statement of Information was found in the state record. California businesses must file one every one or two years; a missing filing can be a warning sign.',
+    });
+    const lookalikes = [...results.slice(1).map((r) => str(r.title)), ...alternatives.map((a) => str(a.businessName))].filter((t) => t && nameSimilarity(name, t) >= 0.8);
+    checks.push({
+      label: 'Similar business names',
+      result: lookalikes.length ? 'Flagged' : 'Passed',
+      detail: lookalikes.length ? `${lookalikes.length} other business${lookalikes.length === 1 ? ' has' : 'es have'} a very similar name, e.g. ${lookalikes[0]}. Confirm the entity number.` : 'No other businesses with a closely similar name.',
+    });
+    const active = /^active$/i.test(str(top.normalizedStatus)) || /^active$/i.test(str(top.status));
+    checks.push({
+      label: 'Status',
+      result: active ? 'Passed' : 'Flagged',
+      detail: active ? `Status is ${str(top.status) || 'Active'}.` : `Attention: status is ${str(top.status) || 'not listed'}.`,
+    });
+    if (stored) {
+      checks.push({ label: 'Live state search', result: 'Flagged', detail: `The state's website could not be searched live, so the most recent stored record (${fmtDate(asOf)}) was used.` });
+    }
+  }
+  const verification: Verification = { overall: checks.some((c) => c.result === 'Flagged') ? 'Needs attention' : 'Verified', checks };
+
+  return { entitySearch, entityNote: undefined, verification, people, ucc };
+}
+
+// ---------- Automated two-step check (older direct Secretary of State connection) ----------
 
 const SUFFIXES = new Set(['LLC', 'L L C', 'INC', 'INCORPORATED', 'CORP', 'CORPORATION', 'CO', 'COMPANY', 'LTD', 'LIMITED', 'LP', 'LLP', 'PC', 'THE']);
 
@@ -815,9 +980,11 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
         ['Status', `${clean(e.status)}${e.statusDate ? ` (as of ${e.statusDate})` : ''}`],
         ['Date formed / registered', clean(e.filingDate)],
         ['Jurisdiction', clean(e.jurisdiction)],
-        ['Standing - Secretary of State', clean(e.standingSOS)],
-        ['Standing - Franchise Tax Board', clean(e.standingFTB)],
-        ['Standing - Registered agent', clean(e.standingAgent)],
+        ...(([
+          ['Standing - Secretary of State', e.standingSOS],
+          ['Standing - Franchise Tax Board', e.standingFTB],
+          ['Standing - Registered agent', e.standingAgent],
+        ] as [string, string | null | undefined][]).filter(([, val]) => str(val)).map(([k, val]) => [k, clean(val)] as [string, string])),
         ['Principal address', clean(e.address)],
         ...(e.mailingAddress ? ([['Mailing address', clean(e.mailingAddress)]] as [string, string][]) : []),
         ['Registered agent', clean(e.agent)],
@@ -1162,16 +1329,29 @@ const newReportId = (d: Date) => {
 // Runs the full engine: entity search + two-step check, sanctions screening, federal court search.
 export async function runReport(
   form: { company: string; email: string; role?: string; propertyAddress: string; entityName?: string; county?: string; reportUse?: string },
-  keys: { sosApiKey?: string; courtListenerToken?: string },
-): Promise<ReportInput> {
+  keys: { sosApiKey?: string; courtListenerToken?: string; cobaltKey?: string; cobaltRaw?: Raw },
+): Promise<ReportInput & { cobaltRaw?: Raw }> {
   const now = new Date();
   const name = (form.entityName ?? '').trim();
   let entitySearch: ReportInput['entitySearch'] = null;
   let entityNote: string | undefined;
   let verification: Verification | null = null;
+  let people: PeopleResult | null = null;
+  let ucc: UccResult | null = null;
+  let cobaltRaw: Raw | undefined;
 
   const entityTask = (async () => {
     if (!name) return;
+    if (keys.cobaltRaw || keys.cobaltKey) {
+      cobaltRaw = keys.cobaltRaw ?? (await cobaltLookup(name, keys.cobaltKey as string));
+      const parts = fromCobalt(name, cobaltRaw, now);
+      entitySearch = parts.entitySearch;
+      entityNote = parts.entityNote;
+      verification = parts.verification;
+      people = parts.people ?? null;
+      ucc = parts.ucc ?? null;
+      return;
+    }
     if (!keys.sosApiKey) {
       entityNote = 'Not yet included: the Secretary of State connection is still being set up.';
       return;
@@ -1198,6 +1378,9 @@ export async function runReport(
     verification,
     sanctions,
     courts,
+    people,
+    ucc,
+    cobaltRaw,
   };
 }
 
@@ -1251,6 +1434,22 @@ export async function GET(request: Request) {
     }
   }
 
+  // Preview links only (never the live site): test real lookups. &format=json returns the saved answer
+  // so later layout fixes can re-use it (POST it back) without spending another lookup.
+  if (q('test') === '1' && process.env.VERCEL_ENV === 'preview') {
+    if (!q('name')) return jsonError('Add &name=Business Name', 400);
+    try {
+      const input = await runReport(
+        { company: 'CA Research Group (internal test)', email: 'william@caresearchgroup.com', propertyAddress: q('address'), entityName: q('name'), reportUse: 'Internal test' },
+        { courtListenerToken: process.env.COURTLISTENER_TOKEN, cobaltKey: process.env.COBALT_API_KEY },
+      );
+      if (q('format') === 'json') return new Response(JSON.stringify({ ok: true, name: q('name'), cobaltRaw: input.cobaltRaw }, null, 2), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+      return pdfResponse(await buildReportPdf(input, await loadLogo(url.origin)), `CA-Research-Group-TEST-${input.reportId}.pdf`);
+    } catch (err) {
+      return jsonError(err instanceof Error ? err.message : 'Test failed.', 502);
+    }
+  }
+
   const lookupToken = process.env.LOOKUP_TOKEN;
   if (!lookupToken) return jsonError('Setup not finished: LOOKUP_TOKEN is missing in Vercel. Add ?sample=1 to see the sample report.', 500);
   if (q('token') !== lookupToken) return jsonError('Not authorized.', 401);
@@ -1284,7 +1483,7 @@ export async function GET(request: Request) {
         county: q('county') || undefined,
         reportUse: q('use') || undefined,
       },
-      { sosApiKey: process.env.CA_SOS_API_KEY, courtListenerToken: process.env.COURTLISTENER_TOKEN },
+      { sosApiKey: process.env.CA_SOS_API_KEY, courtListenerToken: process.env.COURTLISTENER_TOKEN, cobaltKey: process.env.COBALT_API_KEY },
     );
     return pdfResponse(await buildReportPdf(input, await loadLogo(url.origin)), `CA-Research-Group-${input.reportId}.pdf`);
   } catch (err) {
@@ -1295,6 +1494,19 @@ export async function GET(request: Request) {
 // Client reports: posted from each customer's private page (public/report.html).
 export async function POST(request: Request) {
   const url = new URL(request.url);
+  if (url.searchParams.get('test') === '1' && process.env.VERCEL_ENV === 'preview') {
+    try {
+      const b = (await request.json()) as { name?: string; cobaltRaw?: Raw };
+      if (!b.name || !b.cobaltRaw) return jsonError('Send { name, cobaltRaw }', 400);
+      const input = await runReport(
+        { company: 'CA Research Group (internal test)', email: 'william@caresearchgroup.com', propertyAddress: '', entityName: b.name, reportUse: 'Internal test' },
+        { courtListenerToken: process.env.COURTLISTENER_TOKEN, cobaltRaw: b.cobaltRaw },
+      );
+      return pdfResponse(await buildReportPdf(input, await loadLogo(url.origin)), `CA-Research-Group-TEST-${input.reportId}.pdf`);
+    } catch (err) {
+      return jsonError(err instanceof Error ? err.message : 'Test failed.', 502);
+    }
+  }
   let form: FormData;
   try {
     form = await request.formData();
@@ -1365,7 +1577,7 @@ export async function POST(request: Request) {
   try {
     const input = await runReport(
       { company: customer.company, email: customer.email || 'Not provided', role: customer.role || undefined, propertyAddress: address, entityName: entityName || undefined, county: g('county') || undefined, reportUse: g('use') || undefined },
-      { sosApiKey: process.env.CA_SOS_API_KEY, courtListenerToken: process.env.COURTLISTENER_TOKEN },
+      { sosApiKey: process.env.CA_SOS_API_KEY, courtListenerToken: process.env.COURTLISTENER_TOKEN, cobaltKey: process.env.COBALT_API_KEY },
     );
     const pdf = await buildReportPdf(input, await loadLogo(url.origin));
     const courtsSearched = input.courts?.status === 'searched';
