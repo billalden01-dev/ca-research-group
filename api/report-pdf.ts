@@ -413,7 +413,7 @@ async function cobaltGet(path: string, params: Record<string, string>, key: stri
   const started = Date.now();
   let retryId = '';
   for (;;) {
-    const qs = new URLSearchParams(retryId ? { retryId, state: params.state } : params);
+    const qs = new URLSearchParams(retryId ? { retryId, state: params.state, ...(params.test ? { test: params.test } : {}) } : params);
     const res = await fetch(`${COBALT_BASE}${path}?${qs}`, { headers: { 'x-api-key': key, Accept: 'application/json' }, signal: timeout(60000) });
     const body = (await res.json().catch(() => ({}))) as Raw;
     const code = Number(body.statusCode ?? res.status);
@@ -1522,7 +1522,21 @@ export async function runReport(
   const entityTask = (async () => {
     if (!name) return;
     if (keys.cobaltRaw || keys.cobaltKey) {
-      cobaltRaw = keys.cobaltRaw ?? (await cobaltLookup(name, keys.cobaltKey as string, keys.cobaltDummy));
+      if (keys.cobaltRaw) {
+        cobaltRaw = keys.cobaltRaw;
+      } else {
+        cobaltRaw = await cobaltLookup(name, keys.cobaltKey as string, keys.cobaltDummy);
+        // A failed search is not charged by the provider; try once more before giving up.
+        if (Number(cobaltRaw.statusCode) >= 500 && !(cobaltRaw.results?.length)) {
+          await sleep(3000);
+          cobaltRaw = await cobaltLookup(name, keys.cobaltKey as string, keys.cobaltDummy);
+        }
+      }
+      const code = Number(cobaltRaw.statusCode);
+      if (code !== 200 && !(Array.isArray(cobaltRaw.results) && cobaltRaw.results.length)) {
+        // Never send a report that looks like "no business found" when the search itself failed.
+        throw new Error(`The California state business records search could not be completed (${str(cobaltRaw.message) || str(cobaltRaw.status) || code}). No report was charged. Please try again shortly.`);
+      }
       const soiRef = soiUrlFrom(cobaltRaw);
       const soi = soiRef ? await fetchSoi(soiRef.url) : null;
       if (soi) soiPdf = { pdf: soi.pdf, date: soiRef?.date ?? '' };
