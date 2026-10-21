@@ -1834,6 +1834,15 @@ export async function POST(request: Request) {
       { company: customer.company, email: customer.email || 'Not provided', role: customer.role || undefined, propertyAddress: address, entityName: entityName || undefined, county: g('county') || undefined, reportUse: g('use') || undefined },
       { sosApiKey: process.env.CA_SOS_API_KEY, courtListenerToken: process.env.COURTLISTENER_TOKEN, cobaltKey: process.env.COBALT_API_KEY },
     );
+    // No matching business: don't send a report and don't count it against the client's plan.
+    if (input.entitySearch && input.entitySearch.records.length === 0) {
+      await updateRequest(requestId, { Status: 'No match', Notes: `No exact match for "${entityName}". Not counted against the plan.` }).catch(() => undefined);
+      return htmlPage(
+        'No exact match found',
+        `We couldn't find a California business registered as "${entityName}". Please check the spelling and include the entity type (for example "LLC" or "Inc."), then try again. This search did not count toward your plan.`,
+        200,
+      );
+    }
     const pdf = await buildReportPdf(input, await loadLogo(url.origin));
     const courtsSearched = input.courts?.status === 'searched';
     const mail = await emailReport(customer.email, input, pdf, { voucher: customer.voucher, soiPdf: input.soiPdf });
