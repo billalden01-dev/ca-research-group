@@ -966,6 +966,38 @@ class Writer {
     this.y -= 12;
   }
 
+  // Highlighted box with a clickable link (used on page 1 for the Statement of Information)
+  linkBox(title: string, body: string, linkText: string, url: string, note: string) {
+    const size = 9.5;
+    const lh = size * 1.45;
+    const bodyLines = this.wrap(body, this.regular, size, CONTENT_W - 30);
+    const noteLines = this.wrap(note, this.regular, 8.5, CONTENT_W - 30);
+    const h = 16 + 14 + bodyLines.length * lh + 8 + 16 + 6 + noteLines.length * 8.5 * 1.4 + 12;
+    this.ensure(h);
+    const top = this.y;
+    this.page.drawRectangle({ x: MARGIN, y: top - h, width: CONTENT_W, height: h, color: SAMPLE_BG });
+    this.page.drawRectangle({ x: MARGIN, y: top - h, width: 4, height: h, color: GOLD });
+    this.page.drawText(title, { x: MARGIN + 16, y: top - 22, size: 10.5, font: this.bold, color: NAVY });
+    let y = top - 38;
+    bodyLines.forEach((ln) => {
+      this.page.drawText(ln, { x: MARGIN + 16, y, size, font: this.regular, color: TEXT });
+      y -= lh;
+    });
+    y -= 6;
+    const blue = rgb(29 / 255, 78 / 255, 216 / 255);
+    const lw = this.bold.widthOfTextAtSize(linkText, 10);
+    this.page.drawText(linkText, { x: MARGIN + 16, y, size: 10, font: this.bold, color: blue });
+    this.page.drawLine({ start: { x: MARGIN + 16, y: y - 1.5 }, end: { x: MARGIN + 16 + lw, y: y - 1.5 }, thickness: 0.6, color: blue });
+    const annot = this.doc.context.obj({ Type: 'Annot', Subtype: 'Link', Rect: [MARGIN + 16, y - 3, MARGIN + 16 + lw, y + 10], Border: [0, 0, 0], A: { Type: 'Action', S: 'URI', URI: PDFString.of(url) } });
+    this.page.node.addAnnot(this.doc.context.register(annot));
+    y -= 16;
+    noteLines.forEach((ln) => {
+      this.page.drawText(ln, { x: MARGIN + 16, y, size: 8.5, font: this.regular, color: MUTED });
+      y -= 8.5 * 1.4;
+    });
+    this.y -= h + 14;
+  }
+
   callout(title: string, body: string, bg: ReturnType<typeof rgb>, accent: ReturnType<typeof rgb>) {
     const size = 9.5;
     const lh = size * 1.45;
@@ -1035,6 +1067,16 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       'Every name, number, and address in this report is made up to show the layout. No government records were searched to produce it.',
       SAMPLE_BG,
       GOLD,
+    );
+  }
+
+  if (input.people?.statementUrl && !input.people.officers.length) {
+    w.linkBox(
+      'Owners and managers',
+      `Listed on the business's official Statement of Information${input.people.statementDate ? ` filed ${input.people.statementDate}` : ''}.`,
+      'Download the official Statement of Information (lists the managers)',
+      input.people.statementUrl,
+      'Printed copy? Open the digital report or your report email and click the link to download it.',
     );
   }
 
@@ -1185,7 +1227,10 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       );
     }
     if (pp.note) w.paragraph(pp.note, { gap: 4 });
-    if (pp.statementUrl) w.link('Download the official Statement of Information (lists the managers)', pp.statementUrl);
+    if (pp.statementUrl) {
+      w.link('Download the official Statement of Information (lists the managers)', pp.statementUrl);
+      w.paragraph('Printed copy? Open the digital report or your report email and click the link to download it.', { size: 8.5, color: MUTED });
+    }
     w.paragraph(
       `Source: the business's Statement of Information${pp.statementDate ? ` filed ${pp.statementDate}` : ''}, from official California state business records. Checked on ${fmtDate(pp.searchedAt)}. A business can change its owners or managers before filing a new statement.`,
       { size: 8.5, color: MUTED },
