@@ -114,7 +114,11 @@
       if (np) { e.preventDefault(); $('nameErr').textContent = np; $('nameErr').classList.remove('hidden'); $('name').focus(); return; }
       $('go').disabled = true; $('go').textContent = 'Running report...';
       setTimeout(function () { $('go').disabled = false; $('go').textContent = 'Run report'; load(); }, 20000);
+      setTimeout(load, 45000);
+      setTimeout(load, 75000);
     });
+    // Refresh the "reports used" count whenever the client comes back to this tab (e.g. after viewing the PDF).
+    document.addEventListener('visibilitychange', function () { if (!document.hidden && code) load(); });
   })();
 </script>
 </body>
