@@ -41,7 +41,7 @@ const PLANS: Plan[] = [
     name: '10 Reports',
     price: 299,
     perReport: 30,
-    tagline: 'For active brokers and lenders.',
+    tagline: 'For active agents, brokers, and lenders.',
     featured: false,
     features: [
       '10 reports per month',
@@ -58,7 +58,7 @@ const PLANS: Plan[] = [
     name: '25 Reports',
     price: 499,
     perReport: 20,
-    tagline: 'For busy offices and teams.',
+    tagline: 'For busy agents and small teams.',
     featured: true,
     features: [
       '25 reports per month',
@@ -136,8 +136,8 @@ const FAQS = [
     a: 'Yes. Plans are monthly. Upgrade anytime (the difference is prorated) and cancel anytime. Unused reports do not roll over.',
   },
   {
-    q: 'Need more than 25 reports a month?',
-    a: 'We offer custom plans: 50 reports for $899 a month, or 100 reports for $1,499 a month. Need more than 100? Email william@caresearchgroup.com.',
+    q: 'Can our company pay for the whole office?',
+    a: 'Yes. Office plans are paid by your company and shared by your whole team: 50 reports for $899 a month, or 100 reports for $1,499 a month. Need more? Email william@caresearchgroup.com.',
   },
 ];
 
