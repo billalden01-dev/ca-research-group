@@ -1122,8 +1122,9 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
           ? 'No federal or bankruptcy cases found in the CourtListener archive.'
           : `${plural(ct.total, 'federal case')} found, including ${plural(ct.bankruptcyTotal, 'case')} in bankruptcy courts${debtorCount ? `. ${plural(debtorCount, 'filing')} where the company may be the debtor - review` : ''} (see the court sections below).`;
   const pp = input.people;
+  const notFound = Boolean(input.entitySearch) && records.length === 0;
   const peopleSummary = !pp
-    ? 'Not yet included in reports.'
+    ? notFound ? 'Not searched, because no matching business was found.' : 'Not available for this report.'
     : pp.officers.length === 0
       ? pp.statementUrl
         ? `Listed on the Statement of Information${pp.statementDate ? ` filed ${pp.statementDate}` : ''} (link in this report).`
@@ -1132,7 +1133,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
   const uc = input.ucc;
   const activeUcc = uc ? uc.filings.filter((f) => /active/i.test(f.status)).length : 0;
   const uccSummary = !uc
-    ? 'Not yet included in reports.'
+    ? notFound ? 'Not searched, because no matching business was found.' : 'Not available for this report.'
     : uc.status === 'unavailable'
       ? 'UCC records could not be reached at the time of the search.'
       : uc.filings.length === 0
@@ -1144,8 +1145,8 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
     [190, 80, CONTENT_W - 270],
     [
       ['CA Secretary of State - business entity', input.entitySearch ? 'Yes' : 'No', v ? `${entitySummary} Two-step check: ${v.overall}.` : entitySummary],
-      ['Owners and managers', pp ? 'Yes' : 'Coming soon', peopleSummary],
-      ['CA Secretary of State - UCC liens', uc ? (uc.status === 'searched' ? 'Yes' : 'Failed') : 'Coming soon', uccSummary],
+      ['Owners and managers', pp ? 'Yes' : 'No', peopleSummary],
+      ['CA Secretary of State - UCC liens', uc ? (uc.status === 'searched' ? 'Yes' : 'Failed') : 'No', uccSummary],
       ['U.S. Treasury OFAC sanctions list', sx ? (sx.available ? 'Yes' : 'Failed') : 'No', sanctionsSummary],
       ...(ct && ct.status === 'not_connected' ? [] : [['Federal court and bankruptcy cases', ct ? (ct.status === 'searched' ? 'Yes' : 'Failed') : 'No', courtSummary]]),
     ],
