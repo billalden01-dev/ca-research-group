@@ -1640,7 +1640,13 @@ export async function GET(request: Request) {
     try {
       const input = await runReport(
         { company: 'CA Research Group (internal test)', email: 'william@caresearchgroup.com', propertyAddress: q('address'), entityName: q('name'), reportUse: 'Internal test' },
-        { courtListenerToken: process.env.COURTLISTENER_TOKEN, cobaltKey: process.env.COBALT_API_KEY, cobaltDummy: q('dummy') || undefined },
+        {
+          courtListenerToken: process.env.COURTLISTENER_TOKEN,
+          cobaltKey: process.env.COBALT_API_KEY,
+          cobaltDummy: q('dummy') || undefined,
+          // &saved=<base64 of a saved answer> re-renders without spending a lookup
+          cobaltRaw: q('saved') ? (JSON.parse(atob(q('saved').replace(/-/g, '+').replace(/_/g, '/'))) as Raw) : undefined,
+        },
       );
       if (q('format') === 'json') return new Response(JSON.stringify({ ok: true, name: q('name'), cobaltRaw: input.cobaltRaw }, null, 2), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
       const res = pdfResponse(await buildReportPdf(input, await loadLogo(url.origin)), `CA-Research-Group-TEST-${input.reportId}.pdf`);
