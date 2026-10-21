@@ -515,7 +515,7 @@ export function fromCobalt(name: string, raw: Raw, searchedAt: Date, soiParsed?:
         statementUrl: soi && /^https:\/\/bizfileonline\.sos\.ca\.gov\//.test(str(soi.url)) ? str(soi.url) : undefined,
         officers,
         note: soiUnreadable && !officers.length
-          ? `The owners and managers are listed on the business's Statement of Information${soi && str(soi.date) ? ` filed ${str(soi.date)}` : ''}. Open the filing on the California Secretary of State's website using the link below.`
+          ? `The owners and managers are listed on the business's Statement of Information${soi && str(soi.date) ? ` filed ${str(soi.date)}` : ''}. Download it from the California Secretary of State using the link below.`
           : undefined,
       }
     : null;
@@ -1185,7 +1185,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       );
     }
     if (pp.note) w.paragraph(pp.note, { gap: 4 });
-    if (pp.statementUrl) w.link(`View the Statement of Information${pp.statementDate ? ` filed ${pp.statementDate}` : ''} (opens the state's website)`, pp.statementUrl);
+    if (pp.statementUrl) w.link('Download the official Statement of Information (lists the managers)', pp.statementUrl);
     w.paragraph(
       `Source: the business's Statement of Information${pp.statementDate ? ` filed ${pp.statementDate}` : ''}, from official California state business records. Checked on ${fmtDate(pp.searchedAt)}. A business can change its owners or managers before filing a new statement.`,
       { size: 8.5, color: MUTED },
@@ -1456,6 +1456,8 @@ export async function emailReport(to: string, input: ReportInput, pdf: Uint8Arra
   const html = `<div style="font-family:Arial,sans-serif;color:#1e293b;max-width:560px">
 <p style="font-size:18px;color:#1e1b4b;font-weight:bold;margin:0 0 12px">Your public records report is ready</p>
 <p style="margin:0 0 12px">Attached is report <strong>${escapeHtml(input.reportId)}</strong> for <strong>${escapeHtml(what)}</strong>.</p>
+${input.people?.statementUrl ? `<p style="margin:0 0 6px">The business's managers and members are listed on its official Statement of Information${input.people.statementDate ? `, filed ${escapeHtml(input.people.statementDate)}` : ''}:</p>
+<p style="margin:0 0 16px"><a href="${escapeHtml(input.people.statementUrl)}" style="display:inline-block;background:#1e1b4b;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 18px;border-radius:8px">Download the official Statement of Information</a></p>` : ''}
 <p style="margin:0 0 12px">Please review any flagged items and verify findings against the original sources before relying on them.</p>
 ${opts.voucher ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px;margin:16px 0">
 <p style="margin:0 0 8px;font-weight:bold;color:#1e1b4b">Thanks for trying CA Research Group</p>
