@@ -12,7 +12,10 @@
   .logo { height: 52px; display: block; margin: 0 auto 18px; }
   h1 { font-family: Georgia, serif; color: #1e1b4b; font-size: 24px; margin: 0 0 4px; text-align: center; }
   .company { text-align: center; color: #b8963f; font-weight: bold; font-size: 16px; margin: 0 0 6px; }
-  .usage { text-align: center; color: #64748b; font-size: 13px; margin: 0 0 18px; }
+  .usage { text-align: center; color: #64748b; font-size: 13px; margin: 0 0 10px; }
+  .left { text-align: center; background: #fbf7ea; border: 1px solid #e6d6a3; border-radius: 12px; padding: 12px 14px; margin: 0 0 18px; color: #1e1b4b; font-size: 16px; font-weight: bold; }
+  .left small { display: block; font-size: 12px; font-weight: normal; color: #6e561c; margin-top: 2px; }
+  .sent { text-align: center; background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; border-radius: 12px; padding: 12px 14px; margin: 0 0 16px; font-size: 14px; font-weight: bold; }
   label { display: block; font-size: 13px; font-weight: bold; color: #1e1b4b; margin: 16px 0 6px; }
   input[type=text], select { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; background: #fff; }
   .cert { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: #475569; line-height: 1.5; margin-top: 20px; }
@@ -36,6 +39,8 @@
     <div id="ready" class="hidden">
       <p id="company" class="company"></p>
       <p id="usage" class="usage"></p>
+      <p id="left" class="left hidden"></p>
+      <p id="sent" class="sent hidden">✓ Your report is on its way. It opens in a new tab and is also emailed to you.</p>
       <form id="f" method="post" action="/api/report-pdf" target="_blank">
         <input type="hidden" name="c" id="code">
 
@@ -92,7 +97,12 @@
           $('company').textContent = d.company;
           $('usage').textContent = d.voucher
             ? 'Your complimentary report · good through ' + d.expiresText
-            : (d.plan ? d.plan + ' · ' : '') + (d.limit === null ? d.used + ' reports this month (unlimited plan)' : d.used + ' of ' + d.limit + ' reports used this month');
+            : (d.plan || '');
+          if (!d.voucher && d.limit !== null) {
+            var left = Math.max(0, d.limit - d.used);
+            $('left').innerHTML = left + ' of ' + d.limit + ' reports left this month<small>' + d.used + ' used so far</small>';
+            $('left').classList.remove('hidden');
+          }
           if (!d.voucher) { $('manage').href = '/api/stripe?portal=' + encodeURIComponent(code); $('manageRow').classList.remove('hidden'); }
           if (!d.canRun) { $('go').disabled = true; $('go').textContent = d.voucher ? 'Not available' : 'Monthly limit reached'; }
         })
@@ -113,6 +123,7 @@
       var np = nameProblem($('name').value);
       if (np) { e.preventDefault(); $('nameErr').textContent = np; $('nameErr').classList.remove('hidden'); $('name').focus(); return; }
       $('go').disabled = true; $('go').textContent = 'Running report...';
+      $('sent').classList.remove('hidden');
       setTimeout(function () { $('go').disabled = false; $('go').textContent = 'Run report'; load(); }, 20000);
       setTimeout(load, 45000);
       setTimeout(load, 75000);
