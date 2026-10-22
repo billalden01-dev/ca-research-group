@@ -14,8 +14,11 @@ type Plan = {
 
 const SERIF = "Georgia, 'Times New Roman', serif";
 
-const inputStyle: React.CSSProperties = { padding: '12px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', fontSize: '14px' };
-const labelStyle: React.CSSProperties = { fontSize: '13px', fontWeight: 'bold', color: '#1e1b4b' };
+const inputStyle: React.CSSProperties = { padding: '13px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', fontSize: '16px' };
+const labelStyle: React.CSSProperties = { fontSize: '15px', fontWeight: 'bold', color: '#1e1b4b' };
+const sectionStyle: React.CSSProperties = { backgroundColor: '#fbf7ea', border: '1px solid #e6d6a3', borderRadius: '12px', padding: '14px 16px', margin: '4px 0 0 0' };
+const sectionTitle: React.CSSProperties = { fontFamily: SERIF, fontSize: '18px', fontWeight: 'bold', color: '#1e1b4b', margin: '0 0 4px 0' };
+const sectionHelp: React.CSSProperties = { fontSize: '14px', color: '#6e561c', margin: '0', lineHeight: '1.5' };
 const fieldStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: '6px' };
 
 const PLANS: Plan[] = [
@@ -490,8 +493,13 @@ export default function App() {
               {/* STEP 3: YOUR DETAILS */}
               {wizardStep === 3 && (
                 <form onSubmit={handleIntakeSubmit} style={{ maxWidth: '540px', margin: '20px auto 0 auto', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: isMobile ? '22px' : '36px', boxShadow: '0 14px 36px rgba(30,27,75,0.12)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  <h3 style={{ fontFamily: SERIF, color: '#1e1b4b', textAlign: 'center', margin: '0 0 6px 0', fontSize: '22px' }}>Your Details & First Report</h3>
-                  <p style={{ textAlign: 'center', fontSize: '13px', color: '#64748b', margin: '0 0 6px 0', lineHeight: '1.6' }}>Plan: {selectedTier}<br />Tell us about your firm and the first business you want researched.</p>
+                  <h3 style={{ fontFamily: SERIF, color: '#1e1b4b', textAlign: 'center', margin: '0 0 6px 0', fontSize: '24px' }}>Your Details & First Report</h3>
+                  <p style={{ textAlign: 'center', fontSize: '15px', color: '#64748b', margin: '0 0 2px 0', lineHeight: '1.6' }}>Plan: {selectedTier}</p>
+
+                  <div style={sectionStyle}>
+                    <p style={sectionTitle}>1. About you</p>
+                    <p style={sectionHelp}>Your company and contact details. Your private report link is sent to this email.</p>
+                  </div>
 
                   <div style={fieldStyle}>
                     <label style={labelStyle}>Your Company or Firm</label>
@@ -522,8 +530,13 @@ export default function App() {
                     <input type="email" placeholder="name@firm.com" value={corporateEmail} onChange={(e) => setCorporateEmail(e.target.value)} style={inputStyle} required />
                   </div>
 
+                  <div style={sectionStyle}>
+                    <p style={sectionTitle}>2. Your first report</p>
+                    <p style={sectionHelp}>The business you want researched, for example the LLC on the other side of your deal. Right after payment, it's filled in for you so you can run your first report in one click.</p>
+                  </div>
+
                   <div style={fieldStyle}>
-                    <label style={labelStyle}>Business Name (businesses only, not individuals)</label>
+                    <label style={labelStyle}>Business to research (businesses only, not individuals)</label>
                     <input type="text" placeholder="e.g. Acme Holdings LLC" value={targetEntityName} onChange={(e) => setTargetEntityName(e.target.value)} style={inputStyle} required />
                   </div>
 
@@ -544,7 +557,7 @@ export default function App() {
                     </select>
                   </div>
 
-                  <label style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', fontSize: '13px', color: '#475569', lineHeight: '1.5', cursor: 'pointer' }}>
+                  <label style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', fontSize: '14px', color: '#475569', lineHeight: '1.5', cursor: 'pointer' }}>
                     <input type="checkbox" checked={purposeCertified} onChange={(e) => setPurposeCertified(e.target.checked)} style={{ marginTop: '3px', transform: 'scale(1.15)' }} required />
                     <span>I certify that I will use reports from CA Research Group only for a lawful business purpose related to a real estate, lending, title, or legal matter. I will not use them to decide eligibility for credit, employment, insurance, or housing for any individual, and I understand they contain only information from public sources. I agree to the <a href="/terms.html" target="_blank" rel="noopener" style={{ color: '#1d4ed8' }}>Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener" style={{ color: '#1d4ed8' }}>Privacy Policy</a>.</span>
                   </label>
