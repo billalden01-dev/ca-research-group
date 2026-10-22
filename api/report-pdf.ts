@@ -1371,11 +1371,22 @@ export function businessNameProblem(name: string): string | null {
   return null;
 }
 
-export type Customer = { id: string; company: string; email: string; role: string; plan: string; used: number; limit: number; canRun: boolean; active: boolean; voucher: boolean; expires: string; expired: boolean; usedTotal: number };
+export type Customer = { id: string; company: string; email: string; role: string; plan: string; used: number; limit: number; canRun: boolean; active: boolean; voucher: boolean; pilot: boolean; expires: string; expired: boolean; usedTotal: number };
 
 // A complimentary report voucher: one free report, good through the date in Voucher Expires (Pacific time).
 export const VOUCHER_PLAN = 'Complimentary Report (5-day voucher)';
 export const VOUCHER_DAYS = 5;
+
+// Free pilot: PILOT_REPORTS reports per agent, good through PILOT_END. Agents join themselves at /pilot.html?code=PILOT_CODE.
+export const PILOT_PLAN = 'Pilot (5 free reports)';
+export const PILOT_REPORTS = 5;
+const pilotEnd = () => process.env.PILOT_END || '2026-11-20';
+const pilotCode = () => (process.env.PILOT_CODE || 'PILOT2026').toUpperCase();
+const PILOT_AGREEMENT = [
+  'I agree to the Terms of Service and Privacy Policy.',
+  'I understand reports are based on official public records, which may occasionally be incomplete or outdated, and that CA Research Group recommends doing my own due diligence before making any decision.',
+];
+const PILOT_TERMS_VERSION = 'Terms of Service effective October 18, 2026';
 
 // Today's date in California, as YYYY-MM-DD.
 export const pacificToday = (now = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
@@ -1405,6 +1416,19 @@ export async function findCustomer(code: string): Promise<Customer | null> {
   const r = data.records?.[0];
   if (!r) return null;
   const f = r.fields;
+  const plan = selectName(f['Plan']);
+  if (plan === PILOT_PLAN) {
+    const expires = str(f['Voucher Expires']).slice(0, 10);
+    const usedTotal = Number(f['Reports Total'] ?? 0) || 0;
+    const active = selectName(f['Subscription Status']) === 'Active';
+    const expired = !expires || expires < pacificToday();
+    return {
+      id: r.id, company: str(f['Company']) || 'Your company', email: str(f['Contact Email']), role: selectName(f['Role']), plan,
+      used: usedTotal, limit: PILOT_REPORTS, usedTotal,
+      canRun: active && Boolean(str(f['Link Code'])) && !expired && usedTotal < PILOT_REPORTS,
+      active, voucher: false, pilot: true, expires, expired,
+    };
+  }
   return {
     id: r.id,
     company: str(f['Company']) || 'Your company',
@@ -1416,6 +1440,7 @@ export async function findCustomer(code: string): Promise<Customer | null> {
     canRun: str(f['Can Run Report']) === 'YES',
     active: selectName(f['Subscription Status']) === 'Active',
     voucher: selectName(f['Plan']) === VOUCHER_PLAN,
+    pilot: false,
     expires: str(f['Voucher Expires']).slice(0, 10),
     expired: selectName(f['Plan']) === VOUCHER_PLAN && (!str(f['Voucher Expires']) || str(f['Voucher Expires']).slice(0, 10) < pacificToday()),
     usedTotal: Number(f['Reports Total'] ?? 0) || 0,
@@ -1461,6 +1486,79 @@ async function createVoucher(company: string, contactName: string, email: string
     }),
   });
   return { link: `https://www.caresearchgroup.com/report.html?c=${code}`, expires, id: d.records?.[0]?.id ?? '' };
+}
+
+async function findPilotByEmail(email: string): Promise<{ id: string; code: string } | null> {
+  const formula = encodeURIComponent(`AND(LOWER({Contact Email})='${email.toLowerCase()}', {Plan}='${PILOT_PLAN}')`);
+  const d = await airtable(`${CUSTOMERS_TABLE}?maxRecords=1&filterByFormula=${formula}`);
+  const r = d.records?.[0];
+  return r ? { id: r.id, code: str(r.fields['Link Code']) } : null;
+}
+
+async function createPilot(p: { name: string; company: string; email: string; role: string; ip: string }): Promise<string> {
+  const code = newLinkCode();
+  const agreedAt = new Date().toISOString();
+  await airtable(CUSTOMERS_TABLE, {
+    method: 'POST',
+    body: JSON.stringify({
+      typecast: true,
+      records: [{
+        fields: {
+          Company: p.company,
+          'Contact Name': p.name,
+          'Contact Email': p.email,
+          ...(p.role ? { Role: p.role } : {}),
+          Plan: PILOT_PLAN,
+          'Subscription Status': 'Active',
+          'Link Code': code,
+          'Voucher Expires': pilotEnd(),
+          'Signed Up': pacificToday(),
+          'Agreed At': agreedAt,
+          'Agreement Record': [
+            `Checked both boxes on ${agreedAt} (UTC)`,
+            `By: ${p.email} for ${p.company}${p.ip ? ` from IP ${p.ip}` : ''}`,
+            `Version: ${PILOT_TERMS_VERSION}`,
+            ...PILOT_AGREEMENT.map((t, i) => `[x] ${i + 1}. ${t}`),
+          ].join('\n'),
+          Notes: `Joined the free pilot on ${pacificToday()} (${PILOT_REPORTS} reports through ${pilotEnd()}).`,
+        },
+      }],
+    }),
+  });
+  return code;
+}
+
+async function emailPilotLink(to: string, name: string, code: string): Promise<boolean> {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return false;
+  const link = `https://www.caresearchgroup.com/report.html?c=${code}`;
+  const notify = process.env.NOTIFY_EMAIL;
+  const html = `<div style="font-family:Arial,sans-serif;color:#1e293b;max-width:560px;line-height:1.6">
+<p style="font-size:20px;color:#1e1b4b;font-weight:bold;margin:0 0 12px">Welcome to the CA Research Group pilot</p>
+<p>Hi ${escapeHtml(name.split(' ')[0] || 'there')}, thanks for joining. You have <strong>${PILOT_REPORTS} free reports</strong> to use through <strong>${escapeHtml(friendlyDate(pilotEnd()))}</strong>. No credit card needed.</p>
+<p><a href="${link}" style="display:inline-block;background:#1e1b4b;color:#ffffff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Request a Report &rarr;</a></p>
+<p>Use this button anytime you need a report. Enter the business name, and your PDF report opens right away and is emailed to you. Save this email so you can always find your link.</p>
+<p>This link is just for you, so please don't share it. We'd love your feedback: just reply to this email.</p>
+<p style="font-size:12px;color:#64748b">CA Research Group is not a law firm and does not provide legal advice. See our <a href="https://www.caresearchgroup.com/terms.html">Terms of Service</a> and <a href="https://www.caresearchgroup.com/privacy.html">Privacy Policy</a>.</p>
+</div>`;
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: process.env.RESEND_FROM || 'CA Research Group <onboarding@resend.dev>',
+        to: [to],
+        bcc: notify ? [notify] : undefined,
+        reply_to: 'william@caresearchgroup.com',
+        subject: 'Your CA Research Group pilot link (5 free reports)',
+        html,
+      }),
+      signal: timeout(20000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 async function logRequest(fields: Record<string, unknown>): Promise<string> {
@@ -1670,7 +1768,7 @@ export async function GET(request: Request) {
       return new Response(
         JSON.stringify({
           ok: true, company: c.company, plan: c.plan, active: c.active, used: c.used, limit: c.limit >= 999999 ? null : c.limit, canRun: c.canRun,
-          voucher: c.voucher, expires: c.expires, expiresText: friendlyDate(c.expires), expired: c.expired, voucherUsed: c.voucher && c.usedTotal > 0,
+          voucher: c.voucher, pilot: c.pilot, expires: c.expires, expiresText: friendlyDate(c.expires), expired: c.expired, voucherUsed: c.voucher && c.usedTotal > 0,
         }),
         { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } },
       );
@@ -1782,6 +1880,35 @@ export async function POST(request: Request) {
     return htmlPage('You are unsubscribed', `We will not send marketing emails to ${email} again. If you are a subscriber, you will still get your report emails.`, 200);
   }
 
+  // Free pilot sign-up (public/pilot.html): creates the agent's private link and emails it to them.
+  if (g('pilot') === '1') {
+    if (g('website')) return htmlPage('Thank you', 'Please check your email for your link.', 200); // spam bots fill the hidden field
+    const name = g('name').slice(0, 100);
+    const company = g('company').slice(0, 150);
+    const email = g('email').toLowerCase().slice(0, 200);
+    if (g('code').toUpperCase() !== pilotCode()) return htmlPage('Pilot code not recognized', 'Please use the link from your invitation email, or contact william@caresearchgroup.com.', 403);
+    if (!name || !company || !EMAIL_OK.test(email)) return htmlPage('A few details are missing', 'Please go back and enter your name, company, and a valid work email.', 400);
+    if (g('agreeTerms') !== 'yes' || g('agreeAccuracy') !== 'yes') return htmlPage('Please check both boxes', 'Please go back and check both agreement boxes to join the pilot.', 400);
+    if (pacificToday() > pilotEnd()) return htmlPage('The pilot has ended', 'Thank you for your interest. Please see our plans at caresearchgroup.com.', 410);
+    try {
+      const existing = await findPilotByEmail(email);
+      const code = existing?.code || (await createPilot({ name, company, email, role: g('role'), ip: (request.headers.get('x-forwarded-for') || '').split(',')[0].trim() }));
+      const sent = await emailPilotLink(email, name, code);
+      const link = `https://www.caresearchgroup.com/report.html?c=${code}`;
+      return new Response(
+        `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>You're in - CA Research Group</title>
+<style>body{margin:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1e293b}.c{max-width:520px;margin:60px auto;padding:0 16px}.k{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:32px;text-align:center}img{height:48px;margin-bottom:16px}h1{font-family:Georgia,serif;color:#1e1b4b;font-size:26px;margin:0 0 12px}p{color:#475569;line-height:1.6;margin:0 0 14px;font-size:16px}a.b{display:block;margin-top:8px;padding:15px;background:#1e1b4b;color:#fff;border-radius:10px;font-weight:bold;text-decoration:none;font-size:16px}</style></head>
+<body><div class="c"><div class="k"><img src="/logo-tight.png" alt="CA Research Group"><h1>You're in!</h1>
+<p>You have <strong>${PILOT_REPORTS} free reports</strong> through <strong>${escapeHtml(friendlyDate(pilotEnd()))}</strong>.</p>
+<p>${sent ? `We emailed your private link to <strong>${escapeHtml(email)}</strong>. Save that email so you can always find it.` : 'Bookmark the button below so you can always find your link.'}</p>
+<a class="b" href="${link}">Request your first report &rarr;</a></div></div></body></html>`,
+        { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } },
+      );
+    } catch {
+      return htmlPage('Temporarily unavailable', 'We could not set up your pilot link just now. Please try again in a few minutes, or email william@caresearchgroup.com.', 503);
+    }
+  }
+
   let customer: Customer | null;
   try {
     customer = await findCustomer(g('c'));
@@ -1810,6 +1937,11 @@ export async function POST(request: Request) {
 
   if (!customer.canRun) {
     await logRequest({ ...base, Status: 'Over plan limit' }).catch(() => '');
+    if (customer.pilot) {
+      return customer.expired
+        ? htmlPage('The pilot has ended', 'Thank you for being part of our pilot. To keep running reports, choose a plan at caresearchgroup.com, or reply to our email and we will set you up.', 410)
+        : htmlPage('Pilot reports used', `Thank you for trying CA Research Group. You have used all ${PILOT_REPORTS} free pilot reports. To keep running reports, choose a plan at caresearchgroup.com, or reply to our email and we will help.`, 429);
+    }
     if (customer.voucher) {
       return customer.usedTotal > 0
         ? htmlPage('Complimentary report already used', 'Thank you for trying CA Research Group. To keep running reports, choose a monthly plan at caresearchgroup.com, or reply to our email and we will set you up.', 429)

@@ -90,6 +90,7 @@
           if (!d.ok) return problem('This report link is not valid. Please contact CA Research Group for your current private link.');
           if (!d.active) return problem('Your subscription is not active right now. Please contact CA Research Group to reactivate it.');
           if (d.voucher && d.voucherUsed) return problem('Thank you for trying CA Research Group. Your complimentary report has been used. To keep running reports, choose a monthly plan.', true);
+          if (d.pilot && d.expired) return problem('Thank you for being part of our pilot. It ended on ' + d.expiresText + '. To keep running reports, choose a plan.', true);
           if (d.voucher && d.expired) return problem('This complimentary report link expired on ' + d.expiresText + '. Contact william@caresearchgroup.com and we will be happy to help.', true);
           $('loading').classList.add('hidden');
           $('ready').classList.remove('hidden');
@@ -99,14 +100,15 @@
           $('company').textContent = d.company;
           $('usage').textContent = d.voucher
             ? 'Your complimentary report · good through ' + d.expiresText
-            : (d.plan || '');
+            : d.pilot ? 'Free pilot · good through ' + d.expiresText : (d.plan || '');
           if (!d.voucher && d.limit !== null) {
             var left = Math.max(0, d.limit - d.used);
-            $('left').innerHTML = '<b>' + left + '</b><span>' + (left === 1 ? 'report' : 'reports') + ' left this month</span><small>' + d.used + ' of ' + d.limit + ' used</small>';
+            $('left').innerHTML = '<b>' + left + '</b><span>' + (left === 1 ? 'report' : 'reports') + (d.pilot ? ' left in your pilot' : ' left this month') + '</span><small>' + d.used + ' of ' + d.limit + ' used</small>';
             $('left').classList.remove('hidden');
           }
-          if (!d.voucher) { $('manage').href = '/api/stripe?portal=' + encodeURIComponent(code); $('manageRow').classList.remove('hidden'); }
-          if (!d.canRun) { $('go').disabled = true; $('go').textContent = d.voucher ? 'Not available' : 'Monthly limit reached'; }
+          if (!d.voucher && !d.pilot) { $('manage').href = '/api/stripe?portal=' + encodeURIComponent(code); $('manageRow').classList.remove('hidden'); }
+          if (!d.canRun) { $('go').disabled = true; $('go').textContent = d.voucher ? 'Not available' : d.pilot ? 'Pilot reports used' : 'Monthly limit reached'; }
+          if (d.pilot) $('manageRow').classList.add('hidden');
         })
         .catch(function () { problem('We could not check your link just now. Please try again in a few minutes.'); });
     }
