@@ -207,9 +207,9 @@ async function sendWelcomeEmail(to: string, company: string, plan: string, code:
 <h2 style="font-family:Georgia,serif;color:#1e1b4b">Welcome to CA Research Group</h2>
 <p>Thank you for ${oneTime ? 'your order' : 'subscribing'}${company ? `, ${escapeHtml(company)}` : ''}. Your ${oneTime ? 'purchase' : 'plan'}: <strong>${escapeHtml(plan)}</strong>.</p>
 <p>This is your company's private report link. No login is needed. Bookmark it and keep it private:</p>
-<p><a href="${link}" style="display:inline-block;background:#1e1b4b;color:#ffffff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Open my report page</a></p>
+<p><a href="${link}" style="display:inline-block;background:#1e1b4b;color:#ffffff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Request a Report &rarr;</a></p>
 <p style="font-size:13px;color:#64748b;word-break:break-all">${link}</p>
-<p>Enter a business name, and your PDF report opens right away and is emailed to you.</p>
+<p>Use this button anytime you need a report. Enter the business name, and your PDF report opens right away and is emailed to you. Save this email so you can always find your link.</p>
 ${oneTime ? '<p style="font-size:13px;color:#475569">Your single report can be run once from this link. Want more? Reply to this email to start a monthly plan.</p>' : `<p style="font-size:13px;color:#475569">You can update your card or cancel online any time: <a href="${manageLink(code)}">manage your subscription</a>.</p>`}
 <p style="font-size:12px;color:#64748b">To change plans, reply to this email. See our <a href="${SITE}/terms.html">Terms of Service</a> and <a href="${SITE}/privacy.html">Privacy Policy</a>. CA Research Group is not a law firm and does not provide legal advice.</p>
 </div>`;
