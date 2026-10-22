@@ -31,7 +31,7 @@ const PLANS: Plan[] = [
     featured: false,
     features: [
       '5 reports per month',
-      'Who owns and manages the business',
+      'Who manages the business (official state filing)',
       'UCC liens on the business',
       'Federal court & bankruptcy case search',
       'Sanctions screening (U.S. Treasury OFAC list)',
@@ -48,7 +48,7 @@ const PLANS: Plan[] = [
     featured: false,
     features: [
       '10 reports per month',
-      'Who owns and manages the business',
+      'Who manages the business (official state filing)',
       'UCC liens on the business',
       'Federal court & bankruptcy case search',
       'Sanctions screening (U.S. Treasury OFAC list)',
@@ -65,7 +65,7 @@ const PLANS: Plan[] = [
     featured: true,
     features: [
       '25 reports per month',
-      'Who owns and manages the business',
+      'Who manages the business (official state filing)',
       'UCC liens on the business',
       'Federal court & bankruptcy case search',
       'Sanctions screening (U.S. Treasury OFAC list)',
@@ -103,7 +103,7 @@ const STEPS = [
   },
   {
     title: 'Get your PDF report',
-    body: 'In minutes, pulled from official public records: who owns and manages the company, UCC liens, federal court and bankruptcy cases, and government watch-list screening.',
+    body: 'In minutes, pulled from official public records: who manages the company (from the official state filing), UCC liens, federal court and bankruptcy cases, and government watch-list screening.',
   },
 ];
 
@@ -115,7 +115,7 @@ const AFTER_SUBSCRIBE = [
 ];
 
 const REPORT_ITEMS = [
-  'Who owns and manages the business, with its mailing address and status',
+  'Business status and addresses, plus the official state filing that lists who manages it',
   'The Statement of Information the business filed with the state, when available',
   'UCC liens filed against the business',
   'Sanctions screening against the U.S. Treasury OFAC list',
@@ -310,7 +310,7 @@ export default function App() {
             <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '32px' : isShort ? '46px' : '54px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.12', marginBottom: '6px', textWrap: 'balance' } as React.CSSProperties}>Fast California <span style={{ whiteSpace: 'nowrap' }}>Public-Record</span> Research</h1>
             <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '22px' : isShort ? '30px' : '34px', fontWeight: 500, color: '#9f7f2b', marginTop: '6px', marginBottom: isMobile ? '24px' : '28px', textWrap: 'balance' } as React.CSSProperties}>for Commercial Real Estate & Business Brokers,{isMobile ? ' ' : <br />}Investors, and Private & Hard Money Lenders</h2>
             <p style={{ fontSize: isMobile ? '14px' : '15px', color: '#64748b', margin: isMobile ? '-14px auto 22px auto' : '-16px auto 26px auto', lineHeight: '1.5', textWrap: 'balance' } as React.CSSProperties}>Also a great fit for attorneys,{isMobile ? <br /> : ' '}landlords, and property managers.</p>
-            <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>Public-record search results, compiled into a clear PDF report in about a minute. Each report shows who owns and manages the business, UCC liens, federal court and bankruptcy records, and U.S. sanctions screening.</p>
+            <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>Public-record search results, compiled into a clear PDF report in about a minute. Each report covers business status, who manages the business (official state filing), UCC liens, federal court and bankruptcy records, and U.S. sanctions screening.</p>
             <button type="button" onClick={() => handleNavigate('pricing')} style={{ background: 'linear-gradient(180deg, #e8d28e 0%, #d6b968 100%)', boxShadow: '0 4px 14px rgba(214,185,104,0.35)', color: '#1e1b4b', fontSize: isMobile ? '15px' : '17px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: isMobile ? '14px 22px' : '15px 34px', cursor: 'pointer', margin: '0 0 14px 0' }}>Get Started: See Plans & Pricing →</button>
             <div style={{ margin: isMobile ? '0 0 26px 0' : '0 0 30px 0' }}>
               <button type="button" onClick={() => setShowVideo(true)} aria-label="Play the 1-minute video" style={{ display: 'inline-flex', alignItems: 'center', gap: '14px', background: '#ffffff', border: '1px solid #e6d6a3', borderRadius: '14px', padding: '8px 18px 8px 8px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(30,27,75,0.08)', textAlign: 'left', fontFamily: 'inherit' }}>
