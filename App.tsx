@@ -140,7 +140,7 @@ const FAQS = [
   },
   {
     q: 'Can our company pay for the whole office?',
-    a: 'Yes. Office plans are paid by your company and shared by your whole team: 50 reports for $899 a month, with extra reports at $15 each. Need something bigger? Email william@caresearchgroup.com for a custom quote.',
+    a: 'Yes. Office plans are paid by your company and shared by your whole team: 50 reports for $899 a month, with extra reports at $18 each. Need something bigger? Email william@caresearchgroup.com for a custom quote.',
   },
 ];
 
