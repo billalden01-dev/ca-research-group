@@ -310,7 +310,7 @@ async function geocodeCa(address: string): Promise<{ lat: number; lng: number; m
   return { lat: Number(m.coordinates.y), lng: Number(m.coordinates.x), matched: str(m.matchedAddress), key: streetKey(str(m.matchedAddress)) || streetKey(address) };
 }
 
-const niceCase = (s: string) => s.replace(/\S+/g, (w) => (/[a-z]/.test(w) || w.length <= 3 ? w : w[0] + w.slice(1).toLowerCase()));
+const niceCase = (s: string) => s.replace(/\S+/g, (w) => (/[a-z]/.test(w) || w.length <= 2 ? w : w[0] + w.slice(1).toLowerCase()));
 
 export async function checkEnvironment(address: string): Promise<EnvResult> {
   const searchedAt = new Date();
@@ -1520,7 +1520,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
           list.map((x) => x.url),
         );
       w.keyValues([
-        ['Address searched', env.matchedAddress ? niceCase(env.matchedAddress) : env.searchedFor],
+        ['Address searched', env.searchedFor],
         ['At this address', env.onSite.length ? plural(env.onSite.length, 'listing') : 'No listings found'],
         ['Within 1/4 mile', env.nearbyTotal ? `${plural(env.nearbyTotal, 'listed site')}${envOpen ? `, ${envOpen} open` : ''}` : 'No listed sites found'],
       ]);
