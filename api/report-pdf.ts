@@ -44,6 +44,18 @@ export type ReportInput = {
   courts: CourtResult | null;
   people?: PeopleResult | null;
   ucc?: UccResult | null;
+  environment?: EnvResult | null;
+};
+
+// Property environmental check: official state contamination and cleanup lists near an address
+export type EnvSite = {
+  name: string; address: string; source: string; caseType: string; status: string;
+  category: 'Open' | 'Closed' | 'Closed with restrictions' | 'Referred';
+  distanceFt: number; onSite: boolean; url: string; id: string; contaminants?: string; history?: string;
+};
+export type EnvResult = {
+  searchedAt: Date; searchedFor: string; matchedAddress?: string; radiusMiles: number;
+  status: 'searched' | 'not_found' | 'unavailable'; onSite: EnvSite[]; nearby: EnvSite[]; nearbyTotal: number; failedSources: string[];
 };
 
 // Owners and managers, from the business's latest Statement of Information
@@ -247,6 +259,139 @@ export async function searchFederalCases(name: string, token: string | undefined
   } catch {
     return { searchedAt, searchedFor: name, status: 'unavailable', ...empty };
   }
+}
+
+// ---------- Property environmental check (free, official state lists) ----------
+// 1) U.S. Census Bureau turns the address into a map location.
+// 2) State Water Board GeoTracker: leaking fuel tanks (often old gas stations) and other cleanup cases.
+// 3) Dept. of Toxic Substances Control EnviroStor: hazardous-substance cleanups, including federal Superfund sites in California.
+
+const ENV_RADIUS_MILES = 0.25;
+const ENV_RADIUS_M = 402;
+const ON_SITE_M = 25;
+const GEOTRACKER_URL = 'https://gispublic.waterboards.ca.gov/portalserver/rest/services/Hosted/geotracker_sites_download/FeatureServer/371/query';
+const ENVIROSTOR_URL = 'https://services3.arcgis.com/Oy2JTCD10wkoelxS/arcgis/rest/services/Envirostor_Public_Data_Export/FeatureServer/0/query';
+const GT_TYPES = new Set(['LUST Cleanup Site', 'Cleanup Program Site', 'Military Cleanup Site', 'Military UST Site', 'Land Disposal Site']);
+const ES_SKIP_TYPES = new Set(['Tiered Permit', 'D&E Non-Case Information']);
+const ES_SKIP_STATUS = /^(\* No Evidence of Release|No Action Required)$/i;
+
+function metersBetween(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const toR = (d: number) => (d * Math.PI) / 180;
+  const a = Math.sin(toR(lat2 - lat1) / 2) ** 2 + Math.cos(toR(lat1)) * Math.cos(toR(lat2)) * Math.sin(toR(lng2 - lng1) / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+// "1060 Lincoln Ave" -> "1060 LINCOLN"; used to spot a listing at the same street address
+function streetKey(numberAndStreet: string): string {
+  const m = numberAndStreet.toUpperCase().match(/^\s*(\d+)[A-Z]?\s+(?:(?:N|S|E|W|NORTH|SOUTH|EAST|WEST)\s+)?([A-Z0-9]+)/);
+  return m ? `${m[1]} ${m[2]}` : '';
+}
+
+async function arcgisNear(url: string, lat: number, lng: number): Promise<Raw[]> {
+  const p = new URLSearchParams({
+    geometry: `${lng},${lat}`, geometryType: 'esriGeometryPoint', inSR: '4326', spatialRel: 'esriSpatialRelIntersects',
+    distance: String(ENV_RADIUS_M), units: 'esriSRUnit_Meter', outFields: '*', returnGeometry: 'false', f: 'json',
+  });
+  const res = await fetch(`${url}?${p}`, { headers: { Accept: 'application/json' }, signal: timeout(20000) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = (await res.json()) as Raw;
+  if (data.error) throw new Error(str(data.error.message) || 'query error');
+  return (data.features ?? []).map((f: Raw) => f.attributes as Raw);
+}
+
+async function geocodeCa(address: string): Promise<{ lat: number; lng: number; matched: string; key: string } | null> {
+  const u = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(address)}&benchmark=Public_AR_Current&format=json`;
+  const res = await fetch(u, { signal: timeout(15000) });
+  if (!res.ok) throw new Error(`Geocoder HTTP ${res.status}`);
+  const data = (await res.json()) as Raw;
+  const m = (data.result?.addressMatches ?? []).find((x: Raw) => str(x.addressComponents?.state).toUpperCase() === 'CA');
+  if (!m) return null;
+  return { lat: Number(m.coordinates.y), lng: Number(m.coordinates.x), matched: str(m.matchedAddress), key: streetKey(str(m.matchedAddress)) || streetKey(address) };
+}
+
+const niceCase = (s: string) => s.replace(/\S+/g, (w) => (/[a-z]/.test(w) || w.length <= 3 ? w : w[0] + w.slice(1).toLowerCase()));
+
+export async function checkEnvironment(address: string): Promise<EnvResult> {
+  const searchedAt = new Date();
+  const base: EnvResult = { searchedAt, searchedFor: address, radiusMiles: ENV_RADIUS_MILES, status: 'searched', onSite: [], nearby: [], nearbyTotal: 0, failedSources: [] };
+  let geo: Awaited<ReturnType<typeof geocodeCa>>;
+  try {
+    geo = await geocodeCa(address);
+  } catch {
+    return { ...base, status: 'unavailable' };
+  }
+  if (!geo) return { ...base, status: 'not_found' };
+  const { lat, lng } = geo;
+
+  const [gt, es] = await Promise.allSettled([arcgisNear(GEOTRACKER_URL, lat, lng), arcgisNear(ENVIROSTOR_URL, lat, lng)]);
+  const failed: string[] = [];
+  const sites: EnvSite[] = [];
+  const place = (sLat: number, sLng: number, street: string) => {
+    const meters = Number.isFinite(sLat) && Number.isFinite(sLng) && sLat ? metersBetween(lat, lng, sLat, sLng) : Infinity;
+    const sameStreet = Boolean(geo!.key) && streetKey(street) === geo!.key;
+    return { distanceFt: Number.isFinite(meters) ? Math.round(meters * 3.28084) : -1, onSite: sameStreet || meters <= ON_SITE_M };
+  };
+
+  if (gt.status === 'fulfilled') {
+    for (const a of gt.value) {
+      const type = str(a.case_type);
+      if (!GT_TYPES.has(type)) continue;
+      const status = str(a.status);
+      const street = `${str(a.street_num)} ${str(a.street_nam)}`.trim();
+      const id = str(a.global_id);
+      sites.push({
+        name: niceCase(str(a.business_n) || 'Unnamed site'),
+        address: niceCase([street, str(a.city)].filter(Boolean).join(', ')),
+        source: 'State Water Board (GeoTracker)',
+        caseType: type === 'LUST Cleanup Site' ? 'Leaking underground fuel tank' : type,
+        status,
+        category: /^open/i.test(status) ? 'Open' : 'Closed',
+        id,
+        url: `https://geotracker.waterboards.ca.gov/profile_report?global_id=${encodeURIComponent(id)}`,
+        contaminants: str(a.potential_) || undefined,
+        history: str(a.site_histo) || undefined,
+        ...place(Number(a.latitude), Number(a.longitude), street),
+      });
+    }
+  } else failed.push('State Water Board (GeoTracker)');
+
+  if (es.status === 'fulfilled') {
+    for (const a of es.value) {
+      const type = str(a.site_type);
+      const status = str(a.status);
+      if (ES_SKIP_TYPES.has(type) || ES_SKIP_STATUS.test(status)) continue;
+      const id = str(a.envirostor_id);
+      const category: EnvSite['category'] = /^refer/i.test(status)
+        ? 'Referred'
+        : /land use|o&m|operation/i.test(status)
+          ? 'Closed with restrictions'
+          : /^(active|backlog|inactive - action required|inactive - needs evaluation)/i.test(status)
+            ? 'Open'
+            : 'Closed';
+      sites.push({
+        name: niceCase(str(a.project_name) || 'Unnamed site'),
+        address: niceCase([str(a.address), str(a.city)].filter(Boolean).join(', ')),
+        source: 'Dept. of Toxic Substances Control (EnviroStor)',
+        caseType: type,
+        status,
+        category,
+        id,
+        url: `https://www.envirostor.dtsc.ca.gov/public/profile_report?global_id=${encodeURIComponent(id)}`,
+        contaminants: str(a.potential_coc) || undefined,
+        history: str(a.past_uses) ? `Past uses: ${str(a.past_uses)}` : undefined,
+        ...place(Number(a.latitude), Number(a.longitude), str(a.address)),
+      });
+    }
+  } else failed.push('Dept. of Toxic Substances Control (EnviroStor)');
+
+  if (failed.length === 2) return { ...base, matchedAddress: geo.matched, status: 'unavailable', failedSources: failed };
+
+  const rank = (s: EnvSite) => ({ Open: 0, 'Closed with restrictions': 1, Referred: 2, Closed: 3 })[s.category];
+  const order = (a: EnvSite, b: EnvSite) => rank(a) - rank(b) || a.distanceFt - b.distanceFt;
+  const onSite = sites.filter((s) => s.onSite).sort(order);
+  const nearbyAll = sites.filter((s) => !s.onSite).sort(order);
+  return { ...base, matchedAddress: geo.matched, onSite, nearby: nearbyAll.slice(0, 15), nearbyTotal: nearbyAll.length, failedSources: failed };
 }
 
 // ---------- Secretary of State lookups ----------
@@ -800,6 +945,21 @@ const SAMPLE_INPUT: ReportInput = {
       },
     ],
   },
+  environment: {
+    searchedAt: new Date(),
+    searchedFor: '123 Example Street, Los Angeles, CA 90000',
+    matchedAddress: '123 EXAMPLE ST, LOS ANGELES, CA, 90000',
+    radiusMiles: 0.25,
+    status: 'searched',
+    onSite: [],
+    nearby: [
+      { name: 'Example Fuel Station', address: '130 Example Street, Los Angeles', source: 'State Water Board (GeoTracker)', caseType: 'Leaking underground fuel tank', status: 'Open - Remediation', category: 'Open', distanceFt: 240, onSite: false, url: '', id: 'T0000000000', contaminants: 'Gasoline' },
+      { name: 'Sample Dry Cleaners', address: '200 Sample Avenue, Los Angeles', source: 'Dept. of Toxic Substances Control (EnviroStor)', caseType: 'Voluntary Cleanup', status: 'Certified O&M - Land Use Restrictions Only', category: 'Closed with restrictions', distanceFt: 910, onSite: false, url: '', id: '00000000', contaminants: 'Tetrachloroethylene (PCE)' },
+      { name: 'Former Example Garage', address: '98 Example Street, Los Angeles', source: 'State Water Board (GeoTracker)', caseType: 'Leaking underground fuel tank', status: 'Completed - Case Closed', category: 'Closed', distanceFt: 410, onSite: false, url: '', id: 'T0000000001', contaminants: 'Diesel' },
+    ],
+    nearbyTotal: 3,
+    failedSources: [],
+  },
 };
 
 // ---------- Look and feel ----------
@@ -936,7 +1096,7 @@ class Writer {
   }
 
   // Simple table with header row
-  table(headers: string[], widths: number[], rows: string[][]) {
+  table(headers: string[], widths: number[], rows: string[][], links?: (string | undefined)[]) {
     const size = 9.5;
     const lh = size * 1.4;
     const headH = 22;
@@ -954,9 +1114,19 @@ class Writer {
       this.ensure(rowH);
       if (r % 2 === 1) this.page.drawRectangle({ x: MARGIN, y: this.y - rowH, width: CONTENT_W, height: rowH, color: PANEL });
       let cx = MARGIN;
+      const link = links?.[r];
+      const blue = rgb(29 / 255, 78 / 255, 216 / 255);
       wrapped.forEach((lines, i) => {
         lines.forEach((ln, j) => {
-          this.page.drawText(ln, { x: cx + 8, y: this.y - 6 - size - j * lh, size, font: i === 0 ? this.bold : this.regular, color: i === 0 ? NAVY : TEXT });
+          const linked = i === 0 && link && j === 0;
+          const ty = this.y - 6 - size - j * lh;
+          this.page.drawText(ln, { x: cx + 8, y: ty, size, font: i === 0 ? this.bold : this.regular, color: linked ? blue : i === 0 ? NAVY : TEXT });
+          if (linked) {
+            const lw = this.bold.widthOfTextAtSize(ln, size);
+            this.page.drawLine({ start: { x: cx + 8, y: ty - 1.5 }, end: { x: cx + 8 + lw, y: ty - 1.5 }, thickness: 0.5, color: blue });
+            const annot = this.doc.context.obj({ Type: 'Annot', Subtype: 'Link', Rect: [cx + 8, ty - 3, cx + 8 + lw, ty + size], Border: [0, 0, 0], A: { Type: 'Action', S: 'URI', URI: PDFString.of(link) } });
+            this.page.node.addAnnot(this.doc.context.register(annot));
+          }
         });
         cx += widths[i];
       });
@@ -1087,7 +1257,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
     ['Contact email', input.preparedFor.email],
     ...(input.preparedFor.role ? ([['Role', input.preparedFor.role]] as [string, string][]) : []),
     ['Business name', input.request.entityName || 'None provided'],
-    ['Property address (optional)', input.request.propertyAddress || 'Not provided'],
+    ['Property address', input.request.propertyAddress || 'Not provided'],
     ['Intended use', input.request.reportUse || 'Not specified'],
     ['Report generated', fmtDate(input.generatedAt)],
   ]);
@@ -1139,6 +1309,15 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       : uc.filings.length === 0
         ? 'No UCC liens found against this business.'
         : `${plural(activeUcc, 'active UCC lien')} and ${plural(uc.filings.length - activeUcc, 'lapsed or ended filing')} found.`;
+  const env = input.environment;
+  const envOpen = env ? [...env.onSite, ...env.nearby].filter((x) => x.category === 'Open').length : 0;
+  const envSummary = !input.request.propertyAddress
+    ? 'Not searched (no property address provided).'
+    : !env || env.status === 'unavailable'
+      ? 'The state environmental lists could not be reached at the time of the search.'
+      : env.status === 'not_found'
+        ? 'The property address could not be located. Check the street number, city, and ZIP code.'
+        : `${env.onSite.length ? `${plural(env.onSite.length, 'listing')} at this address` : 'No listings at this address'}. ${plural(env.nearbyTotal, 'listed site')} within 1/4 mile${envOpen ? ` (${envOpen} open case${envOpen === 1 ? '' : 's'})` : ''}.`;
   w.heading('Summary of findings');
   w.table(
     ['Source', 'Searched', 'Result'],
@@ -1149,6 +1328,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       ['CA Secretary of State - UCC liens', uc ? (uc.status === 'searched' ? 'Yes' : 'Failed') : 'No', uccSummary],
       ['U.S. Treasury OFAC sanctions list', sx ? (sx.available ? 'Yes' : 'Failed') : 'No', sanctionsSummary],
       ...(ct && ct.status === 'not_connected' ? [] : [['Federal court and bankruptcy cases', ct ? (ct.status === 'searched' ? 'Yes' : 'Failed') : 'No', courtSummary]]),
+      ['Property environmental check', !input.request.propertyAddress ? 'No' : env && env.status === 'searched' ? 'Yes' : env?.status === 'not_found' ? 'No' : 'Failed', envSummary],
     ],
   );
   w.callout(
@@ -1318,8 +1498,58 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
     );
   }
 
+  // Property environmental check
+  if (input.request.propertyAddress) {
+    section('Property environmental check', 120);
+    w.paragraph('An early screening of official California contamination and cleanup lists for the property and the area around it. It is not a Phase I Environmental Site Assessment.', { size: 9, color: MUTED, gap: 8 });
+    if (!env || env.status === 'unavailable') {
+      w.paragraph('The state environmental lists could not be reached at the time of this search, so no result is available. Please request a new report later.');
+    } else if (env.status === 'not_found') {
+      w.paragraph(`The address "${env.searchedFor}" could not be located on the map. Check the street number, city, and ZIP code, then request a new report.`);
+    } else {
+      const sitesTable = (list: EnvSite[], showDistance: boolean) =>
+        w.table(
+          ['Site (click for official record)', 'Type', 'Status', showDistance ? 'Distance' : 'Address'],
+          [170, 120, 120, CONTENT_W - 410],
+          list.map((x) => [
+            `${x.name}\n${x.address}`,
+            `${x.caseType}${x.contaminants ? `\n${x.contaminants.slice(0, 90)}` : ''}`,
+            `${x.category}\n${x.status}`,
+            showDistance ? (x.distanceFt >= 0 ? `About ${x.distanceFt.toLocaleString('en-US')} ft` : '-') : x.address,
+          ]),
+          list.map((x) => x.url),
+        );
+      w.keyValues([
+        ['Address searched', env.matchedAddress ? niceCase(env.matchedAddress) : env.searchedFor],
+        ['At this address', env.onSite.length ? plural(env.onSite.length, 'listing') : 'No listings found'],
+        ['Within 1/4 mile', env.nearbyTotal ? `${plural(env.nearbyTotal, 'listed site')}${envOpen ? `, ${envOpen} open` : ''}` : 'No listed sites found'],
+      ]);
+      if (env.onSite.some((x) => x.category !== 'Closed')) {
+        w.callout('Listing at this property', 'This address appears on a state contamination or cleanup list with a case that is open, referred, or closed with restrictions. Review the official record and consider a Phase I Environmental Site Assessment.', SAMPLE_BG, rgb(185 / 255, 28 / 255, 28 / 255));
+      }
+      if (env.onSite.length) {
+        w.paragraph('Listed at this address', { font: bold, color: NAVY, size: 10.5, gap: 4 });
+        sitesTable(env.onSite, false);
+        const hist = env.onSite.find((x) => x.history)?.history;
+        if (hist) w.paragraph(`From the state record: "${hist.slice(0, 300)}${hist.length > 300 ? '...' : ''}"`, { size: 9, color: MUTED });
+      }
+      if (env.nearby.length) {
+        w.paragraph('Listed sites nearby (open cases first)', { font: bold, color: NAVY, size: 10.5, gap: 4 });
+        sitesTable(env.nearby, true);
+        if (env.nearbyTotal > env.nearby.length) w.paragraph(`Showing ${env.nearby.length} of ${env.nearbyTotal} nearby sites, open cases and closest first.`, { size: 9, color: MUTED });
+      }
+      if (env.failedSources.length) w.paragraph(`Not checked (could not be reached at the time of the search): ${env.failedSources.join(', ')}.`, { size: 9, color: rgb(185 / 255, 28 / 255, 28 / 255) });
+      w.paragraph('"Closed" means the agency closed the case; it does not guarantee no contamination remains. "Closed with restrictions" means limits on use or ongoing monitoring may apply. A site can have a history (such as a former gas station or dry cleaner) that was never reported to these lists.', { size: 8.5, color: MUTED });
+    }
+    w.paragraph(
+      `Sources: California State Water Resources Control Board (GeoTracker) and California Department of Toxic Substances Control (EnviroStor, which includes federal Superfund sites in California). Location from the U.S. Census Bureau. Searched on ${fmtDate(env?.searchedAt ?? input.generatedAt)}.`,
+      { size: 8.5, color: MUTED },
+    );
+  }
+
   // Limits
   w.heading('Sources and limits', 60);
+  if (input.request.propertyAddress) w.paragraph('The property environmental check is a screening of government lists only. It is not a Phase I or Phase II Environmental Site Assessment, does not include a site visit, historical maps, or other records of past uses, and does not determine whether a property is contaminated.', { size: 9, color: MUTED });
   w.paragraph(LIMITS_TEXT, { size: 9, color: MUTED });
 
   // Footers with page numbers
@@ -1704,10 +1934,12 @@ export async function runReport(
     verification = verifyEntity(name, records, confirmed);
   })();
   const courtTask = name ? searchFederalCases(name, keys.courtListenerToken) : Promise.resolve(null);
+  const address = (form.propertyAddress ?? '').trim();
+  const envTask = address.length >= 5 ? checkEnvironment(address).catch(() => null) : Promise.resolve(null);
 
   await entityTask;
   const topName = (entitySearch as ReportInput['entitySearch'])?.records[0]?.name ?? '';
-  const [sanctions, courts] = await Promise.all([name ? screenSanctions([name, topName]) : Promise.resolve(null), courtTask]);
+  const [sanctions, courts, environment] = await Promise.all([name ? screenSanctions([name, topName]) : Promise.resolve(null), courtTask, envTask]);
 
   return {
     sample: false,
@@ -1722,6 +1954,7 @@ export async function runReport(
     courts,
     people,
     ucc,
+    environment,
     cobaltRaw,
     soiPdf,
   };
