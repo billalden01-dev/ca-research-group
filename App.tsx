@@ -14,8 +14,11 @@ type Plan = {
 
 const SERIF = "Georgia, 'Times New Roman', serif";
 
-const inputStyle: React.CSSProperties = { padding: '12px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', fontSize: '14px' };
-const labelStyle: React.CSSProperties = { fontSize: '13px', fontWeight: 'bold', color: '#1e1b4b' };
+const inputStyle: React.CSSProperties = { padding: '13px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', fontSize: '16px' };
+const labelStyle: React.CSSProperties = { fontSize: '15px', fontWeight: 'bold', color: '#1e1b4b' };
+const sectionStyle: React.CSSProperties = { backgroundColor: '#fbf7ea', border: '1px solid #e6d6a3', borderRadius: '12px', padding: '14px 16px', margin: '4px 0 0 0' };
+const sectionTitle: React.CSSProperties = { fontFamily: SERIF, fontSize: '18px', fontWeight: 'bold', color: '#1e1b4b', margin: '0 0 4px 0' };
+const sectionHelp: React.CSSProperties = { fontSize: '14px', color: '#6e561c', margin: '0', lineHeight: '1.5' };
 const fieldStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: '6px' };
 
 const PLANS: Plan[] = [
@@ -28,8 +31,10 @@ const PLANS: Plan[] = [
     featured: false,
     features: [
       '5 reports per month',
-      'Sanctions screening (U.S. Treasury OFAC list)',
+      'Who manages the business (official state filing)',
+      'UCC liens on the business',
       'Federal court & bankruptcy case search',
+      'Sanctions screening (U.S. Treasury OFAC list)',
       'PDF report in about a minute, emailed to you',
       'Private company link: no login or password',
     ],
@@ -39,12 +44,14 @@ const PLANS: Plan[] = [
     name: '10 Reports',
     price: 299,
     perReport: 30,
-    tagline: 'For active brokers and lenders.',
+    tagline: 'For active agents, brokers, and lenders.',
     featured: false,
     features: [
       '10 reports per month',
-      'Sanctions screening (U.S. Treasury OFAC list)',
+      'Who manages the business (official state filing)',
+      'UCC liens on the business',
       'Federal court & bankruptcy case search',
+      'Sanctions screening (U.S. Treasury OFAC list)',
       'PDF report in about a minute, emailed to you',
       'Private company link: no login or password',
     ],
@@ -54,12 +61,14 @@ const PLANS: Plan[] = [
     name: '25 Reports',
     price: 499,
     perReport: 20,
-    tagline: 'For busy offices and teams.',
+    tagline: 'For busy agents and small teams.',
     featured: true,
     features: [
       '25 reports per month',
-      'Sanctions screening (U.S. Treasury OFAC list)',
+      'Who manages the business (official state filing)',
+      'UCC liens on the business',
       'Federal court & bankruptcy case search',
+      'Sanctions screening (U.S. Treasury OFAC list)',
       'PDF report in about a minute, emailed to you',
       'Private company link: no login or password',
     ],
@@ -94,7 +103,7 @@ const STEPS = [
   },
   {
     title: 'Get your PDF report',
-    body: 'In minutes, pulled from official public records: federal court and bankruptcy cases, plus government watch-list screening.',
+    body: 'In minutes, pulled from official public records: who manages the company (from the official state filing), UCC liens, federal court and bankruptcy cases, and government watch-list screening.',
   },
 ];
 
@@ -106,6 +115,9 @@ const AFTER_SUBSCRIBE = [
 ];
 
 const REPORT_ITEMS = [
+  'Business status and addresses, plus the official state filing that lists who manages it',
+  'The Statement of Information the business filed with the state, when available',
+  'UCC liens filed against the business',
   'Sanctions screening against the U.S. Treasury OFAC list',
   'Federal court and bankruptcy case search',
   'A summary of findings, with the sources searched and their limits',
@@ -127,8 +139,8 @@ const FAQS = [
     a: 'Yes. Plans are monthly. Upgrade anytime (the difference is prorated) and cancel anytime. Unused reports do not roll over.',
   },
   {
-    q: 'Need more than 25 reports a month?',
-    a: 'We offer custom plans: 50 reports for $899 a month, or 100 reports for $1,499 a month. Need more than 100? Email william@caresearchgroup.com.',
+    q: 'Can our company pay for the whole office?',
+    a: 'Yes. Office plans are paid by your company and shared by your whole team: 50 reports for $899 a month, with extra reports at $18 each. Need something bigger? Email william@caresearchgroup.com for a custom quote.',
   },
 ];
 
@@ -152,6 +164,7 @@ export default function App() {
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState('');
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
+  const [showVideo, setShowVideo] = useState(false);
   const [isMobile, setIsMobile] = useState<boolean>(typeof window !== 'undefined' && window.innerWidth < 700);
   const [isShort, setIsShort] = useState<boolean>(typeof window !== 'undefined' && window.innerHeight < 800);
 
@@ -294,11 +307,25 @@ export default function App() {
         {/* HOME COMPONENT */}
         {currentPage === 'home' && (
           <div style={{ maxWidth: '980px', margin: '0 auto', padding: isMobile ? '20px 16px 56px 16px' : isShort ? '14px 20px 56px 20px' : '24px 20px 80px 20px', textAlign: 'center' }}>
-            <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '32px' : isShort ? '46px' : '54px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.12', marginBottom: '6px', textWrap: 'balance' } as React.CSSProperties}>Fast California Public-Record Research</h1>
+            <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '30px' : isShort ? '43px' : '50px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.12', marginBottom: '6px', textWrap: 'balance' } as React.CSSProperties}>Fast California <span style={{ whiteSpace: 'nowrap' }}>Public-Record</span> Research</h1>
             <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '22px' : isShort ? '30px' : '34px', fontWeight: 500, color: '#9f7f2b', marginTop: '6px', marginBottom: isMobile ? '24px' : '28px', textWrap: 'balance' } as React.CSSProperties}>for Commercial Real Estate & Business Brokers,{isMobile ? ' ' : <br />}Investors, and Private & Hard Money Lenders</h2>
             <p style={{ fontSize: isMobile ? '14px' : '15px', color: '#64748b', margin: isMobile ? '-14px auto 22px auto' : '-16px auto 26px auto', lineHeight: '1.5', textWrap: 'balance' } as React.CSSProperties}>Also a great fit for attorneys,{isMobile ? <br /> : ' '}landlords, and property managers.</p>
-            <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>Public-record search results, compiled into a clear PDF report in about a minute. Each report covers U.S. sanctions screening and federal court and bankruptcy records.</p>
-            <button type="button" onClick={() => handleNavigate('pricing')} style={{ background: 'linear-gradient(180deg, #e8d28e 0%, #d6b968 100%)', boxShadow: '0 4px 14px rgba(214,185,104,0.35)', color: '#1e1b4b', fontSize: isMobile ? '15px' : '17px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: isMobile ? '14px 22px' : '15px 34px', cursor: 'pointer', margin: isMobile ? '0 0 28px 0' : '0 0 32px 0' }}>Get Started: See Plans & Pricing →</button>
+            <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>Public-record search results, compiled into a clear PDF report in about a minute. Each report covers business status, who manages the business (official state filing), UCC liens, federal court and bankruptcy records, and U.S. sanctions screening.</p>
+            <button type="button" onClick={() => handleNavigate('pricing')} style={{ background: 'linear-gradient(180deg, #e8d28e 0%, #d6b968 100%)', boxShadow: '0 4px 14px rgba(214,185,104,0.35)', color: '#1e1b4b', fontSize: isMobile ? '15px' : '17px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: isMobile ? '14px 22px' : '15px 34px', cursor: 'pointer', margin: '0 0 14px 0' }}>Get Started: See Plans & Pricing →</button>
+            <div style={{ margin: isMobile ? '0 0 26px 0' : '0 0 30px 0' }}>
+              <button type="button" onClick={() => setShowVideo(true)} aria-label="Play the 1-minute video" style={{ display: 'inline-flex', alignItems: 'center', gap: '14px', background: '#ffffff', border: '1px solid #e6d6a3', borderRadius: '14px', padding: '8px 18px 8px 8px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(30,27,75,0.08)', textAlign: 'left', fontFamily: 'inherit' }}>
+                <span style={{ position: 'relative', width: isMobile ? '60px' : '68px', height: isMobile ? '60px' : '68px', flex: '0 0 auto', borderRadius: '10px', overflow: 'hidden', display: 'block' }}>
+                  <img src="/founder-thumb.jpg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  <span style={{ position: 'absolute', right: '4px', bottom: '4px', width: '24px', height: '24px', borderRadius: '50%', background: '#d6b968', border: '2px solid #ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>
+                    <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 1.5 L10.5 6 L3.5 10.5 Z" fill="#1e1b4b" /></svg>
+                  </span>
+                </span>
+                <span style={{ display: 'block' }}>
+                  <span style={{ display: 'block', color: '#1e1b4b', fontSize: isMobile ? '15px' : '16px', fontWeight: 'bold' }}>Watch the 1-minute video</span>
+                  <span style={{ display: 'block', color: '#64748b', fontSize: isMobile ? '13px' : '14px', marginTop: '2px' }}>How it works, from founder Bill Alden</span>
+                </span>
+              </button>
+            </div>
 
             <div style={{ maxWidth: '900px', margin: '0 auto 30px auto', textAlign: 'left', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '20px' }}>
               <div style={{ flex: 1, backgroundColor: '#f8fafc', padding: isMobile ? '18px' : isShort ? '18px 22px' : '22px 24px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
@@ -333,7 +360,7 @@ export default function App() {
 
             {/* HERO BAND */}
             <div style={{ backgroundColor: '#1e1b4b', padding: isMobile ? '36px 16px 30px 16px' : '56px 20px 48px 20px', textAlign: 'center' }}>
-              <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '30px' : '44px', fontWeight: 'bold', color: '#ffffff', margin: '0 0 14px 0', lineHeight: '1.15' }}>Transparent Pricing{isMobile ? <br /> : ' '}for Every Practice</h1>
+              <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '28px' : '40px', fontWeight: 'bold', color: '#ffffff', margin: '0 0 14px 0', lineHeight: '1.15' }}>Transparent Pricing{isMobile ? <br /> : ' '}for Every Practice</h1>
               <p style={{ fontSize: isMobile ? '15px' : '17px', color: '#cbd5e1', maxWidth: isMobile ? '620px' : '900px', margin: '0 auto', lineHeight: '1.6', textWrap: 'balance' } as React.CSSProperties}>Simple monthly plans or a single report. No hidden fees. Upgrade or cancel anytime.</p>
 
               {/* STEP STATUS INDICATOR */}
@@ -466,8 +493,13 @@ export default function App() {
               {/* STEP 3: YOUR DETAILS */}
               {wizardStep === 3 && (
                 <form onSubmit={handleIntakeSubmit} style={{ maxWidth: '540px', margin: '20px auto 0 auto', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: isMobile ? '22px' : '36px', boxShadow: '0 14px 36px rgba(30,27,75,0.12)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  <h3 style={{ fontFamily: SERIF, color: '#1e1b4b', textAlign: 'center', margin: '0 0 6px 0', fontSize: '22px' }}>Your Details & First Report</h3>
-                  <p style={{ textAlign: 'center', fontSize: '13px', color: '#64748b', margin: '0 0 6px 0', lineHeight: '1.6' }}>Plan: {selectedTier}<br />Tell us about your firm and the first business you want researched.</p>
+                  <h3 style={{ fontFamily: SERIF, color: '#1e1b4b', textAlign: 'center', margin: '0 0 6px 0', fontSize: '24px' }}>Your Details & First Report</h3>
+                  <p style={{ textAlign: 'center', fontSize: '15px', color: '#64748b', margin: '0 0 2px 0', lineHeight: '1.6' }}>Plan: {selectedTier}</p>
+
+                  <div style={sectionStyle}>
+                    <p style={sectionTitle}>1. About you</p>
+                    <p style={sectionHelp}>Your company and contact details. Your private report link is sent to this email.</p>
+                  </div>
 
                   <div style={fieldStyle}>
                     <label style={labelStyle}>Your Company or Firm</label>
@@ -498,8 +530,13 @@ export default function App() {
                     <input type="email" placeholder="name@firm.com" value={corporateEmail} onChange={(e) => setCorporateEmail(e.target.value)} style={inputStyle} required />
                   </div>
 
+                  <div style={sectionStyle}>
+                    <p style={sectionTitle}>2. Your first report</p>
+                    <p style={sectionHelp}>The business you want researched, for example the LLC on the other side of your deal. Right after payment, it's filled in for you so you can run your first report in one click.</p>
+                  </div>
+
                   <div style={fieldStyle}>
-                    <label style={labelStyle}>Business Name (businesses only, not individuals)</label>
+                    <label style={labelStyle}>Business to research (businesses only, not individuals)</label>
                     <input type="text" placeholder="e.g. Acme Holdings LLC" value={targetEntityName} onChange={(e) => setTargetEntityName(e.target.value)} style={inputStyle} required />
                   </div>
 
@@ -520,7 +557,7 @@ export default function App() {
                     </select>
                   </div>
 
-                  <label style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', fontSize: '13px', color: '#475569', lineHeight: '1.5', cursor: 'pointer' }}>
+                  <label style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', fontSize: '14px', color: '#475569', lineHeight: '1.5', cursor: 'pointer' }}>
                     <input type="checkbox" checked={purposeCertified} onChange={(e) => setPurposeCertified(e.target.checked)} style={{ marginTop: '3px', transform: 'scale(1.15)' }} required />
                     <span>I certify that I will use reports from CA Research Group only for a lawful business purpose related to a real estate, lending, title, or legal matter. I will not use them to decide eligibility for credit, employment, insurance, or housing for any individual, and I understand they contain only information from public sources. I agree to the <a href="/terms.html" target="_blank" rel="noopener" style={{ color: '#1d4ed8' }}>Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener" style={{ color: '#1d4ed8' }}>Privacy Policy</a>.</span>
                   </label>
@@ -596,6 +633,21 @@ export default function App() {
         )}
 
       </main>
+
+      {showVideo && (
+        <div onClick={() => setShowVideo(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,14,40,0.82)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', width: '100%', maxWidth: '860px' }}>
+            <button type="button" aria-label="Close video" onClick={() => setShowVideo(false)} style={{ position: 'absolute', top: '-44px', right: 0, background: 'none', border: 'none', color: '#ffffff', fontSize: '30px', cursor: 'pointer', lineHeight: 1 }}>×</button>
+            <video controls autoPlay playsInline poster="/intro-video-poster.jpg" style={{ width: '100%', display: 'block', borderRadius: '14px', border: '3px solid #d6b968', backgroundColor: '#1e1b4b' }}>
+              <source src="/intro-video.mp4" type="video/mp4" />
+            </video>
+            <p style={{ color: '#e2e8f0', fontSize: '14px', textAlign: 'center', margin: '14px 0 0 0', lineHeight: '1.5' }}>
+              Coming soon: California county court records for attorneys and lenders.{' '}
+              <a href="/contact.html" style={{ color: '#d6b968', fontWeight: 'bold' }}>Join the list</a>
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* FOOTER */}
       <footer style={{ backgroundColor: '#1e1b4b', padding: '40px 20px', fontSize: '12px', color: '#ffffff', lineHeight: '1.7', borderTop: '1px solid #334155' }}>
