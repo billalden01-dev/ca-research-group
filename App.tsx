@@ -303,7 +303,7 @@ export default function App() {
           <span onClick={() => handleNavigate('home')} style={navLink('home')}>Home</span>
           <span onClick={() => handleNavigate('how')} style={navLink('how')}>How It Works</span>
           <span onClick={() => handleNavigate('pricing')} style={navLink('pricing')}>Pricing</span>
-          <a href={SAMPLE_URL} target="_blank" rel="noopener" style={{ color: '#1e1b4b', fontWeight: 'bold', textDecoration: 'none', paddingBottom: '4px', borderBottom: '2px solid transparent' }}>Sample Report</a>
+          <a href={SAMPLE_URL} target="_blank" rel="noopener" style={{ color: '#1e1b4b', fontWeight: 'bold', textDecoration: 'none', paddingBottom: '4px', borderBottom: '2px solid transparent' }}>{isMobile ? 'Sample' : 'Sample Report'}</a>
           <a href="/contact.html" style={{ color: '#1e1b4b', fontWeight: 'bold', textDecoration: 'none', paddingBottom: '4px', borderBottom: '2px solid transparent' }}>Contact</a>
         </div>
       </nav>
