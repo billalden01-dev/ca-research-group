@@ -21,3 +21,8 @@ Rule: make changes on a preview link first and show Bill before anything goes li
 - CourtListener: free account; Bill asked Free Law Project about a commercial plan for paid reports.
 - NOTIFY_EMAIL now william@caresearchgroup.com (Production).
 - Environmental check (GeoTracker + EnviroStor) is on preview-report-v2; optional property address on report.html.
+
+## After go-live (Tue/Wed Oct 27-28)
+- Update intro video (scratchpad video/make_video_crisp*.py builds it from screenshots + Bill's voiceover): new home-page shot showing the "Sample Report" menu link, and a shot of the made-up sample PDF when Bill says you'll get a clear report. Show Bill before replacing public/intro-video.mp4.
+- Pending decisions when Baselayer (Alan) answers: provider, final prices (keep current prices preferred), state court records checkbox vs. include always.
+- Attorneys removed from home page line (now "title professionals"); bring back after CA state court records + Tony's input. Builders: wait for Chris/Heather feedback.
