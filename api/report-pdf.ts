@@ -607,6 +607,13 @@ function cobaltRecord(r: Raw): EntityRecord {
 }
 
 // Turns the provider's answer into report sections. Works on a saved answer too, so tests don't spend lookups.
+// Send clients through our own page, which shows a clear "downloading" message and then opens the state's document.
+// Only the document number is passed, so the page can never be used to forward people anywhere else.
+export function soiLink(url: string): string {
+  const m = url.match(/^https:\/\/bizfileonline\.sos\.ca\.gov\/api\/report\/GetImageByNum\/(\d{10,80})$/);
+  return m ? `https://www.caresearchgroup.com/soi.html?d=${m[1]}` : url;
+}
+
 export function soiUrlFrom(raw: Raw): { url: string; date: string } | null {
   const top = Array.isArray(raw.results) ? raw.results[0] : null;
   const docs: Raw[] = top && Array.isArray(top.documents) ? top.documents : [];
@@ -657,7 +664,7 @@ export function fromCobalt(name: string, raw: Raw, searchedAt: Date, soiParsed?:
     ? {
         searchedAt: asOf,
         statementDate: soi ? str(soi.date) : undefined,
-        statementUrl: soi && /^https:\/\/bizfileonline\.sos\.ca\.gov\//.test(str(soi.url)) ? str(soi.url) : undefined,
+        statementUrl: soi && /^https:\/\/bizfileonline\.sos\.ca\.gov\//.test(str(soi.url)) ? soiLink(str(soi.url)) : undefined,
         officers,
         note: soiUnreadable && !officers.length
           ? `The owners and managers are listed on the business's Statement of Information${soi && str(soi.date) ? ` filed ${str(soi.date)}` : ''}. Download it from the California Secretary of State using the link below.`

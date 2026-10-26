@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
+<title>Statement of Information - CA Research Group</title>
+<style>
+body{margin:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1e293b}
+.c{max-width:520px;margin:60px auto;padding:0 16px}.k{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:32px;text-align:center}
+img{height:52px;margin-bottom:16px}h1{font-family:Georgia,serif;color:#1e1b4b;font-size:24px;margin:0 0 12px}
+p{color:#475569;line-height:1.6;margin:0 0 14px;font-size:16px}.b{display:inline-block;margin-top:6px;padding:13px 20px;background:#1e1b4b;color:#fff;border-radius:10px;font-weight:bold;text-decoration:none;font-size:15px}
+.s{font-size:13px;color:#64748b;margin-top:18px}.hidden{display:none}
+</style></head>
+<body><div class="c"><div class="k">
+<img src="/logo-tight.png" alt="CA Research Group">
+<div id="ok">
+<h1>Your Statement of Information is downloading</h1>
+<p>The official document from the California Secretary of State lists the business's managers and members.</p>
+<p><strong>Check your Downloads folder.</strong> When you're done, you can close this tab.</p>
+<a id="again" class="b" href="#">Download didn't start? Click here</a>
+<p class="s">CA Research Group &middot; caresearchgroup.com</p>
+</div>
+<div id="bad" class="hidden"><h1>Link not recognized</h1><p>Please use the link in your report or report email.</p></div>
+</div></div>
+<script>
+(function(){
+  var d = (new URLSearchParams(location.search).get('d') || '');
+  if (!/^\d{10,80}$/.test(d)) { document.getElementById('ok').className='hidden'; document.getElementById('bad').className=''; return; }
+  var url = 'https://bizfileonline.sos.ca.gov/api/report/GetImageByNum/' + d;
+  document.getElementById('again').href = url;
+  setTimeout(function(){ window.location.href = url; }, 900);
+})();
+</script>
+</body></html>
