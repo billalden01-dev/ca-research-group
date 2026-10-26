@@ -316,7 +316,7 @@ export default function App() {
           <div style={{ maxWidth: '980px', margin: '0 auto', padding: isMobile ? '20px 16px 56px 16px' : isShort ? '14px 20px 56px 20px' : '24px 20px 80px 20px', textAlign: 'center' }}>
             <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '30px' : isShort ? '43px' : '50px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.12', marginBottom: '6px', textWrap: 'balance' } as React.CSSProperties}>Fast California <span style={{ whiteSpace: 'nowrap' }}>Public-Record</span> Research</h1>
             <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '22px' : isShort ? '30px' : '34px', fontWeight: 500, color: '#9f7f2b', marginTop: '6px', marginBottom: isMobile ? '24px' : '28px', textWrap: 'balance' } as React.CSSProperties}>for Commercial Real Estate & Business Brokers,{isMobile ? ' ' : <br />}Investors, and Private & Hard Money Lenders</h2>
-            <p style={{ fontSize: isMobile ? '14px' : '15px', color: '#64748b', margin: isMobile ? '-14px auto 22px auto' : '-16px auto 26px auto', lineHeight: '1.5', textWrap: 'balance' } as React.CSSProperties}>Also a great fit for attorneys,{isMobile ? <br /> : ' '}landlords, and property managers.</p>
+            <p style={{ fontSize: isMobile ? '14px' : '15px', color: '#64748b', margin: isMobile ? '-14px auto 22px auto' : '-16px auto 26px auto', lineHeight: '1.5', textWrap: 'balance' } as React.CSSProperties}>Also a great fit for title professionals,{isMobile ? <br /> : ' '}landlords, and property managers.</p>
             <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>Public-record search results, compiled into a clear PDF report in about a minute. Each report covers business status, who manages the business (official state filing), UCC liens, federal court and bankruptcy records, U.S. sanctions screening, and a property environmental check when you add an address.</p>
             <button type="button" onClick={() => handleNavigate('pricing')} style={{ background: 'linear-gradient(180deg, #e8d28e 0%, #d6b968 100%)', boxShadow: '0 4px 14px rgba(214,185,104,0.35)', color: '#1e1b4b', fontSize: isMobile ? '15px' : '17px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: isMobile ? '14px 22px' : '15px 34px', cursor: 'pointer', margin: '0 0 14px 0' }}>Get Started: See Plans & Pricing →</button>
             <div style={{ margin: isMobile ? '0 0 26px 0' : '0 0 30px 0' }}>
@@ -651,10 +651,6 @@ export default function App() {
             <video controls autoPlay playsInline poster="/intro-video-poster.jpg" style={{ width: '100%', display: 'block', borderRadius: '14px', border: '3px solid #d6b968', backgroundColor: '#1e1b4b' }}>
               <source src="/intro-video.mp4" type="video/mp4" />
             </video>
-            <p style={{ color: '#e2e8f0', fontSize: '14px', textAlign: 'center', margin: '14px 0 0 0', lineHeight: '1.5' }}>
-              Coming soon: California county court records for attorneys and lenders.{' '}
-              <a href="/contact.html" style={{ color: '#d6b968', fontWeight: 'bold' }}>Join the list</a>
-            </p>
           </div>
         </div>
       )}
