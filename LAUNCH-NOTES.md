@@ -30,4 +30,5 @@ Rule: make changes on a preview link first and show Bill before anything goes li
 ## Bills on the Mercury IO card (billing dates)
 - Google Workspace: Oct 31 (switched to Mercury Oct 26)
 - Claude: Nov 5 (switched to Mercury Oct 26)
+- iPostal1 mailbox ($14.99/mo): renews Nov 16 (switched to Mercury Oct 26)
 - GoDaddy domain (caresearchgroup.com): renews Sep 7, 2027 (yearly; switched to Mercury Oct 26)
