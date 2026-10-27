@@ -28,4 +28,5 @@ Rule: make changes on a preview link first and show Bill before anything goes li
 - Attorneys removed from home page line (now "title professionals"); bring back after CA state court records + Tony's input. Builders: wait for Chris/Heather feedback.
 
 ## Bills on the Mercury IO card (billing dates)
+- Google Workspace: Oct 31
 - Claude: Nov 5 (switched to Mercury Oct 26)
