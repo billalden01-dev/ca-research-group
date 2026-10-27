@@ -28,5 +28,6 @@ Rule: make changes on a preview link first and show Bill before anything goes li
 - Attorneys removed from home page line (now "title professionals"); bring back after CA state court records + Tony's input. Builders: wait for Chris/Heather feedback.
 
 ## Bills on the Mercury IO card (billing dates)
-- Google Workspace: Oct 31
+- Google Workspace: Oct 31 (switched to Mercury Oct 26)
 - Claude: Nov 5 (switched to Mercury Oct 26)
+- GoDaddy domain (caresearchgroup.com): renews Sep 7, 2027 (yearly)
