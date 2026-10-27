@@ -14,6 +14,7 @@ Rule: make changes on a preview link first and show Bill before anything goes li
 - Nov 3: Bill activates live payments himself (business details, ID, Mercury bank).
 - ~Nov 9-13: Claude creates live products/prices, turns off Cash App, Klarna and Amazon Pay (cards only), connects live checkout + webhook. Bill pastes STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET (live) into Vercel himself.
 - Prices on site: 5/$199, 10/$299, 25/$499 per month, single $59, office 50/$899 + $18 extra. May change after the Baselayer decision.
+- Decided Oct 27 (Bill): monthly members can buy extra reports at one flat $30 each, any plan (non-members pay the single price). Build with Stripe in November; not on the site yet.
 - ~Nov 20: one real $59 test purchase with Bill's Mercury IO card, check welcome email, refund in Stripe.
 
 ## Open items
