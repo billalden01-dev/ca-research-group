@@ -26,3 +26,6 @@ Rule: make changes on a preview link first and show Bill before anything goes li
 - Update intro video (scratchpad video/make_video_crisp*.py builds it from screenshots + Bill's voiceover): new home-page shot showing the "Sample Report" menu link, and a shot of the made-up sample PDF when Bill says you'll get a clear report. Show Bill before replacing public/intro-video.mp4.
 - Pending decisions when Baselayer (Alan) answers: provider, final prices (keep current prices preferred), state court records checkbox vs. include always.
 - Attorneys removed from home page line (now "title professionals"); bring back after CA state court records + Tony's input. Builders: wait for Chris/Heather feedback.
+
+## Bills on the Mercury IO card (billing dates)
+- Claude: Nov 5 (switched to Mercury Oct 26)
