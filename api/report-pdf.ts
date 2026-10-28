@@ -437,12 +437,16 @@ export async function checkHistoric(address: string, geoTask?: Promise<Awaited<R
     if (city === 'SAN JOSE') {
       try {
         const sj = await sanJoseHistoric(lat, lng, geo.key);
-        // Drop National Register entries the city list already covers (same distinctive name word)
-        const words = (n: string) => n.toUpperCase().split(/[^A-Z]+/).filter((w) => w.length >= 5 && !HIST_COMMON.has(w));
-        const sjNational = sj.filter((x) => x.rank === 1).map((x) => words(x.name));
+        // Merge National Register entries the city list already covers (same distinctive name word, e.g. Dohrman/Dohrmann)
+        const words = (n: string) => n.toUpperCase().split(/[^A-Z]+/).filter((w) => w.length >= 5 && !HIST_COMMON.has(w)).map((w) => w.slice(0, 6));
         for (let i = sites.length - 1; i >= 0; i--) {
           const w = words(sites[i].name);
-          if (sjNational.some((sw) => sw.some((x) => w.includes(x)))) sites.splice(i, 1);
+          const match = sj.find((x) => words(x.name).some((y) => w.includes(y)));
+          if (!match) continue;
+          if (!/National Register(?! district)/.test(match.level)) match.level = `National Register; ${match.level}`;
+          match.rank = 1;
+          if (sites[i].onSite && !match.onSite) { match.onSite = true; match.distanceFt = 0; }
+          sites.splice(i, 1);
         }
         sites.push(...sj);
       } catch {
