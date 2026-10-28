@@ -322,7 +322,7 @@ const niceCase = (s: string) => s.replace(/\S+/g, (w) => (/[a-z]/.test(w) || w.l
 // National Register of Historic Places, from the National Park Service's public map service.
 // Listing map points can be approximate, so we also match the listing's street address.
 const NRHP_URL = 'https://mapservices.nps.gov/arcgis/rest/services/cultural_resources/nrhp_locations/MapServer/0/query';
-const HIST_ON_SITE_M = 60;
+const HIST_ON_SITE_M = 20;
 
 async function nrhpQuery(params: Record<string, string>): Promise<Raw[]> {
   const p = new URLSearchParams({ outFields: 'RESNAME,ResType,CertDate,Address,City,STATUS,NARA_URL', returnGeometry: 'true', outSR: '4326', f: 'json', ...params });
