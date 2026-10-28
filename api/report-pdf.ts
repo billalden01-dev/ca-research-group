@@ -45,7 +45,12 @@ export type ReportInput = {
   people?: PeopleResult | null;
   ucc?: UccResult | null;
   environment?: EnvResult | null;
+  historic?: HistResult | null;
 };
+
+// Historic listing check: National Register of Historic Places listings in California near an address
+export type HistSite = { name: string; kind: string; listed?: string; distanceFt: number; onSite: boolean };
+export type HistResult = { searchedAt: Date; status: 'searched' | 'not_found' | 'unavailable'; onSite: HistSite[]; nearby: HistSite[]; nearbyTotal: number };
 
 // Property environmental check: official state contamination and cleanup lists near an address
 export type EnvSite = {
@@ -312,12 +317,57 @@ async function geocodeCa(address: string): Promise<{ lat: number; lng: number; m
 
 const niceCase = (s: string) => s.replace(/\S+/g, (w) => (/[a-z]/.test(w) || w.length <= 2 ? w : w[0] + w.slice(1).toLowerCase()));
 
-export async function checkEnvironment(address: string): Promise<EnvResult> {
+// ---------- Historic listing check (free, official list) ----------
+// National Register of Historic Places locations in California, published by Caltrans from National Park Service data.
+const NRHP_URL = 'https://gisdata.dot.ca.gov/arcgis/rest/services/CHhqenvi/DEA_National_Register_Locations/FeatureServer/0/query';
+const HIST_ON_SITE_M = 60; // listing points are approximate, so "at or right next to" the address
+
+export async function checkHistoric(address: string, geoTask?: Promise<Awaited<ReturnType<typeof geocodeCa>>>): Promise<HistResult> {
+  const base: HistResult = { searchedAt: new Date(), status: 'searched', onSite: [], nearby: [], nearbyTotal: 0 };
+  let geo: Awaited<ReturnType<typeof geocodeCa>>;
+  try {
+    geo = await (geoTask ?? geocodeCa(address));
+  } catch {
+    return { ...base, status: 'unavailable' };
+  }
+  if (!geo) return { ...base, status: 'not_found' };
+  const { lat, lng } = geo;
+  try {
+    const p = new URLSearchParams({
+      geometry: `${lng},${lat}`, geometryType: 'esriGeometryPoint', inSR: '4326', spatialRel: 'esriSpatialRelIntersects',
+      distance: String(ENV_RADIUS_M), units: 'esriSRUnit_Meter', outFields: 'RESNAME,Type,SRC_DATE', returnGeometry: 'true', outSR: '4326', f: 'json',
+    });
+    const res = await fetch(`${NRHP_URL}?${p}`, { headers: { Accept: 'application/json' }, signal: timeout(20000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = (await res.json()) as Raw;
+    if (data.error) throw new Error(str(data.error.message) || 'query error');
+    const sites: HistSite[] = (data.features ?? []).map((f: Raw) => {
+      const a = f.attributes ?? {};
+      const meters = f.geometry ? metersBetween(lat, lng, Number(f.geometry.y), Number(f.geometry.x)) : Infinity;
+      const yr = Number(a.SRC_DATE) ? new Date(Number(a.SRC_DATE)).getUTCFullYear() : 0;
+      const kind = str(a.Type).replace(/s$/i, '');
+      return {
+        name: str(a.RESNAME) || 'Unnamed listing',
+        kind: kind ? kind[0].toUpperCase() + kind.slice(1).toLowerCase() : 'Listed property',
+        listed: yr > 1900 ? String(yr) : undefined,
+        distanceFt: Number.isFinite(meters) ? Math.round(meters * 3.28084) : -1,
+        onSite: meters <= HIST_ON_SITE_M,
+      };
+    });
+    sites.sort((x, y) => x.distanceFt - y.distanceFt);
+    const nearbyAll = sites.filter((x) => !x.onSite);
+    return { ...base, onSite: sites.filter((x) => x.onSite), nearby: nearbyAll.slice(0, 10), nearbyTotal: nearbyAll.length };
+  } catch {
+    return { ...base, status: 'unavailable' };
+  }
+}
+
+export async function checkEnvironment(address: string, geoTask?: Promise<Awaited<ReturnType<typeof geocodeCa>>>): Promise<EnvResult> {
   const searchedAt = new Date();
   const base: EnvResult = { searchedAt, searchedFor: address, radiusMiles: ENV_RADIUS_MILES, status: 'searched', onSite: [], nearby: [], nearbyTotal: 0, failedSources: [] };
   let geo: Awaited<ReturnType<typeof geocodeCa>>;
   try {
-    geo = await geocodeCa(address);
+    geo = await (geoTask ?? geocodeCa(address));
   } catch {
     return { ...base, status: 'unavailable' };
   }
@@ -952,6 +1002,16 @@ const SAMPLE_INPUT: ReportInput = {
       },
     ],
   },
+  historic: {
+    searchedAt: new Date(),
+    status: 'searched',
+    onSite: [],
+    nearby: [
+      { name: 'Example Theater Building', kind: 'Building', listed: '1982', distanceFt: 520, onSite: false },
+      { name: 'Sample Street Historic District', kind: 'District', listed: '1991', distanceFt: 1180, onSite: false },
+    ],
+    nearbyTotal: 2,
+  },
   environment: {
     searchedAt: new Date(),
     searchedFor: '123 Example Street, Los Angeles, CA 90000',
@@ -1287,7 +1347,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
         ? `No matches on the OFAC Specially Designated Nationals list for ${sx.namesChecked.map((n) => `"${n}"`).join(' or ')}.`
         : `${sx.matches.length} possible name match${sx.matches.length === 1 ? '' : 'es'}. Review required (see Sanctions screening below).`;
   const ct = input.courts;
-  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  const plural = (n: number, word: string, many?: string) => `${n} ${n === 1 ? word : many ?? `${word}s`}`;
   const debtorCount = ct ? ct.bankruptcyCases.filter((c) => c.kind.includes('debtor')).length : 0;
   const courtSummary = !ct
     ? 'Not searched (no business name provided).'
@@ -1325,6 +1385,14 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       : env.status === 'not_found'
         ? 'The property address could not be located. Check the street number, city, and ZIP code.'
         : `${env.onSite.length ? `${plural(env.onSite.length, 'listing')} at this address` : 'No listings at this address'}. ${plural(env.nearbyTotal, 'listed site')} within 1/4 mile${envOpen ? ` (${envOpen} open case${envOpen === 1 ? '' : 's'})` : ''}.`;
+  const hs = input.historic;
+  const histSummary = !input.request.propertyAddress
+    ? 'Not searched (no property address provided).'
+    : !hs || hs.status === 'unavailable'
+      ? 'The historic register could not be reached at the time of the search.'
+      : hs.status === 'not_found'
+        ? 'The property address could not be located. Check the street number, city, and ZIP code.'
+        : `${hs.onSite.length ? `${plural(hs.onSite.length, 'listing')} at or right next to this address` : 'No listing at this address'}. ${plural(hs.nearbyTotal, 'listed historic property', 'listed historic properties')} within 1/4 mile.`;
   w.heading('Summary of findings');
   w.table(
     ['Source', 'Searched', 'Result'],
@@ -1336,6 +1404,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       ['U.S. Treasury OFAC sanctions list', sx ? (sx.available ? 'Yes' : 'Failed') : 'No', sanctionsSummary],
       ...(ct && ct.status === 'not_connected' ? [] : [['Federal court and bankruptcy cases', ct ? (ct.status === 'searched' ? 'Yes' : 'Failed') : 'No', courtSummary]]),
       ['Property environmental check', !input.request.propertyAddress ? 'No' : env && env.status === 'searched' ? 'Yes' : env?.status === 'not_found' ? 'No' : 'Failed', envSummary],
+      ...(input.request.propertyAddress && hs !== undefined ? [['Historic listing check (National Register)', hs && hs.status === 'searched' ? 'Yes' : hs?.status === 'not_found' ? 'No' : 'Failed', histSummary]] : []),
     ],
   );
   w.callout(
@@ -1552,6 +1621,36 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       `Sources: California State Water Resources Control Board (GeoTracker) and California Department of Toxic Substances Control (EnviroStor, which includes federal Superfund sites in California). Location from the U.S. Census Bureau. Searched on ${fmtDate(env?.searchedAt ?? input.generatedAt)}.`,
       { size: 8.5, color: MUTED },
     );
+  }
+
+  // Historic listing check
+  if (input.request.propertyAddress && hs !== undefined) {
+    section('Historic listing check', 120);
+    w.paragraph('A quick check of the National Register of Historic Places for the property and the area around it. Historic listings can affect remodeling, demolition, and redevelopment plans. It is not a historical resource evaluation.', { size: 9, color: MUTED, gap: 8 });
+    if (!hs || hs.status === 'unavailable') {
+      w.paragraph('The historic register could not be reached at the time of this search, so no result is available. Please request a new report later.');
+    } else if (hs.status === 'not_found') {
+      w.paragraph('The property address could not be located on the map. Check the street number, city, and ZIP code, then request a new report.');
+    } else {
+      w.keyValues([
+        ['At or right next to this address', hs.onSite.length ? hs.onSite.map((x) => x.name).join('; ') : 'No listing found'],
+        ['Within 1/4 mile', hs.nearbyTotal ? plural(hs.nearbyTotal, 'listed historic property', 'listed historic properties') : 'No listed historic properties found'],
+      ]);
+      if (hs.onSite.length) {
+        w.callout('Possible historic listing at this property', 'A National Register listing appears at or right next to this address. Confirm with the city planning department and the California Office of Historic Preservation before planning changes to the building or site.', SAMPLE_BG, GOLD);
+      }
+      const list = [...hs.onSite, ...hs.nearby];
+      if (list.length) {
+        w.table(
+          ['Listed property', 'Type', 'Year listed', 'Distance'],
+          [200, 100, 90, CONTENT_W - 390],
+          list.map((x) => [x.name, x.kind, x.listed ?? '-', x.onSite ? 'At or next to this address' : x.distanceFt >= 0 ? `About ${x.distanceFt.toLocaleString('en-US')} ft` : '-']),
+        );
+        if (hs.nearbyTotal > hs.nearby.length) w.paragraph(`Showing the ${hs.nearby.length} closest of ${hs.nearbyTotal} nearby listings.`, { size: 9, color: MUTED });
+      }
+      w.paragraph('Map locations of listings are approximate. Many historic buildings are protected only by city or county lists, or are eligible for listing but not yet listed; those are not included here. Check with the city planning department for local historic status.', { size: 8.5, color: MUTED });
+    }
+    w.paragraph(`Source: National Register of Historic Places (National Park Service), California locations published by the California Department of Transportation. Location from the U.S. Census Bureau. Searched on ${fmtDate(hs?.searchedAt ?? input.generatedAt)}.`, { size: 8.5, color: MUTED });
   }
 
   // Limits
@@ -1942,11 +2041,14 @@ export async function runReport(
   })();
   const courtTask = name ? searchFederalCases(name, keys.courtListenerToken) : Promise.resolve(null);
   const address = (form.propertyAddress ?? '').trim();
-  const envTask = address.length >= 5 ? checkEnvironment(address).catch(() => null) : Promise.resolve(null);
+  const geoTask = address.length >= 5 ? geocodeCa(address) : null;
+  geoTask?.catch(() => null);
+  const envTask = geoTask ? checkEnvironment(address, geoTask).catch(() => null) : Promise.resolve(null);
+  const histTask = geoTask ? checkHistoric(address, geoTask).catch(() => null) : Promise.resolve(null);
 
   await entityTask;
   const topName = (entitySearch as ReportInput['entitySearch'])?.records[0]?.name ?? '';
-  const [sanctions, courts, environment] = await Promise.all([name ? screenSanctions([name, topName]) : Promise.resolve(null), courtTask, envTask]);
+  const [sanctions, courts, environment, historic] = await Promise.all([name ? screenSanctions([name, topName]) : Promise.resolve(null), courtTask, envTask, histTask]);
 
   return {
     sample: false,
@@ -1962,6 +2064,7 @@ export async function runReport(
     people,
     ucc,
     environment,
+    historic,
     cobaltRaw,
     soiPdf,
   };
@@ -2021,6 +2124,10 @@ export async function GET(request: Request) {
 
   // Preview links only (never the live site): test real lookups. &format=json returns the saved answer
   // so later layout fixes can re-use it (POST it back) without spending another lookup.
+  if (q('histtest') && process.env.VERCEL_ENV === 'preview') {
+    const r = await checkHistoric(q('histtest'));
+    return new Response(JSON.stringify(r, null, 2), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+  }
   if (q('test') === '1' && process.env.VERCEL_ENV === 'preview') {
     if (!q('name')) return jsonError('Add &name=Business Name', 400);
     try {
