@@ -49,7 +49,7 @@ export type ReportInput = {
 };
 
 // Historic listing check: National Register of Historic Places listings in California near an address
-export type HistSite = { name: string; kind: string; listed?: string; distanceFt: number; onSite: boolean };
+export type HistSite = { name: string; kind: string; address?: string; listed?: string; url?: string; distanceFt: number; onSite: boolean };
 export type HistResult = { searchedAt: Date; status: 'searched' | 'not_found' | 'unavailable'; onSite: HistSite[]; nearby: HistSite[]; nearbyTotal: number };
 
 // Property environmental check: official state contamination and cleanup lists near an address
@@ -318,9 +318,19 @@ async function geocodeCa(address: string): Promise<{ lat: number; lng: number; m
 const niceCase = (s: string) => s.replace(/\S+/g, (w) => (/[a-z]/.test(w) || w.length <= 2 ? w : w[0] + w.slice(1).toLowerCase()));
 
 // ---------- Historic listing check (free, official list) ----------
-// National Register of Historic Places locations in California, published by Caltrans from National Park Service data.
-const NRHP_URL = 'https://gisdata.dot.ca.gov/arcgis/rest/services/CHhqenvi/DEA_National_Register_Locations/FeatureServer/0/query';
-const HIST_ON_SITE_M = 60; // listing points are approximate, so "at or right next to" the address
+// National Register of Historic Places, from the National Park Service's public map service.
+// Listing map points can be approximate, so we also match the listing's street address.
+const NRHP_URL = 'https://mapservices.nps.gov/arcgis/rest/services/cultural_resources/nrhp_locations/MapServer/0/query';
+const HIST_ON_SITE_M = 60;
+
+async function nrhpQuery(params: Record<string, string>): Promise<Raw[]> {
+  const p = new URLSearchParams({ outFields: 'RESNAME,ResType,CertDate,Address,City,STATUS,NARA_URL', returnGeometry: 'true', outSR: '4326', f: 'json', ...params });
+  const res = await fetch(`${NRHP_URL}?${p}`, { headers: { Accept: 'application/json' }, signal: timeout(20000) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = (await res.json()) as Raw;
+  if (data.error) throw new Error(str(data.error.message) || 'query error');
+  return data.features ?? [];
+}
 
 export async function checkHistoric(address: string, geoTask?: Promise<Awaited<ReturnType<typeof geocodeCa>>>): Promise<HistResult> {
   const base: HistResult = { searchedAt: new Date(), status: 'searched', onSite: [], nearby: [], nearbyTotal: 0 };
@@ -332,28 +342,37 @@ export async function checkHistoric(address: string, geoTask?: Promise<Awaited<R
   }
   if (!geo) return { ...base, status: 'not_found' };
   const { lat, lng } = geo;
+  const city = (geo.matched.split(',')[1] ?? '').trim().toUpperCase().replace(/'/g, "''");
+  const num = geo.key.split(' ')[0] ?? '';
   try {
-    const p = new URLSearchParams({
-      geometry: `${lng},${lat}`, geometryType: 'esriGeometryPoint', inSR: '4326', spatialRel: 'esriSpatialRelIntersects',
-      distance: String(ENV_RADIUS_M), units: 'esriSRUnit_Meter', outFields: 'RESNAME,Type,SRC_DATE', returnGeometry: 'true', outSR: '4326', f: 'json',
-    });
-    const res = await fetch(`${NRHP_URL}?${p}`, { headers: { Accept: 'application/json' }, signal: timeout(20000) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = (await res.json()) as Raw;
-    if (data.error) throw new Error(str(data.error.message) || 'query error');
-    const sites: HistSite[] = (data.features ?? []).map((f: Raw) => {
+    const [near, byAddr] = await Promise.all([
+      nrhpQuery({ geometry: `${lng},${lat}`, geometryType: 'esriGeometryPoint', inSR: '4326', spatialRel: 'esriSpatialRelIntersects', distance: String(ENV_RADIUS_M), units: 'esriSRUnit_Meter', where: "STATUS='Listed'" }),
+      city && /^\d+$/.test(num)
+        ? nrhpQuery({ where: `STATUS='Listed' AND State='CALIFORNIA' AND UPPER(City)='${city}' AND Address LIKE '${num} %'` }).catch(() => [] as Raw[])
+        : Promise.resolve([] as Raw[]),
+    ]);
+    const seen = new Set<string>();
+    const sites: HistSite[] = [];
+    for (const f of [...byAddr, ...near]) {
       const a = f.attributes ?? {};
+      const key = `${str(a.RESNAME)}|${str(a.Address)}`;
+      if (seen.has(key)) continue;
+      const sameStreet = Boolean(geo.key) && streetKey(str(a.Address)) === geo.key;
       const meters = f.geometry ? metersBetween(lat, lng, Number(f.geometry.y), Number(f.geometry.x)) : Infinity;
-      const yr = Number(a.SRC_DATE) ? new Date(Number(a.SRC_DATE)).getUTCFullYear() : 0;
-      const kind = str(a.Type).replace(/s$/i, '');
-      return {
+      if (!sameStreet && !(meters <= ENV_RADIUS_M)) continue;
+      seen.add(key);
+      const yr = str(a.CertDate).slice(0, 4);
+      const kind = str(a.ResType);
+      sites.push({
         name: str(a.RESNAME) || 'Unnamed listing',
         kind: kind ? kind[0].toUpperCase() + kind.slice(1).toLowerCase() : 'Listed property',
-        listed: yr > 1900 ? String(yr) : undefined,
-        distanceFt: Number.isFinite(meters) ? Math.round(meters * 3.28084) : -1,
-        onSite: meters <= HIST_ON_SITE_M,
-      };
-    });
+        address: str(a.Address) || undefined,
+        listed: /^(18|19|20)\d\d$/.test(yr) ? yr : undefined,
+        url: /^https:\/\/catalog\.archives\.gov\//.test(str(a.NARA_URL)) ? str(a.NARA_URL) : '',
+        distanceFt: sameStreet ? 0 : Number.isFinite(meters) ? Math.round(meters * 3.28084) : -1,
+        onSite: sameStreet || meters <= HIST_ON_SITE_M,
+      });
+    }
     sites.sort((x, y) => x.distanceFt - y.distanceFt);
     const nearbyAll = sites.filter((x) => !x.onSite);
     return { ...base, onSite: sites.filter((x) => x.onSite), nearby: nearbyAll.slice(0, 10), nearbyTotal: nearbyAll.length };
@@ -1007,8 +1026,8 @@ const SAMPLE_INPUT: ReportInput = {
     status: 'searched',
     onSite: [],
     nearby: [
-      { name: 'Example Theater Building', kind: 'Building', listed: '1982', distanceFt: 520, onSite: false },
-      { name: 'Sample Street Historic District', kind: 'District', listed: '1991', distanceFt: 1180, onSite: false },
+      { name: 'Example Theater Building', kind: 'Building', address: '150 Example Street', listed: '1982', url: '', distanceFt: 520, onSite: false },
+      { name: 'Sample Street Historic District', kind: 'District', address: 'Sample Street, 100-300 blocks', listed: '1991', url: '', distanceFt: 1180, onSite: false },
     ],
     nearbyTotal: 2,
   },
@@ -1642,15 +1661,16 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       const list = [...hs.onSite, ...hs.nearby];
       if (list.length) {
         w.table(
-          ['Listed property', 'Type', 'Year listed', 'Distance'],
+          ['Listed property (click for official record)', 'Type', 'Year listed', 'Distance'],
           [200, 100, 90, CONTENT_W - 390],
-          list.map((x) => [x.name, x.kind, x.listed ?? '-', x.onSite ? 'At or next to this address' : x.distanceFt >= 0 ? `About ${x.distanceFt.toLocaleString('en-US')} ft` : '-']),
+          list.map((x) => [`${x.name}${x.address ? `\n${x.address}` : ''}`, x.kind, x.listed ?? '-', x.onSite ? 'At or next to this address' : x.distanceFt >= 0 ? `About ${x.distanceFt.toLocaleString('en-US')} ft` : '-']),
+          list.map((x) => x.url ?? ''),
         );
         if (hs.nearbyTotal > hs.nearby.length) w.paragraph(`Showing the ${hs.nearby.length} closest of ${hs.nearbyTotal} nearby listings.`, { size: 9, color: MUTED });
       }
       w.paragraph('Map locations of listings are approximate. Many historic buildings are protected only by city or county lists, or are eligible for listing but not yet listed; those are not included here. Check with the city planning department for local historic status.', { size: 8.5, color: MUTED });
     }
-    w.paragraph(`Source: National Register of Historic Places (National Park Service), California locations published by the California Department of Transportation. Location from the U.S. Census Bureau. Searched on ${fmtDate(hs?.searchedAt ?? input.generatedAt)}.`, { size: 8.5, color: MUTED });
+    w.paragraph(`Source: National Register of Historic Places (National Park Service), with official records at the National Archives. Location from the U.S. Census Bureau. Searched on ${fmtDate(hs?.searchedAt ?? input.generatedAt)}.`, { size: 8.5, color: MUTED });
   }
 
   // Limits
