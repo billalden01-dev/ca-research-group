@@ -28,10 +28,11 @@ Rule: make changes on a preview link first and show Bill before anything goes li
 - Pending decisions when Baselayer (Alan) answers: provider, final prices (keep current prices preferred), state court records checkbox vs. include always.
 - Attorneys removed from home page line (now "title professionals"); bring back after CA state court records + Tony's input. Builders: wait for Chris/Heather feedback.
 
-## Bills on the Mercury IO card (billing dates)
+## Bills on the Mercury debit card ending 091 (billing dates)
 - Google Workspace: Oct 31 (switched to Mercury Oct 26)
 - Claude: Nov 5 (switched to Mercury Oct 26)
 - Airtable Team ($24/mo): 26th of each month (upgraded Oct 26)
 - iPostal1 mailbox ($14.99/mo): renews Nov 16 (switched to Mercury Oct 26)
 - Hiscox insurance (Professional, General, Cyber): $112.96/mo, monthly on the 29th, Mercury card x091; policy S112.558.160, 10/29/2026-10/29/2027, auto-renews, cancel anytime (bought Oct 28)
 - GoDaddy domain (caresearchgroup.com): renews Sep 7, 2027 (yearly; switched to Mercury Oct 26)
+- Cobalt (report data): pay-as-you-go, about $2 per lookup (Mercury, set up Oct 26)
