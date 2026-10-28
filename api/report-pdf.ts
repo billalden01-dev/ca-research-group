@@ -1671,6 +1671,8 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
         );
         if (hs.nearbyTotal > hs.nearby.length) w.paragraph(`Showing the ${hs.nearby.length} closest of ${hs.nearbyTotal} nearby listings.`, { size: 9, color: MUTED });
       }
+      w.link('Double-check it yourself: search the official National Register of Historic Places', 'https://www.nps.gov/subjects/nationalregister/database-research.htm');
+      w.paragraph('Printed copy? Open the digital report or your report email and click the link.', { size: 8.5, color: MUTED });
       w.paragraph('Map locations of listings are approximate. Many historic buildings are protected only by city or county lists, or are eligible for listing but not yet listed; those are not included here. Check with the city planning department for local historic status.', { size: 8.5, color: MUTED });
     }
     w.paragraph(`Source: National Register of Historic Places (National Park Service), with official records at the National Archives. Location from the U.S. Census Bureau. Searched on ${fmtDate(hs?.searchedAt ?? input.generatedAt)}.`, { size: 8.5, color: MUTED });
