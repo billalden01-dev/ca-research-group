@@ -33,4 +33,5 @@ Rule: make changes on a preview link first and show Bill before anything goes li
 - Claude: Nov 5 (switched to Mercury Oct 26)
 - Airtable Team ($24/mo): 26th of each month (upgraded Oct 26)
 - iPostal1 mailbox ($14.99/mo): renews Nov 16 (switched to Mercury Oct 26)
+- Hiscox insurance (Professional, General, Cyber): $112.96/mo, monthly on the 29th, Mercury card x091; policy S112.558.160, 10/29/2026-10/29/2027, auto-renews, cancel anytime (bought Oct 28)
 - GoDaddy domain (caresearchgroup.com): renews Sep 7, 2027 (yearly; switched to Mercury Oct 26)
