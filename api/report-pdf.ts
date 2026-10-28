@@ -49,7 +49,8 @@ export type ReportInput = {
 };
 
 // Historic listing check: National Register of Historic Places listings in California near an address
-export type HistSite = { name: string; kind: string; address?: string; listed?: string; url?: string; distanceFt: number; onSite: boolean };
+// rank: 1 national, 2 state, 3 city landmark, 4 eligible / candidate / city survey
+export type HistSite = { name: string; kind: string; level: string; rank: number; address?: string; listed?: string; url?: string; distanceFt: number; onSite: boolean };
 export type HistResult = { searchedAt: Date; status: 'searched' | 'not_found' | 'unavailable'; onSite: HistSite[]; nearby: HistSite[]; nearbyTotal: number };
 
 // Property environmental check: official state contamination and cleanup lists near an address
@@ -332,6 +333,61 @@ async function nrhpQuery(params: Record<string, string>): Promise<Raw[]> {
   return data.features ?? [];
 }
 
+const HIST_COMMON = new Set(['BUILDING', 'HOTEL', 'HOUSE', 'CHURCH', 'STORE', 'BLOCK', 'HISTORIC', 'DISTRICT', 'COMPANY', 'SAINT', 'CATHOLIC', 'ROMAN', 'FIRST', 'STREET', 'SCHOOL', 'THEATER', 'THEATRE', 'BANK']);
+const SJ_HRI_URL = 'https://geo.sanjoseca.gov/server/rest/services/PLN/PLN_LandDesignations/MapServer/7/query';
+
+// San Jose Historic Resources Inventory (city list), which also flags state and national listings
+async function sanJoseHistoric(lat: number, lng: number, key: string): Promise<HistSite[]> {
+  const p = new URLSearchParams({
+    geometry: `${lng},${lat}`, geometryType: 'esriGeometryPoint', inSR: '4326', spatialRel: 'esriSpatialRelIntersects',
+    distance: String(ENV_RADIUS_M), units: 'esriSRUnit_Meter', where: 'DEMOLISHED = 0 OR DEMOLISHED IS NULL',
+    outFields: 'RESOURCENAME,STREETNUMBER1,STREETNUMBER2,STREETNAME,TRUEYR,ESTIMATEDYR,NRS,NRD,CR,CLS,CLD,CCL,SM,ENR,ECR,IS_,DPRHYPERLINK,LATITUDE,LONGITUDE',
+    returnGeometry: 'false', f: 'json',
+  });
+  const res = await fetch(`${SJ_HRI_URL}?${p}`, { headers: { Accept: 'application/json' }, signal: timeout(20000) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = (await res.json()) as Raw;
+  if (data.error) throw new Error(str(data.error.message) || 'query error');
+  const [kNum, kStreet] = key.split(' ');
+  const out: HistSite[] = [];
+  for (const f of data.features ?? []) {
+    const a = f.attributes ?? {};
+    const on = (k: string) => Number(a[k]) === 1;
+    const labels: [number, string][] = [];
+    if (on('NRS')) labels.push([1, 'National Register']);
+    if (on('NRD')) labels.push([1, 'National Register district']);
+    if (on('CR')) labels.push([2, 'California Register']);
+    if (on('CLS')) labels.push([3, 'San Jose City Landmark']);
+    if (on('CLD')) labels.push([3, 'San Jose City Landmark district']);
+    if (on('CCL')) labels.push([4, 'Candidate San Jose City Landmark']);
+    if (on('SM')) labels.push([4, 'San Jose Structure of Merit']);
+    if (on('ENR')) labels.push([4, 'Eligible for National Register']);
+    if (on('ECR')) labels.push([4, 'Eligible for California Register']);
+    if (on('IS_')) labels.push([4, 'Identified in San Jose historic survey']);
+    if (!labels.length) continue;
+    const n1 = parseInt(str(a.STREETNUMBER1), 10);
+    const n2 = Math.abs(parseInt(str(a.STREETNUMBER2), 10)) || n1;
+    const k = parseInt(kNum, 10);
+    const streetUp = str(a.STREETNAME).toUpperCase().replace(/\./g, '');
+    const sameStreet = Number.isFinite(k) && Number.isFinite(n1) && k >= n1 && k <= Math.max(n1, n2) && Boolean(kStreet) && new RegExp(`\\b${kStreet}\\b`).test(streetUp);
+    const meters = metersBetween(lat, lng, Number(a.LATITUDE), Number(a.LONGITUDE));
+    const built = str(a.TRUEYR) || str(a.ESTIMATEDYR);
+    const street = str(a.STREETNAME).replace(/^(.*), ([NSEW])\.?$/, '$2. $1');
+    out.push({
+      name: str(a.RESOURCENAME) || `${str(a.STREETNUMBER1)} ${street}`.trim(),
+      kind: 'City inventory',
+      level: labels.map((l) => l[1]).join('; '),
+      rank: Math.min(...labels.map((l) => l[0])),
+      address: `${str(a.STREETNUMBER1)}${str(a.STREETNUMBER2)} ${street}`.trim() || undefined,
+      listed: /\d{4}/.test(built) ? `Built ${built.match(/\d{4}/)![0]}` : undefined,
+      url: /^https:\/\/gis\.sanjoseca\.gov\//.test(str(a.DPRHYPERLINK)) ? str(a.DPRHYPERLINK) : '',
+      distanceFt: sameStreet ? 0 : Number.isFinite(meters) ? Math.round(meters * 3.28084) : -1,
+      onSite: sameStreet || meters <= 25,
+    });
+  }
+  return out;
+}
+
 export async function checkHistoric(address: string, geoTask?: Promise<Awaited<ReturnType<typeof geocodeCa>>>): Promise<HistResult> {
   const base: HistResult = { searchedAt: new Date(), status: 'searched', onSite: [], nearby: [], nearbyTotal: 0 };
   let geo: Awaited<ReturnType<typeof geocodeCa>>;
@@ -370,15 +426,34 @@ export async function checkHistoric(address: string, geoTask?: Promise<Awaited<R
         name: str(a.RESNAME) || 'Unnamed listing',
         kind: kind ? kind[0].toUpperCase() + kind.slice(1).toLowerCase() : 'Listed property',
         address: str(a.Address) || undefined,
-        listed: /^(18|19|20)\d\d$/.test(yr) ? yr : undefined,
+        level: 'National Register',
+        rank: 1,
+        listed: /^(18|19|20)\d\d$/.test(yr) ? `Listed ${yr}` : undefined,
         url: /^https:\/\/catalog\.archives\.gov\//.test(str(a.NARA_URL)) ? str(a.NARA_URL) : '',
         distanceFt: sameStreet ? 0 : Number.isFinite(meters) ? Math.round(meters * 3.28084) : -1,
         onSite: sameStreet || meters <= HIST_ON_SITE_M,
       });
     }
-    sites.sort((x, y) => x.distanceFt - y.distanceFt);
-    const nearbyAll = sites.filter((x) => !x.onSite);
-    return { ...base, onSite: sites.filter((x) => x.onSite), nearby: nearbyAll.slice(0, 10), nearbyTotal: nearbyAll.length };
+    if (city === 'SAN JOSE') {
+      try {
+        const sj = await sanJoseHistoric(lat, lng, geo.key);
+        // Drop National Register entries the city list already covers (same distinctive name word)
+        const words = (n: string) => n.toUpperCase().split(/[^A-Z]+/).filter((w) => w.length >= 5 && !HIST_COMMON.has(w));
+        const sjNational = sj.filter((x) => x.rank === 1).map((x) => words(x.name));
+        for (let i = sites.length - 1; i >= 0; i--) {
+          const w = words(sites[i].name);
+          if (sjNational.some((sw) => sw.some((x) => w.includes(x)))) sites.splice(i, 1);
+        }
+        sites.push(...sj);
+      } catch {
+        /* city list unavailable: keep the National Register results */
+      }
+    }
+    sites.sort((x, y) => Number(y.onSite) - Number(x.onSite) || x.rank - y.rank || x.distanceFt - y.distanceFt);
+    const onSite = sites.filter((x) => x.onSite);
+    // Nearby: designated properties only (national, state, city landmark)
+    const nearbyAll = sites.filter((x) => !x.onSite && x.rank <= 3).sort((x, y) => x.distanceFt - y.distanceFt);
+    return { ...base, onSite, nearby: nearbyAll.slice(0, 10), nearbyTotal: nearbyAll.length };
   } catch {
     return { ...base, status: 'unavailable' };
   }
@@ -1029,8 +1104,8 @@ const SAMPLE_INPUT: ReportInput = {
     status: 'searched',
     onSite: [],
     nearby: [
-      { name: 'Example Theater Building', kind: 'Building', address: '150 Example Street', listed: '1982', url: '', distanceFt: 520, onSite: false },
-      { name: 'Sample Street Historic District', kind: 'District', address: 'Sample Street, 100-300 blocks', listed: '1991', url: '', distanceFt: 1180, onSite: false },
+      { name: 'Example Theater Building', kind: 'Building', level: 'National Register', rank: 1, address: '150 Example Street', listed: 'Listed 1982', url: '', distanceFt: 520, onSite: false },
+      { name: 'Sample Street Historic District', kind: 'District', level: 'City landmark district', rank: 3, address: 'Sample Street, 100-300 blocks', listed: 'Listed 1991', url: '', distanceFt: 1180, onSite: false },
     ],
     nearbyTotal: 2,
   },
@@ -1414,7 +1489,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       ? 'The historic register could not be reached at the time of the search.'
       : hs.status === 'not_found'
         ? 'The property address could not be located. Check the street number, city, and ZIP code.'
-        : `${hs.onSite.length ? `${plural(hs.onSite.length, 'listing')} at or right next to this address` : 'No listing at this address'}. ${plural(hs.nearbyTotal, 'listed historic property', 'listed historic properties')} within 1/4 mile.`;
+        : `${hs.onSite.length ? `At or next to this address: ${hs.onSite[0].level}` : 'No listing at this address'}. ${plural(hs.nearbyTotal, 'designated historic property', 'designated historic properties')} within 1/4 mile.`;
   w.heading('Summary of findings');
   w.table(
     ['Source', 'Searched', 'Result'],
@@ -1426,7 +1501,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       ['U.S. Treasury OFAC sanctions list', sx ? (sx.available ? 'Yes' : 'Failed') : 'No', sanctionsSummary],
       ...(ct && ct.status === 'not_connected' ? [] : [['Federal court and bankruptcy cases', ct ? (ct.status === 'searched' ? 'Yes' : 'Failed') : 'No', courtSummary]]),
       ['Property environmental check', !input.request.propertyAddress ? 'No' : env && env.status === 'searched' ? 'Yes' : env?.status === 'not_found' ? 'No' : 'Failed', envSummary],
-      ...(input.request.propertyAddress && hs !== undefined ? [['Historic listing check (National Register)', hs && hs.status === 'searched' ? 'Yes' : hs?.status === 'not_found' ? 'No' : 'Failed', histSummary]] : []),
+      ...(input.request.propertyAddress && hs !== undefined ? [['Historic listing check', hs && hs.status === 'searched' ? 'Yes' : hs?.status === 'not_found' ? 'No' : 'Failed', histSummary]] : []),
     ],
   );
   w.callout(
@@ -1648,32 +1723,40 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
   // Historic listing check
   if (input.request.propertyAddress && hs !== undefined) {
     section('Historic listing check', 330);
-    w.paragraph('A quick check of the National Register of Historic Places for the property and the area around it. Historic listings can affect remodeling, demolition, and redevelopment plans. It is not a historical resource evaluation.', { size: 9, color: MUTED, gap: 8 });
+    w.paragraph('A quick check of official historic lists for the property and the area around it: the National Register of Historic Places, plus city historic lists where available (currently San Jose). The level matters: national listings are usually the hardest to change or demolish, and local listings the easiest. This is not a historical resource evaluation.', { size: 9, color: MUTED, gap: 8 });
     if (!hs || hs.status === 'unavailable') {
-      w.paragraph('The historic register could not be reached at the time of this search, so no result is available. Please request a new report later.');
+      w.paragraph('The historic lists could not be reached at the time of this search, so no result is available. Please request a new report later.');
     } else if (hs.status === 'not_found') {
       w.paragraph('The property address could not be located on the map. Check the street number, city, and ZIP code, then request a new report.');
     } else {
+      const top = hs.onSite[0];
       w.keyValues([
-        ['At or right next to this address', hs.onSite.length ? hs.onSite.map((x) => x.name).join('; ') : 'No listing found'],
-        ['Within 1/4 mile', hs.nearbyTotal ? plural(hs.nearbyTotal, 'listed historic property', 'listed historic properties') : 'No listed historic properties found'],
+        ['At or next to this address', top ? `${top.name}: ${top.level}` : 'No listing found'],
+        ['Within 1/4 mile', hs.nearbyTotal ? plural(hs.nearbyTotal, 'designated historic property', 'designated historic properties') : 'No designated historic properties found'],
       ]);
-      if (hs.onSite.length) {
-        w.callout('Possible historic listing at this property', 'A National Register listing appears at or right next to this address. Confirm with the city planning department and the California Office of Historic Preservation before planning changes to the building or site.', SAMPLE_BG, GOLD);
+      if (top) {
+        const meaning: Record<number, [string, string]> = {
+          1: ['National Register listing at this property', 'National Register properties usually face the strictest review, and getting a demolition permit can be very difficult. Confirm with the city planning department before planning changes to the building or site.'],
+          2: ['California Register listing at this property', 'Changes to California Register properties usually require state environmental review (CEQA) and city historic review. Confirm with the city planning department before planning changes.'],
+          3: ['City landmark at this property', 'Changes usually need a city historic permit. Removing a local designation is sometimes possible if the site is shown to have no significant historic value. Confirm with the city planning department.'],
+          4: ['Flagged as potentially historic', 'This property is not formally designated, but it appears in an official historic survey or has been found eligible for listing. Changes or demolition may still trigger historic review. Confirm with the city planning department.'],
+        };
+        const [t, b] = meaning[Math.min(top.rank, 4)];
+        w.callout(t, b, SAMPLE_BG, GOLD);
       }
       const list = [...hs.onSite, ...hs.nearby];
       if (list.length) {
         w.table(
-          ['Listed property (click for official record)', 'Type', 'Year listed', 'Distance'],
-          [200, 100, 90, CONTENT_W - 390],
-          list.map((x) => [`${x.name}${x.address ? `\n${x.address}` : ''}`, x.kind, x.listed ?? '-', x.onSite ? 'At or next to this address' : x.distanceFt >= 0 ? `About ${x.distanceFt.toLocaleString('en-US')} ft` : '-']),
+          ['Property (click for official record)', 'Historic status', 'Year', 'Distance'],
+          [170, 160, 70, CONTENT_W - 400],
+          list.map((x) => [`${x.name}${x.address ? `\n${x.address}` : ''}`, x.level, x.listed ?? '-', x.onSite ? 'At or next to this address' : x.distanceFt >= 0 ? `About ${x.distanceFt.toLocaleString('en-US')} ft` : '-']),
           list.map((x) => x.url ?? ''),
         );
-        if (hs.nearbyTotal > hs.nearby.length) w.paragraph(`Showing the ${hs.nearby.length} closest of ${hs.nearbyTotal} nearby listings.`, { size: 9, color: MUTED });
+        if (hs.nearbyTotal > hs.nearby.length) w.paragraph(`Showing the ${hs.nearby.length} closest of ${hs.nearbyTotal} nearby designated properties.`, { size: 9, color: MUTED });
       }
-      w.paragraph('Map locations of listings are approximate. Many historic buildings are protected only by city or county lists, or are eligible for listing but not yet listed; those are not included here. Check with the city planning department for local historic status.', { size: 8.5, color: MUTED });
+      w.paragraph('Map locations of National Register listings are approximate. City historic lists are currently included for San Jose only; for other cities, check with the city planning department for local historic status. Age alone does not make a building historic, but buildings 50 years or older can become eligible for listing.', { size: 8.5, color: MUTED });
     }
-    w.paragraph(`Source: National Register of Historic Places (National Park Service), with official records at the National Archives. Location from the U.S. Census Bureau. Searched on ${fmtDate(hs?.searchedAt ?? input.generatedAt)}.`, { size: 8.5, color: MUTED });
+    w.paragraph(`Sources: National Register of Historic Places (National Park Service), with official records at the National Archives; City of San Jose Historic Resources Inventory for San Jose addresses. Location from the U.S. Census Bureau. Searched on ${fmtDate(hs?.searchedAt ?? input.generatedAt)}.`, { size: 8.5, color: MUTED });
   }
 
   // Limits
