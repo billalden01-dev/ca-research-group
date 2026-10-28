@@ -369,7 +369,7 @@ async function sanJoseHistoric(lat: number, lng: number, key: string): Promise<H
     const n2 = Math.abs(parseInt(str(a.STREETNUMBER2), 10)) || n1;
     const k = parseInt(kNum, 10);
     const streetUp = str(a.STREETNAME).toUpperCase().replace(/\./g, '');
-    const sameStreet = Number.isFinite(k) && Number.isFinite(n1) && k >= n1 && k <= Math.max(n1, n2) && Boolean(kStreet) && new RegExp(`\\b${kStreet}\\b`).test(streetUp);
+    const sameStreet = Number.isFinite(k) && Number.isFinite(n1) && k % 2 === n1 % 2 && k >= n1 && k <= Math.max(n1, n2) && Boolean(kStreet) && new RegExp(`\\b${kStreet}\\b`).test(streetUp);
     const meters = metersBetween(lat, lng, Number(a.LATITUDE), Number(a.LONGITUDE));
     const built = str(a.TRUEYR) || str(a.ESTIMATEDYR);
     const street = str(a.STREETNAME).replace(/^(.*), ([NSEW])\.?$/, '$2. $1');
@@ -441,9 +441,11 @@ export async function checkHistoric(address: string, geoTask?: Promise<Awaited<R
         const words = (n: string) => n.toUpperCase().split(/[^A-Z]+/).filter((w) => w.length >= 5 && !HIST_COMMON.has(w)).map((w) => w.slice(0, 6));
         for (let i = sites.length - 1; i >= 0; i--) {
           const w = words(sites[i].name);
-          const match = sj.find((x) => words(x.name).some((y) => w.includes(y)));
+          const isNR = (x: HistSite) => x.level.split('; ').includes('National Register');
+          const cands = sj.filter((x) => words(x.name).some((y) => w.includes(y)));
+          const match = cands.find(isNR) ?? cands[0];
           if (!match) continue;
-          if (!/National Register(?! district)/.test(match.level)) match.level = `National Register; ${match.level}`;
+          if (!isNR(match)) match.level = `National Register; ${match.level}`;
           match.rank = 1;
           if (sites[i].onSite && !match.onSite) { match.onSite = true; match.distanceFt = 0; }
           sites.splice(i, 1);
