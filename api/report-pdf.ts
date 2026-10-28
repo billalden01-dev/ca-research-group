@@ -289,7 +289,7 @@ function metersBetween(lat1: number, lng1: number, lat2: number, lng2: number): 
 
 // "1060 Lincoln Ave" -> "1060 LINCOLN"; used to spot a listing at the same street address
 function streetKey(numberAndStreet: string): string {
-  const m = numberAndStreet.toUpperCase().match(/^\s*(\d+)[A-Z]?\s+(?:(?:N|S|E|W|NORTH|SOUTH|EAST|WEST)\s+)?([A-Z0-9]+)/);
+  const m = numberAndStreet.toUpperCase().replace(/\./g, '').match(/^\s*(\d+)[A-Z]?\s+(?:(?:N|S|E|W|NORTH|SOUTH|EAST|WEST)\s+)?([A-Z0-9]+)/);
   return m ? `${m[1]} ${m[2]}` : '';
 }
 
