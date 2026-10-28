@@ -1142,6 +1142,13 @@ const LINE = rgb(226 / 255, 232 / 255, 240 / 255);
 const PANEL = rgb(248 / 255, 250 / 255, 252 / 255);
 const SAMPLE_BG = rgb(251 / 255, 247 / 255, 234 / 255); // soft cream
 const WHITE = rgb(1, 1, 1);
+type GlanceTag = 'clear' | 'review' | 'info' | 'none';
+const GLANCE_TAGS: Record<GlanceTag, [string, ReturnType<typeof rgb>]> = {
+  clear: ['CLEAR', rgb(21 / 255, 128 / 255, 61 / 255)],
+  review: ['REVIEW', rgb(194 / 255, 65 / 255, 12 / 255)],
+  info: ['FOUND', NAVY],
+  none: ['NOT RUN', rgb(148 / 255, 163 / 255, 184 / 255)],
+};
 
 const PAGE_W = 612;
 const PAGE_H = 792;
@@ -1338,6 +1345,31 @@ class Writer {
     this.y -= h + 14;
   }
 
+  // Page-1 "At a glance" list: a colored status tag, the check name, and a one-line result
+  glance(rows: { tag: GlanceTag; label: string; text: string }[]) {
+    const size = 9.5;
+    const lh = size * 1.4;
+    const tagW = 62;
+    const labelW = 150;
+    const textX = MARGIN + tagW + 12 + labelW;
+    const textW = CONTENT_W - (textX - MARGIN) - 6;
+    for (const r of rows) {
+      const lines = this.wrap(r.text, this.regular, size, textW);
+      const labelLines = this.wrap(r.label, this.bold, size, labelW - 10);
+      const rowH = Math.max(lines.length, labelLines.length, 1) * lh + 12;
+      this.ensure(rowH);
+      const [tagText, tagColor] = GLANCE_TAGS[r.tag];
+      this.page.drawRectangle({ x: MARGIN, y: this.y - 6 - 15, width: tagW, height: 15, color: tagColor });
+      const tw = this.bold.widthOfTextAtSize(tagText, 8);
+      this.page.drawText(tagText, { x: MARGIN + (tagW - tw) / 2, y: this.y - 6 - 11, size: 8, font: this.bold, color: WHITE });
+      labelLines.forEach((ln, i) => this.page.drawText(ln, { x: MARGIN + tagW + 12, y: this.y - 6 - size - i * lh, size, font: this.bold, color: NAVY }));
+      lines.forEach((ln, i) => this.page.drawText(ln, { x: textX, y: this.y - 6 - size - i * lh, size, font: this.regular, color: TEXT }));
+      this.y -= rowH;
+      this.page.drawLine({ start: { x: MARGIN, y: this.y }, end: { x: MARGIN + CONTENT_W, y: this.y }, thickness: 0.75, color: LINE });
+    }
+    this.y -= 10;
+  }
+
   callout(title: string, body: string, bg: ReturnType<typeof rgb>, accent: ReturnType<typeof rgb>) {
     const size = 9.5;
     const lh = size * 1.45;
@@ -1421,17 +1453,6 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
   }
 
   // Request details
-  w.heading('Request details');
-  w.keyValues([
-    ['Prepared for', input.preparedFor.company],
-    ['Contact email', input.preparedFor.email],
-    ...(input.preparedFor.role ? ([['Role', input.preparedFor.role]] as [string, string][]) : []),
-    ['Business name', input.request.entityName || 'None provided'],
-    ['Property address', input.request.propertyAddress || 'Not provided'],
-    ['Intended use', input.request.reportUse || 'Not specified'],
-    ['Report generated', fmtDate(input.generatedAt)],
-  ]);
-
   // Summary
   const records = input.entitySearch?.records ?? [];
   const entitySummary = !input.entitySearch
@@ -1496,26 +1517,40 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       : hs.status === 'not_found'
         ? 'The property address could not be located. Check the street number, city, and ZIP code.'
         : `${hs.onSite.length ? `At or next to this address: ${hs.onSite[0].level}` : 'No listing at this address'}. ${plural(hs.nearbyTotal, 'designated historic property', 'designated historic properties')} within 1/4 mile.`;
-  w.heading('Summary of findings');
-  w.table(
-    ['Source', 'Searched', 'Result'],
-    [190, 80, CONTENT_W - 270],
-    [
-      ['CA Secretary of State - business entity', input.entitySearch ? 'Yes' : 'No', v ? `${entitySummary} Two-step check: ${v.overall}.` : entitySummary],
-      ['Owners and managers', pp ? 'Yes' : 'No', peopleSummary],
-      ['CA Secretary of State - UCC liens', uc ? (uc.status === 'searched' ? 'Yes' : 'Failed') : 'No', uccSummary],
-      ['U.S. Treasury OFAC sanctions list', sx ? (sx.available ? 'Yes' : 'Failed') : 'No', sanctionsSummary],
-      ...(ct && ct.status === 'not_connected' ? [] : [['Federal court and bankruptcy cases', ct ? (ct.status === 'searched' ? 'Yes' : 'Failed') : 'No', courtSummary]]),
-      ['Property environmental check', !input.request.propertyAddress ? 'No' : env && env.status === 'searched' ? 'Yes' : env?.status === 'not_found' ? 'No' : 'Failed', envSummary],
-      ...(input.request.propertyAddress && hs !== undefined ? [['Historic listing check', hs && hs.status === 'searched' ? 'Yes' : hs?.status === 'not_found' ? 'No' : 'Failed', histSummary]] : []),
-    ],
-  );
+  const addr = Boolean(input.request.propertyAddress);
+  const top0 = records[0];
+  const entityTag: GlanceTag = !input.entitySearch ? 'none' : !top0 || !/^active$/i.test(clean(top0.status)) || (v && v.overall !== 'Verified') ? 'review' : 'clear';
+  const glanceRows: { tag: GlanceTag; label: string; text: string }[] = [
+    { tag: entityTag, label: 'Business status', text: v ? `${entitySummary} Two-step check: ${v.overall}.` : entitySummary },
+    { tag: pp ? 'info' : 'none', label: 'Owners and managers', text: peopleSummary },
+    { tag: !uc || uc.status !== 'searched' ? 'none' : activeUcc ? 'review' : 'clear', label: 'UCC liens', text: uccSummary },
+    { tag: !sx || !sx.available ? 'none' : sx.matches.length ? 'review' : 'clear', label: 'Sanctions screening', text: sanctionsSummary },
+    ...(ct && ct.status === 'not_connected' ? [] : [{ tag: (!ct || ct.status !== 'searched' ? 'none' : ct.total ? 'review' : 'clear') as GlanceTag, label: 'Federal court and bankruptcy', text: courtSummary }]),
+    { tag: !addr || !env || env.status !== 'searched' ? 'none' : env.onSite.length || envOpen ? 'review' : 'clear', label: 'Environmental check', text: envSummary },
+    ...(addr && hs !== undefined ? [{ tag: (!hs || hs.status !== 'searched' ? 'none' : hs.onSite.length ? 'review' : 'clear') as GlanceTag, label: 'Historic listing check', text: histSummary }] : []),
+  ];
+  const flagged = glanceRows.filter((r) => r.tag === 'review').length;
+  w.heading('At a glance', 200);
+  w.paragraph(flagged ? `${plural(flagged, 'item')} flagged for review. Details are in the numbered sections that follow.` : 'Nothing was flagged for review. Details are in the numbered sections that follow.', { font: bold, color: flagged ? rgb(194 / 255, 65 / 255, 12 / 255) : rgb(21 / 255, 128 / 255, 61 / 255), size: 10.5, gap: 6 });
+  w.glance(glanceRows);
   w.callout(
     'Verify before you rely on this report',
     'These are automated search results from public records. Public records can be incomplete, out of date, or wrong, and the same name can belong to unrelated businesses. Confirm anything important with the original source (the agency, court, or county) before making a lending, investment, or legal decision.',
     SAMPLE_BG,
     GOLD,
   );
+
+  w.heading('Request details');
+  w.keyValues([
+    ['Prepared for', input.preparedFor.company],
+    ['Contact email', input.preparedFor.email],
+    ...(input.preparedFor.role ? ([['Role', input.preparedFor.role]] as [string, string][]) : []),
+    ['Business name', input.request.entityName || 'None provided'],
+    ['Property address', input.request.propertyAddress || 'Not provided'],
+    ['Intended use', input.request.reportUse || 'Not specified'],
+    ['Report generated', fmtDate(input.generatedAt)],
+  ]);
+
 
   // Verification
   if (v) {
