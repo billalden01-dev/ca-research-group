@@ -1647,7 +1647,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
 
   // Historic listing check
   if (input.request.propertyAddress && hs !== undefined) {
-    section('Historic listing check', 120);
+    section('Historic listing check', 330);
     w.paragraph('A quick check of the National Register of Historic Places for the property and the area around it. Historic listings can affect remodeling, demolition, and redevelopment plans. It is not a historical resource evaluation.', { size: 9, color: MUTED, gap: 8 });
     if (!hs || hs.status === 'unavailable') {
       w.paragraph('The historic register could not be reached at the time of this search, so no result is available. Please request a new report later.');
