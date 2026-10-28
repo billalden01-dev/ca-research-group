@@ -382,7 +382,7 @@ async function sanJoseHistoric(lat: number, lng: number, key: string): Promise<H
       listed: /\d{4}/.test(built) ? `Built ${built.match(/\d{4}/)![0]}` : undefined,
       url: /^https:\/\/gis\.sanjoseca\.gov\//.test(str(a.DPRHYPERLINK)) ? str(a.DPRHYPERLINK) : '',
       distanceFt: sameStreet ? 0 : Number.isFinite(meters) ? Math.round(meters * 3.28084) : -1,
-      onSite: sameStreet || meters <= 25,
+      onSite: sameStreet || meters <= 12,
     });
   }
   return out;
@@ -445,7 +445,7 @@ export async function checkHistoric(address: string, geoTask?: Promise<Awaited<R
           const cands = sj.filter((x) => words(x.name).some((y) => w.includes(y)));
           const match = cands.find(isNR) ?? cands[0];
           if (!match) continue;
-          if (!isNR(match)) match.level = `National Register; ${match.level}`;
+          if (!isNR(match)) match.level = ['National Register', ...match.level.split('; ').filter((l) => l !== 'Eligible for National Register')].join('; ');
           match.rank = 1;
           if (sites[i].onSite && !match.onSite) { match.onSite = true; match.distanceFt = 0; }
           sites.splice(i, 1);
