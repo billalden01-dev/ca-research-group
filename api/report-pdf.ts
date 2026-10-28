@@ -357,7 +357,10 @@ export async function checkHistoric(address: string, geoTask?: Promise<Awaited<R
       const a = f.attributes ?? {};
       const key = `${str(a.RESNAME)}|${str(a.Address)}`;
       if (seen.has(key)) continue;
-      const sameStreet = Boolean(geo.key) && streetKey(str(a.Address)) === geo.key;
+      // Handles "325 S. First St." and "302 and 320 S. Market St."
+      const addrUp = str(a.Address).toUpperCase().replace(/\./g, '');
+      const [kNum, kStreet] = geo.key.split(' ');
+      const sameStreet = Boolean(kNum && kStreet) && new RegExp(`(^|\\D)${kNum}(\\D|$)`).test(addrUp) && new RegExp(`\\b${kStreet}\\b`).test(addrUp);
       const meters = f.geometry ? metersBetween(lat, lng, Number(f.geometry.y), Number(f.geometry.x)) : Infinity;
       if (!sameStreet && !(meters <= ENV_RADIUS_M)) continue;
       seen.add(key);
