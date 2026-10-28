@@ -1997,6 +1997,8 @@ export async function GET(request: Request) {
       ...SAMPLE_INPUT,
       generatedAt: new Date(),
       entitySearch: SAMPLE_INPUT.entitySearch && { ...SAMPLE_INPUT.entitySearch, searchedAt: new Date() },
+      // Sample link opens a demo page that explains the real download (no real business's document).
+      people: SAMPLE_INPUT.people && { ...SAMPLE_INPUT.people, statementUrl: `${url.origin}/soi.html?d=sample` },
     };
     return pdfResponse(await buildReportPdf(input, await loadLogo(url.origin)), 'CA-Research-Group-Sample-Report.pdf');
   }

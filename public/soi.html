@@ -17,11 +17,19 @@ p{color:#475569;line-height:1.6;margin:0 0 14px;font-size:16px}.b{display:inline
 <a id="again" class="b" href="#">Download didn't start? Click here</a>
 <p class="s">CA Research Group &middot; caresearchgroup.com</p>
 </div>
+<div id="demo" class="hidden">
+<h1>Sample report link</h1>
+<p>In a real report, this link downloads the business's official Statement of Information from the California Secretary of State.</p>
+<p>That document lists the owners, managers, and members, and the business's addresses on file.</p>
+<a class="b" href="/">Back to CA Research Group</a>
+<p class="s">CA Research Group &middot; caresearchgroup.com</p>
+</div>
 <div id="bad" class="hidden"><h1>Link not recognized</h1><p>Please use the link in your report or report email.</p></div>
 </div></div>
 <script>
 (function(){
   var d = (new URLSearchParams(location.search).get('d') || '');
+  if (d === 'sample') { document.getElementById('ok').className='hidden'; document.getElementById('demo').className=''; return; }
   if (!/^\d{10,80}$/.test(d)) { document.getElementById('ok').className='hidden'; document.getElementById('bad').className=''; return; }
   var url = 'https://bizfileonline.sos.ca.gov/api/report/GetImageByNum/' + d;
   document.getElementById('again').href = url;
