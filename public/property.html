@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Property Check - CA Research Group</title>
+<style>
+  body { margin: 0; background: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1e293b; }
+  .wrap { max-width: 560px; margin: 36px auto; padding: 0 16px; }
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 28px; box-shadow: 0 10px 28px rgba(30,27,75,0.08); }
+  .logo { height: 52px; display: block; margin: 0 auto 18px; }
+  h1 { font-family: Georgia, serif; color: #1e1b4b; font-size: 26px; margin: 0 0 6px; text-align: center; }
+  .sub { text-align: center; color: #b8963f; font-weight: bold; font-size: 17px; margin: 0 0 4px; }
+  .rid { text-align: center; color: #64748b; font-size: 13px; margin: 0 0 16px; }
+  .info { background: #fbf7ea; border: 1px solid #d6b968; border-radius: 12px; padding: 12px 14px; font-size: 14px; color: #1e1b4b; line-height: 1.5; margin: 0 0 8px; }
+  label { display: block; font-size: 15px; font-weight: bold; color: #1e1b4b; margin: 16px 0 6px; }
+  input[type=text] { width: 100%; box-sizing: border-box; padding: 13px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; }
+  button { width: 100%; margin-top: 20px; padding: 14px; background: #1e1b4b; color: #fff; border: 0; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; }
+  button:disabled { background: #94a3b8; cursor: not-allowed; }
+  .note { font-size: 13px; color: #64748b; text-align: center; margin-top: 14px; line-height: 1.5; }
+  .msg { text-align: center; color: #475569; line-height: 1.6; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <img class="logo" src="/logo-tight.png" alt="CA Research Group">
+    <h1>Property Check</h1>
+    <p id="loading" class="msg">Checking your link...</p>
+    <p id="problem" class="msg hidden"></p>
+    <div id="ready" class="hidden">
+      <p id="biz" class="sub"></p>
+      <p id="rid" class="rid"></p>
+      <p class="info">Add one property address to this report for the <strong>environmental and historic checks</strong>. It's free, can be used <strong>one time</strong>, and does not count as another report.</p>
+      <form id="f" method="post" action="/api/report-pdf" target="_blank">
+        <input type="hidden" name="pcheck" value="1">
+        <input type="hidden" name="t" id="t">
+        <label for="address">Property address</label>
+        <input id="address" name="address" type="text" required minlength="5" placeholder="e.g. 123 Main St, San Jose, CA 95125">
+        <button id="go" type="submit">Run property check</button>
+      </form>
+      <p class="note">Your property check opens in a new tab and is also emailed to you.<br>Please double-check the address. This link works only once.</p>
+    </div>
+  </div>
+</div>
+<script>
+  (function () {
+    var $ = function (id) { return document.getElementById(id); };
+    var t = new URLSearchParams(location.search).get('t') || '';
+    function problem(text) { $('loading').classList.add('hidden'); $('problem').textContent = text; $('problem').classList.remove('hidden'); }
+    if (!/^[A-Za-z0-9]{20,40}$/.test(t)) return problem('This link is not recognized. Please use the property check link in your report or report email.');
+    fetch('/api/report-pdf?ptoken=' + encodeURIComponent(t), { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.ok) return problem('This link is not recognized. Please use the property check link in your report or report email.');
+        if (d.used) return problem('The free property check for this report has already been used. To check another property, run a new report with the address included.');
+        if (!d.active) return problem('Your account is not active right now. Please contact CA Research Group.');
+        $('loading').classList.add('hidden');
+        $('ready').classList.remove('hidden');
+        $('t').value = t;
+        $('biz').textContent = d.business || '';
+        $('rid').textContent = d.reportId ? 'For report ' + d.reportId : '';
+      })
+      .catch(function () { problem('We could not check your link just now. Please try again in a few minutes.'); });
+    $('f').addEventListener('submit', function () {
+      $('go').disabled = true; $('go').textContent = 'Running property check...';
+      setTimeout(function () { problem('Your property check is on its way. It opens in a new tab and is also emailed to you.'); $('ready').classList.add('hidden'); }, 1500);
+    });
+  })();
+</script>
+</body>
+</html>

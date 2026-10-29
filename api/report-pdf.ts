@@ -46,6 +46,10 @@ export type ReportInput = {
   ucc?: UccResult | null;
   environment?: EnvResult | null;
   historic?: HistResult | null;
+  // Free one-time property check for a report that was run without an address
+  propertyCheckUrl?: string;
+  // Set when this PDF is a property-only check added to an earlier report
+  propertyCheckFor?: { reportId: string; business: string };
 };
 
 // Historic listing check: National Register of Historic Places listings in California near an address
@@ -1428,7 +1432,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
   w.y -= 22;
 
   // Title
-  w.page.drawText('Public Records Report', { x: MARGIN, y: w.y - 24, size: 24, font: serif, color: NAVY });
+  w.page.drawText(input.propertyCheckFor ? 'Property Check' : 'Public Records Report', { x: MARGIN, y: w.y - 24, size: 24, font: serif, color: NAVY });
   w.y -= 34;
   w.paragraph(`Prepared for ${input.preparedFor.company}`, { size: 11, color: MUTED, gap: 4 });
   w.paragraph(`Records current as of ${fmtDate(input.entitySearch?.searchedAt ?? input.generatedAt)}`, { size: 10.5, font: bold, color: NAVY, gap: 14 });
@@ -1529,6 +1533,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
     { tag: !addr || !env || env.status !== 'searched' ? 'none' : env.onSite.length || envOpen ? 'review' : 'clear', label: 'Environmental check', text: envSummary },
     ...(addr && hs !== undefined ? [{ tag: (!hs || hs.status !== 'searched' ? 'none' : hs.onSite.length ? 'review' : 'clear') as GlanceTag, label: 'Historic listing check', text: histSummary }] : []),
   ];
+  if (input.propertyCheckFor) glanceRows.splice(0, glanceRows.length - (addr && hs !== undefined ? 2 : 1));
   const flagged = glanceRows.filter((r) => r.tag === 'review').length;
   w.heading('At a glance', 200);
   w.paragraph(flagged ? `${plural(flagged, 'item')} flagged for review. Details are in the numbered sections that follow.` : 'Nothing was flagged for review. Details are in the numbered sections that follow.', { font: bold, color: flagged ? rgb(194 / 255, 65 / 255, 12 / 255) : rgb(21 / 255, 128 / 255, 61 / 255), size: 10.5, gap: 6 });
@@ -1540,8 +1545,26 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
     GOLD,
   );
 
+  if (!addr && input.propertyCheckUrl) {
+    w.linkBox(
+      'Need the environmental and historic checks?',
+      'No property address was entered for this report. You can add one property address to this report, free and one time only. It runs only the property checks and does not count as another report.',
+      'Check a property address for this report',
+      input.propertyCheckUrl,
+      'Printed copy? Open the digital report or your report email and click the link.',
+    );
+  }
+
   w.heading('Request details');
-  w.keyValues([
+  if (input.propertyCheckFor) {
+    w.keyValues([
+      ['Prepared for', input.preparedFor.company],
+      ['Business', input.propertyCheckFor.business],
+      ['Added to report', input.propertyCheckFor.reportId],
+      ['Property address', input.request.propertyAddress],
+      ['Checked on', fmtDate(input.generatedAt)],
+    ]);
+  } else w.keyValues([
     ['Prepared for', input.preparedFor.company],
     ['Contact email', input.preparedFor.email],
     ...(input.preparedFor.role ? ([['Role', input.preparedFor.role]] as [string, string][]) : []),
@@ -1575,6 +1598,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
   const section = (title: string, keepWith?: number) => w.heading(`${++sec}. ${title}`, keepWith);
 
   // Business entity detail
+  if (!input.propertyCheckFor) {
   section('Business entity status', 330);
   if (!input.entitySearch) {
     w.paragraph(input.entityNote ?? 'No business or entity name was provided with this request, so the Secretary of State business search was not run.');
@@ -1607,6 +1631,8 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       `Source: official California state business records (Secretary of State). Searched for "${input.entitySearch.searchedFor}" on ${fmtDate(input.entitySearch.searchedAt)}.`,
       { size: 8.5, color: MUTED },
     );
+  }
+
   }
 
   // Owners and managers
@@ -2054,6 +2080,23 @@ async function updateRequest(id: string, fields: Record<string, unknown>) {
   await airtable(REQUESTS_TABLE, { method: 'PATCH', body: JSON.stringify({ records: [{ id, fields }], typecast: true }) });
 }
 
+// Looks up the report that owns a property check link, and its customer
+async function findPropertyCheck(token: string): Promise<{ id: string; reportId: string; business: string; used: boolean; customer: Customer | null } | null> {
+  if (!/^[A-Za-z0-9]{20,40}$/.test(token)) return null;
+  const d = await airtable(`${REQUESTS_TABLE}?maxRecords=1&filterByFormula=${encodeURIComponent(`{Property Check Code}='${token}'`)}`);
+  const r = d.records?.[0];
+  if (!r) return null;
+  const f = r.fields;
+  const custId = Array.isArray(f['Customer']) ? str(f['Customer'][0]) : '';
+  let customer: Customer | null = null;
+  if (/^rec[A-Za-z0-9]{14}$/.test(custId)) {
+    const c = await airtable(`${CUSTOMERS_TABLE}?maxRecords=1&filterByFormula=${encodeURIComponent(`RECORD_ID()='${custId}'`)}`);
+    const code = str(c.records?.[0]?.fields?.['Link Code']);
+    customer = code ? await findCustomer(code) : null;
+  }
+  return { id: r.id, reportId: str(f['Report ID']), business: str(f['Business Name']), used: Boolean(f['Property Check Used']), customer };
+}
+
 const escapeHtml = (t: string) => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 
 const htmlPage = (title: string, message: string, status: number) =>
@@ -2081,10 +2124,12 @@ export async function emailReport(to: string, input: ReportInput, pdf: Uint8Arra
   const from = process.env.RESEND_FROM || 'CA Research Group <onboarding@resend.dev>';
   const what = [input.request.entityName, input.request.propertyAddress].filter(Boolean).join(' - ') || 'your request';
   const html = `<div style="font-family:Arial,sans-serif;color:#1e293b;max-width:560px">
-<p style="font-size:18px;color:#1e1b4b;font-weight:bold;margin:0 0 12px">Your public records report is ready</p>
+<p style="font-size:18px;color:#1e1b4b;font-weight:bold;margin:0 0 12px">${input.propertyCheckFor ? 'Your property check is ready' : 'Your public records report is ready'}</p>
 <p style="margin:0 0 12px">Attached is report <strong>${escapeHtml(input.reportId)}</strong> for <strong>${escapeHtml(what)}</strong>.</p>
 ${input.people?.statementUrl ? `<p style="margin:0 0 6px">The business's managers and members are listed on its official Statement of Information${input.people.statementDate ? `, filed ${escapeHtml(input.people.statementDate)}` : ''}:</p>
 <p style="margin:0 0 16px"><a href="${escapeHtml(input.people.statementUrl)}" style="display:inline-block;background:#1e1b4b;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 18px;border-radius:8px">Download the official Statement of Information</a></p>` : ''}
+${!input.request.propertyAddress && input.propertyCheckUrl ? `<p style="margin:0 0 6px">No property address was entered. You can add one address to this report for the environmental and historic checks, free and one time only:</p>
+<p style="margin:0 0 16px"><a href="${escapeHtml(input.propertyCheckUrl)}" style="display:inline-block;background:#b8963f;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 18px;border-radius:8px">Check a property address</a></p>` : ''}
 <p style="margin:0 0 12px">Please review any flagged items and verify findings against the original sources before relying on them.</p>
 ${opts.voucher ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px;margin:16px 0">
 <p style="margin:0 0 8px;font-weight:bold;color:#1e1b4b">Thanks for trying CA Research Group</p>
@@ -2101,7 +2146,7 @@ ${opts.voucher ? `<div style="background:#fffbeb;border:1px solid #fde68a;border
       body: JSON.stringify({
         from,
         to: [to],
-        subject: `Your CA Research Group report ${input.reportId}`,
+        subject: input.propertyCheckFor ? `Your CA Research Group property check for report ${input.propertyCheckFor.reportId}` : `Your CA Research Group report ${input.reportId}`,
         reply_to: 'william@caresearchgroup.com',
         html,
         attachments: [
@@ -2253,6 +2298,15 @@ export async function GET(request: Request) {
     return pdfResponse(await buildReportPdf(input, await loadLogo(url.origin)), 'CA-Research-Group-Sample-Report.pdf');
   }
 
+  if (q('ptoken')) {
+    try {
+      const pc = await findPropertyCheck(q('ptoken'));
+      const body = pc ? { ok: true, business: pc.business, reportId: pc.reportId, used: pc.used, active: Boolean(pc.customer?.active) } : { ok: false };
+      return new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+    } catch {
+      return jsonError('Temporarily unavailable', 503);
+    }
+  }
   if (q('client')) {
     try {
       const c = await findCustomer(q('client'));
@@ -2405,6 +2459,50 @@ export async function POST(request: Request) {
     }
   }
 
+  // Free one-time property check for a report run without an address (public/property.html)
+  if (g('pcheck') === '1') {
+    const token = g('t');
+    const address = g('address');
+    if (address.length < 5) return htmlPage('Address needed', 'Please go back and enter the full property address, including city and ZIP code.', 400);
+    let pc: Awaited<ReturnType<typeof findPropertyCheck>>;
+    try {
+      pc = await findPropertyCheck(token);
+    } catch {
+      return htmlPage('Temporarily unavailable', 'We could not check this link just now. Please try again in a few minutes.', 503);
+    }
+    if (!pc) return htmlPage('Link not recognized', 'Please use the property check link in your report or report email.', 404);
+    if (pc.used) return htmlPage('Already used', 'The free property check for this report has already been used. To check another property, run a new report with the address included.', 410);
+    if (!pc.customer || !pc.customer.active) return htmlPage('Account not active', 'Your account is not active right now. Please contact CA Research Group.', 403);
+    // Mark it used first so the link can only ever run once
+    await updateRequest(pc.id, { 'Property Check Used': true, 'Property Check Address': address });
+    try {
+      const geoTask = geocodeCa(address);
+      geoTask.catch(() => null);
+      const [environment, historic] = await Promise.all([checkEnvironment(address, geoTask).catch(() => null), checkHistoric(address, geoTask).catch(() => null)]);
+      const now = new Date();
+      const input: ReportInput = {
+        sample: false,
+        reportId: `${pc.reportId}-P`,
+        generatedAt: now,
+        preparedFor: { company: pc.customer.company, email: pc.customer.email || 'Not provided' },
+        request: { propertyAddress: address, entityName: pc.business },
+        entitySearch: null,
+        verification: null,
+        sanctions: null,
+        courts: null,
+        environment,
+        historic,
+        propertyCheckFor: { reportId: pc.reportId, business: pc.business },
+      };
+      const pdf = await buildReportPdf(input, await loadLogo(url.origin));
+      await emailReport(pc.customer.email, input, pdf).catch(() => undefined);
+      return pdfResponse(pdf, `CA-Research-Group-Property-Check-${pc.reportId}.pdf`);
+    } catch {
+      await updateRequest(pc.id, { 'Property Check Used': false }).catch(() => undefined);
+      return htmlPage('Property check could not be completed', 'Something went wrong. Your free property check has not been used. Please try again shortly.', 502);
+    }
+  }
+
   let customer: Customer | null;
   try {
     customer = await findCustomer(g('c'));
@@ -2471,12 +2569,18 @@ export async function POST(request: Request) {
         200,
       );
     }
+    let pcode = '';
+    if (!address) {
+      pcode = newLinkCode();
+      input.propertyCheckUrl = `${url.origin}/property.html?t=${pcode}`;
+    }
     const pdf = await buildReportPdf(input, await loadLogo(url.origin));
     const courtsSearched = input.courts?.status === 'searched';
     const mail = await emailReport(customer.email, input, pdf, { voucher: customer.voucher, soiPdf: input.soiPdf });
     await updateRequest(requestId, {
       Notes: mail.sent ? mail.detail : `Email not sent: ${mail.detail}`,
       'Report ID': input.reportId,
+      ...(pcode ? { 'Property Check Code': pcode } : {}),
       Status: 'Completed',
       'Two-Step Check': input.verification?.overall ?? 'Not run',
       'Sanctions Matches': input.sanctions?.available ? input.sanctions.matches.length : null,
