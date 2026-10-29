@@ -383,7 +383,7 @@ async function sanJoseHistoric(lat: number, lng: number, key: string): Promise<H
       level: labels.map((l) => l[1]).join('; '),
       rank: Math.min(...labels.map((l) => l[0])),
       address: `${str(a.STREETNUMBER1)}${str(a.STREETNUMBER2)} ${street}`.trim() || undefined,
-      listed: /\d{4}/.test(built) ? `Built ${built.match(/\d{4}/)![0]}` : undefined,
+      listed: /(1[6-9]|20)\d\d/.test(built) ? `Built ${built.match(/(1[6-9]|20)\d\d/)![0]}` : undefined,
       url: /^https:\/\/gis\.sanjoseca\.gov\//.test(str(a.DPRHYPERLINK)) ? str(a.DPRHYPERLINK) : '',
       distanceFt: sameStreet ? 0 : Number.isFinite(meters) ? Math.round(meters * 3.28084) : -1,
       onSite: sameStreet || meters <= 12,
@@ -1421,7 +1421,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
     w.page.drawText('CA RESEARCH GROUP', { x: MARGIN, y: w.y - 22, size: 20, font: bold, color: NAVY });
   }
   const rightX = MARGIN + CONTENT_W;
-  const label = 'PUBLIC RECORDS REPORT';
+  const label = (input.propertyCheckFor ? 'PROPERTY CHECK' : 'PUBLIC RECORDS REPORT');
   w.page.drawText(label, { x: rightX - bold.widthOfTextAtSize(label, 10), y: w.y - 14, size: 10, font: bold, color: GOLD });
   const idText = `Report ID: ${input.reportId}`;
   w.page.drawText(idText, { x: rightX - regular.widthOfTextAtSize(idText, 9), y: w.y - 28, size: 9, font: regular, color: MUTED });
