@@ -350,7 +350,7 @@ export default function App() {
             <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '14px' : '20px', textAlign: 'left' }}>
               {STEPS.map((step, index) => (
                 <div key={step.title} style={{ flex: 1, display: 'flex', gap: '14px', alignItems: 'flex-start', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: isMobile ? '16px' : '20px 22px', boxShadow: '0 8px 22px rgba(30,27,75,0.06)' }}>
-                  <div style={{ flexShrink: 0, width: '36px', height: '36px', borderRadius: '999px', backgroundColor: '#1e1b4b', color: '#d6b968', fontFamily: SERIF, fontWeight: 'bold', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{index + 1}</div>
+                  <div style={{ flexShrink: 0, width: '36px', height: '36px', borderRadius: '999px', backgroundColor: '#1e1b4b', color: '#d6b968', fontWeight: 'bold', fontSize: '17px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{index + 1}</div>
                   <div>
                     <strong style={{ fontFamily: SERIF, fontSize: isMobile ? '17px' : '18px', color: '#1e1b4b', display: 'block', marginBottom: '4px' }}>{step.title}</strong>
                     <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: '#475569' }}>{step.body}</p>
