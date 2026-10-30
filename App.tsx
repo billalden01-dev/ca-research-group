@@ -599,7 +599,7 @@ export default function App() {
               <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center' }}>
                 {STEPS.map((step, index) => (
                   <div key={step.title} style={{ flex: '1 1 260px', maxWidth: '300px', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '28px', backgroundColor: '#ffffff', boxShadow: '0 10px 28px rgba(30,27,75,0.08)' }}>
-                    <div style={{ fontFamily: SERIF, fontSize: '34px', fontWeight: 'bold', color: '#b8963f', lineHeight: '1' }}>{index + 1}</div>
+                    <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#b8963f', lineHeight: '1' }}>{index + 1}</div>
                     <h3 style={{ fontFamily: SERIF, fontSize: '20px', color: '#1e1b4b', margin: '14px 0 10px 0' }}>{step.title}</h3>
                     <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6', margin: 0 }}>{step.body}</p>
                   </div>
