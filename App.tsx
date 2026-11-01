@@ -117,7 +117,7 @@ const AFTER_SUBSCRIBE = [
   'Your PDF report is sent to your work email.',
 ];
 
-const SAMPLE_URL = '/api/report-pdf?sample=1';
+const SAMPLE_URL = '/sample.html';
 
 const REPORT_ITEMS = [
   'Business status and addresses, plus the official state filing that lists who manages it',
@@ -304,7 +304,7 @@ export default function App() {
           <span onClick={() => handleNavigate('home')} style={navLink('home')}>Home</span>
           <span onClick={() => handleNavigate('how')} style={navLink('how')}>How It Works</span>
           <span onClick={() => handleNavigate('pricing')} style={navLink('pricing')}>Pricing</span>
-          <a href={SAMPLE_URL} target="_blank" rel="noopener" style={{ color: '#1e1b4b', fontWeight: 'bold', textDecoration: 'none', paddingBottom: '4px', borderBottom: '2px solid transparent' }}>{isMobile ? 'Sample' : 'Sample Report'}</a>
+          <a href={SAMPLE_URL} style={{ color: '#1e1b4b', fontWeight: 'bold', textDecoration: 'none', paddingBottom: '4px', borderBottom: '2px solid transparent' }}>{isMobile ? 'Sample' : 'Sample Report'}</a>
           <a href="/contact.html" style={{ color: '#1e1b4b', fontWeight: 'bold', textDecoration: 'none', paddingBottom: '4px', borderBottom: '2px solid transparent' }}>Contact</a>
         </div>
       </nav>
@@ -447,7 +447,7 @@ export default function App() {
                     <button type="button" onClick={() => handleTierSelection(planLabel(SINGLE))} style={{ backgroundColor: '#ffffff', color: '#1e1b4b', border: '2px solid #1e1b4b', borderRadius: '10px', padding: '10px 20px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer' }}>Buy a single report</button>
                   </div>
                   </div>
-                  <p style={{ textAlign: 'center', margin: '26px 0 0 0' }}><a href={SAMPLE_URL} target="_blank" rel="noopener" style={{ display: 'inline-block', color: '#1e1b4b', border: '2px solid #d6b968', backgroundColor: '#fbf7ea', borderRadius: '10px', padding: '10px 20px', fontSize: '15px', fontWeight: 'bold', textDecoration: 'none' }}>See a sample report (PDF) &rarr;</a></p>
+                  <p style={{ textAlign: 'center', margin: '26px 0 0 0' }}><a href={SAMPLE_URL} style={{ display: 'inline-block', color: '#1e1b4b', border: '2px solid #d6b968', backgroundColor: '#fbf7ea', borderRadius: '10px', padding: '10px 20px', fontSize: '15px', fontWeight: 'bold', textDecoration: 'none' }}>See a sample report (PDF) &rarr;</a></p>
                   <div style={{ marginTop: '40px' }}>{afterSubscribeBox}</div>
                   <div style={{ maxWidth: '640px', margin: '48px auto 0 auto' }}>
                     <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '22px' : '26px', color: '#1e1b4b', margin: '0 0 12px 0' }}>Questions</h2>
@@ -618,7 +618,7 @@ export default function App() {
                     </li>
                   ))}
                 </ul>
-                <p style={{ textAlign: 'center', margin: '22px 0 0 0' }}><a href={SAMPLE_URL} target="_blank" rel="noopener" style={{ display: 'inline-block', color: '#1e1b4b', border: '2px solid #d6b968', backgroundColor: '#fbf7ea', borderRadius: '10px', padding: '10px 20px', fontSize: '15px', fontWeight: 'bold', textDecoration: 'none' }}>See a sample report (PDF) &rarr;</a></p>
+                <p style={{ textAlign: 'center', margin: '22px 0 0 0' }}><a href={SAMPLE_URL} style={{ display: 'inline-block', color: '#1e1b4b', border: '2px solid #d6b968', backgroundColor: '#fbf7ea', borderRadius: '10px', padding: '10px 20px', fontSize: '15px', fontWeight: 'bold', textDecoration: 'none' }}>See a sample report (PDF) &rarr;</a></p>
               </div>
 
               <div style={{ maxWidth: '640px', margin: '56px auto 0 auto', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '24px' }}>

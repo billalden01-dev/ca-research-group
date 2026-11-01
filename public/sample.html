@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sample Report - CA Research Group</title>
+<meta name="description" content="A sample CA Research Group public records report, made with made-up data.">
+<link rel="icon" href="/favicon.png">
+<style>
+  html, body { margin: 0; height: 100%; background: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1e293b; }
+  .bar { position: sticky; top: 0; z-index: 2; background: #fff; border-bottom: 1px solid #e2e8f0; box-shadow: 0 2px 10px rgba(30,27,75,0.06); }
+  .bar-in { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .logo { height: 34px; width: auto; display: block; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 16px; border-radius: 10px; font-weight: bold; font-size: 15px; text-decoration: none; white-space: nowrap; }
+  .back { color: #1e1b4b; border: 2px solid #d6b968; background: #fff; }
+  .back:hover { background: #fbf7ea; }
+  .dl { color: #1e1b4b; background: linear-gradient(180deg, #e8d28e 0%, #d6b968 100%); }
+  .note { max-width: 1100px; margin: 0 auto; padding: 10px 16px 0; font-size: 13px; color: #64748b; }
+  .frame { max-width: 1100px; margin: 0 auto; padding: 10px 16px 16px; height: calc(100vh - 110px); box-sizing: border-box; }
+  .frame iframe { width: 100%; height: 100%; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; }
+  .mobile { display: none; max-width: 520px; margin: 24px auto; padding: 0 16px; }
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; text-align: center; box-shadow: 0 10px 28px rgba(30,27,75,0.08); }
+  .card h1 { font-family: Georgia, serif; color: #1e1b4b; font-size: 24px; margin: 0 0 10px; }
+  .card p { color: #475569; line-height: 1.6; margin: 0 0 18px; font-size: 16px; }
+  .card .btn { justify-content: center; width: 100%; box-sizing: border-box; padding: 14px; font-size: 16px; }
+  .card .back { margin-top: 12px; }
+  @media (max-width: 700px) {
+    .frame, .note, .bar .dl, .bar .back span.long { display: none; }
+    .mobile { display: block; }
+    .logo { height: 28px; }
+  }
+</style>
+</head>
+<body>
+<div class="bar">
+  <div class="bar-in">
+    <div class="left">
+      <a href="/" aria-label="CA Research Group home"><img class="logo" src="/logo-tight.png" alt="CA Research Group"></a>
+    </div>
+    <div class="left">
+      <a class="btn back" href="/">&larr; Back<span class="long">&nbsp;to CA Research Group</span></a>
+      <a class="btn dl" href="/api/report-pdf?sample=1" download="CA-Research-Group-Sample-Report.pdf">Download PDF</a>
+    </div>
+  </div>
+</div>
+
+<p class="note">Sample report with made-up names and data. No government records were searched to produce it.</p>
+<div class="frame">
+  <iframe src="/api/report-pdf?sample=1#view=FitH" title="Sample public records report"></iframe>
+</div>
+
+<div class="mobile">
+  <div class="card">
+    <h1>Sample Report</h1>
+    <p>See exactly what you'd get: one clean, organized PDF with business status, owners on file, UCC filings, federal court and bankruptcy records, and environmental and historic checks. Made-up names and data.</p>
+    <a class="btn dl" href="/api/report-pdf?sample=1">Open the sample report</a>
+    <a class="btn back" href="/">&larr; Back to CA Research Group</a>
+  </div>
+</div>
+</body>
+</html>
