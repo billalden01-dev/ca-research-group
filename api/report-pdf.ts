@@ -271,6 +271,27 @@ export async function searchFederalCases(name: string, token: string | undefined
   }
 }
 
+// ---------- Liens and civil court cases (official record sources, BASELAYER_API_KEY) ----------
+// Never name the provider in reports or marketing.
+
+const BL_BASE = 'https://api.baselayer.com';
+
+async function blPost(path: string, body: Record<string, unknown>, key: string): Promise<Raw> {
+  const res = await fetch(`${BL_BASE}${path}`, {
+    method: 'POST',
+    headers: { 'X-API-Key': key, 'Content-Type': 'application/json', Accept: 'application/json', Prefer: 'wait=55' },
+    body: JSON.stringify(body),
+    signal: timeout(60000),
+  });
+  const text = await res.text();
+  let data: Raw = {};
+  try { data = JSON.parse(text) as Raw; } catch { data = { raw: text.slice(0, 500) }; }
+  return { httpStatus: res.status, ...data };
+}
+
+export const blLienSearch = (name: string, key: string) => blPost('/lien_searches/adhoc', { name, search_states: ['CA'] }, key);
+export const blDocketSearch = (name: string, key: string) => blPost('/docket_searches/adhoc', { name, options: ['Order.Litigations'] }, key);
+
 // ---------- Property environmental check (free, official state lists) ----------
 // 1) U.S. Census Bureau turns the address into a map location.
 // 2) State Water Board GeoTracker: leaking fuel tanks (often old gas stations) and other cleanup cases.
@@ -2328,6 +2349,13 @@ export async function GET(request: Request) {
   if (q('histtest') && process.env.VERCEL_ENV === 'preview') {
     const r = await checkHistoric(q('histtest'));
     return new Response(JSON.stringify(r, null, 2), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+  }
+  // Preview only: raw lien and court answers, to check the sandbox test cases.
+  if (q('bltest') && process.env.VERCEL_ENV === 'preview') {
+    const key = process.env.BASELAYER_API_KEY;
+    if (!key) return jsonError('BASELAYER_API_KEY is not set for Preview.', 500);
+    const [liens, dockets] = await Promise.all([blLienSearch(q('bltest'), key), blDocketSearch(q('bltest'), key)]);
+    return new Response(JSON.stringify({ name: q('bltest'), keyIsSandbox: key.startsWith('sand'), liens, dockets }, null, 2), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
   }
   if (q('test') === '1' && process.env.VERCEL_ENV === 'preview') {
     if (!q('name')) return jsonError('Add &name=Business Name', 400);
