@@ -36,3 +36,30 @@ Rule: make changes on a preview link first and show Bill before anything goes li
 - Hiscox insurance (Professional, General, Cyber): $112.96/mo, monthly on the 29th, Mercury card x091; policy S112.558.160, 10/29/2026-10/29/2027, auto-renews, cancel anytime (bought Oct 28)
 - GoDaddy domain (caresearchgroup.com): renews Sep 7, 2027 (yearly; switched to Mercury Oct 26)
 - Cobalt (report data): pay-as-you-go, about $2 per lookup (Mercury, set up Oct 26)
+
+## Outreach email style (decided Nov 3, 2026)
+Plain, personal, not ad-like. Subject like a colleague would write. Open with a question about THEIR work. 3-4 short lines. One easy next step: "send me a business name and I'll run one for you." Say Bill "built" the company. Never "background check". Never promise liens/state court until Baselayer is live (then update the lines marked [after Baselayer]).
+Signature: Bill Alden / CA Research Group | (408) 780-2215
+
+Broker/agent — Subject: Who's behind the LLC?
+  When a buyer or tenant shows up as an LLC, how do you check who you're really dealing with?
+  I built a tool that pulls the official business records (owners on file, good standing, UCC filings, federal court cases) into one PDF in about a minute. [after Baselayer: "liens and lawsuits"]
+  Send me a business name from one of your deals and I'll run one for you.
+
+Title rep — Subject: Something for your broker clients
+  Your tools tell you about the property. Ours tells you about the business behind the deal.
+  I built a report that shows who owns an LLC, whether it's in good standing, UCC filings and court cases, in about a minute.
+  It could be a nice extra to offer your brokers. Want me to run one on a business in one of your files?
+
+Commercial property manager — Subject: Checking a business tenant
+  Before you sign a lease with a business tenant, how do you check them out?
+  I built a tool that pulls their official business records into one PDF in about a minute: owners, standing, UCC filings, court cases.
+  Send me a tenant's business name and I'll run one for you.
+
+Lender [after Baselayer] — Subject: Before you fund
+  When a borrower is an LLC, how long does it take your team to check liens and lawsuits?
+  I built a tool that pulls owners, standing, UCC and tax liens, judgments and California court cases into one PDF in about a minute.
+  Send me a borrower's business name and I'll run one for you.
+
+Check-in (has link, hasn't used it) — Subject: reply in thread
+  Just checking in. If it's easier, send me a business name you're working with (and the address, if you like) and I'll run the first report for you. The PDF lands in your inbox within minutes.
