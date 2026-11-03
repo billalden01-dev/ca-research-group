@@ -44,6 +44,8 @@ export type ReportInput = {
   courts: CourtResult | null;
   people?: PeopleResult | null;
   ucc?: UccResult | null;
+  liens?: LienResult | null;
+  civil?: CivilResult | null;
   environment?: EnvResult | null;
   historic?: HistResult | null;
   // Free one-time property check for a report that was run without an address
@@ -75,6 +77,12 @@ export type PeopleResult = { searchedAt: Date; statementDate?: string; statement
 // UCC liens (financing statements) filed against the business
 export type UccFiling = { fileNumber: string; type: string; filed: string; lapse: string; status: string; securedParty: string; collateral?: string };
 export type UccResult = { searchedAt: Date; searchedFor: string; status: 'searched' | 'unavailable'; filings: UccFiling[] };
+
+// Tax and judgment liens, and civil lawsuits (state and federal courts)
+export type LienFiling = { fileNumber: string; type: string; filed: string; lapse: string; status: string; securedParty: string; amount?: string; collateral?: string };
+export type LienResult = { searchedAt: Date; searchedFor: string; status: 'searched' | 'unavailable'; filings: LienFiling[] };
+export type CivilCase = { title: string; court: string; state: string; caseType: string; status: string; filed: string; closed: string; docketNumber: string; open: boolean };
+export type CivilResult = { searchedAt: Date; searchedFor: string; status: 'searched' | 'unavailable'; cases: CivilCase[] };
 
 export type Check = { label: string; result: 'Passed' | 'Flagged'; detail: string };
 export type Verification = { overall: 'Verified' | 'Needs attention'; checks: Check[] };
@@ -291,6 +299,64 @@ async function blPost(path: string, body: Record<string, unknown>, key: string):
 
 export const blLienSearch = (name: string, key: string) => blPost('/lien_searches/adhoc', { name, search_states: ['CA'] }, key);
 export const blDocketSearch = (name: string, key: string) => blPost('/docket_searches/adhoc', { name, options: ['Order.Litigations'] }, key);
+
+const blOk = (r: Raw) => Number(r.httpStatus) >= 200 && Number(r.httpStatus) < 300 && str(r.state).toUpperCase() === 'COMPLETED';
+const normNum = (x: string) => x.toUpperCase().replace(/[^A-Z0-9]/g, '');
+const isUccType = (t: string) => /ucc/i.test(t);
+
+function fmtMoney(v: unknown): string {
+  const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v.replace(/[$,]/g, '')) : typeof v === 'object' && v ? Number((v as Raw).amount ?? (v as Raw).value) : NaN;
+  return Number.isFinite(n) && n > 0 ? `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '';
+}
+
+function lienType(t: string): string {
+  if (isUccType(t)) return 'UCC financing statement';
+  if (/federal/i.test(t) && /tax/i.test(t)) return 'Federal tax lien';
+  if (/state/i.test(t) && /tax/i.test(t)) return 'State tax lien';
+  if (/tax/i.test(t)) return 'Tax lien';
+  if (/judg/i.test(t)) return 'Judgment lien';
+  return t || 'Lien';
+}
+
+export function parseLiens(name: string, raw: Raw | null, searchedAt: Date): LienResult {
+  if (!raw || !blOk(raw)) return { searchedAt, searchedFor: name, status: 'unavailable', filings: [] };
+  const filings = (Array.isArray(raw.filings) ? (raw.filings as Raw[]) : []).map((f) => {
+    const parties = Array.isArray(f.parties) ? (f.parties as Raw[]) : [];
+    const claimants = parties.filter((p) => !/debtor/i.test(str(p.role) || str(p.type))).map((p) => str(p.name)).filter(Boolean);
+    const coll = Array.isArray(f.collateral_statements) ? (f.collateral_statements as Raw[]).map((c) => str(c.text)).filter(Boolean).join(' ') : '';
+    return {
+      fileNumber: str(f.filing_number),
+      type: lienType(str(f.filing_type)),
+      filed: str(f.filing_date).slice(0, 10),
+      lapse: str(f.lapse_date).slice(0, 10),
+      status: str(f.status) || 'Not stated',
+      securedParty: claimants.join('; ') || 'Not listed',
+      amount: fmtMoney(f.lien_amount) || undefined,
+      collateral: coll ? coll.slice(0, 160) + (coll.length > 160 ? '...' : '') : undefined,
+    } as LienFiling;
+  });
+  return { searchedAt, searchedFor: name, status: 'searched', filings };
+}
+
+export function parseCivil(name: string, raw: Raw | null, searchedAt: Date): CivilResult {
+  if (!raw || !blOk(raw)) return { searchedAt, searchedFor: name, status: 'unavailable', cases: [] };
+  const cases = (Array.isArray(raw.dockets) ? (raw.dockets as Raw[]) : [])
+    .filter((d) => !d.is_bankruptcy)
+    .map((d) => {
+      const status = str(d.status);
+      const norm = str(d.normalized_status).toLowerCase();
+      const closed = str(d.date_closed).slice(0, 10);
+      const open = norm ? norm === 'open' : !closed && /active|open|pending/i.test(status);
+      return {
+        title: str(d.title), court: str(d.court), state: str(d.state).toUpperCase(), caseType: str(d.case_type),
+        status: status ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase() : 'Not stated',
+        filed: str(d.date_filed).slice(0, 10), closed, docketNumber: str(d.docket_number), open,
+      } as CivilCase;
+    });
+  // California first, then open cases, then newest.
+  cases.sort((a, b) => Number(b.state === 'CA') - Number(a.state === 'CA') || Number(b.open) - Number(a.open) || b.filed.localeCompare(a.filed));
+  return { searchedAt, searchedFor: name, status: 'searched', cases };
+}
 
 // ---------- Property environmental check (free, official state lists) ----------
 // 1) U.S. Census Bureau turns the address into a map location.
@@ -1525,6 +1591,25 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       : uc.filings.length === 0
         ? 'No UCC liens found against this business.'
         : `${plural(activeUcc, 'active UCC lien')} and ${plural(uc.filings.length - activeUcc, 'lapsed or ended filing')} found.`;
+  const lr = input.liens;
+  const activeLiens = lr ? lr.filings.filter((f) => /active|open|unsatisfied/i.test(f.status)).length : 0;
+  const lienSummary = !lr
+    ? ''
+    : lr.status === 'unavailable'
+      ? 'Lien records could not be reached at the time of the search.'
+      : lr.filings.length === 0
+        ? 'No tax or judgment liens found against this business in California.'
+        : `${plural(lr.filings.length, 'tax or judgment lien')} found${activeLiens ? `, ${activeLiens} still active` : ''}.`;
+  const cv = input.civil;
+  const openCases = cv ? cv.cases.filter((c) => c.open).length : 0;
+  const caCases = cv ? cv.cases.filter((c) => c.state === 'CA').length : 0;
+  const civilSummary = !cv
+    ? ''
+    : cv.status === 'unavailable'
+      ? 'Court records could not be reached at the time of the search.'
+      : cv.cases.length === 0
+        ? 'No civil lawsuits found naming this business.'
+        : `${plural(cv.cases.length, 'civil lawsuit')} found${caCases ? ` (${caCases} in California)` : ''}${openCases ? `, ${openCases} still open` : ''}.`;
   const env = input.environment;
   const envOpen = env ? [...env.onSite, ...env.nearby].filter((x) => x.category === 'Open').length : 0;
   const envSummary = !input.request.propertyAddress
@@ -1549,8 +1634,10 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
     { tag: entityTag, label: 'Business status', text: v ? `${entitySummary} Two-step check: ${v.overall}.` : entitySummary },
     { tag: pp ? 'info' : 'none', label: 'Owners and managers', text: peopleSummary },
     { tag: !uc || uc.status !== 'searched' ? 'none' : activeUcc ? 'review' : 'clear', label: 'UCC liens', text: uccSummary },
+    ...(lr ? [{ tag: (lr.status !== 'searched' ? 'none' : lr.filings.length ? 'review' : 'clear') as GlanceTag, label: 'Tax and judgment liens', text: lienSummary }] : []),
     { tag: !sx || !sx.available ? 'none' : sx.matches.length ? 'review' : 'clear', label: 'Sanctions screening', text: sanctionsSummary },
     ...(ct && ct.status === 'not_connected' ? [] : [{ tag: (!ct || ct.status !== 'searched' ? 'none' : ct.total ? 'review' : 'clear') as GlanceTag, label: 'Federal court and bankruptcy', text: courtSummary }]),
+    ...(cv ? [{ tag: (cv.status !== 'searched' ? 'none' : cv.cases.length ? 'review' : 'clear') as GlanceTag, label: 'Civil lawsuits', text: civilSummary }] : []),
     { tag: !addr || !env || env.status !== 'searched' ? 'none' : env.onSite.length || envOpen ? 'review' : 'clear', label: 'Environmental check', text: envSummary },
     ...(addr && hs !== undefined ? [{ tag: (!hs || hs.status !== 'searched' ? 'none' : hs.onSite.length ? 'review' : 'clear') as GlanceTag, label: 'Historic listing check', text: histSummary }] : []),
   ];
@@ -1697,6 +1784,24 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
     w.paragraph(`Source: official California state business records (Secretary of State UCC filings). Searched for debtor name "${uc.searchedFor}" on ${fmtDate(uc.searchedAt)}.`, { size: 8.5, color: MUTED });
   }
 
+  // Tax and judgment liens
+  if (lr) {
+    section('Tax and judgment liens', 70);
+    if (lr.status === 'unavailable') {
+      w.paragraph('Lien records could not be reached at the time of this search. Search county recorder and state records directly before relying on this report.');
+    } else if (lr.filings.length === 0) {
+      w.paragraph(`No federal tax liens, state tax liens, or judgment liens naming "${lr.searchedFor}" were found in California.`);
+    } else {
+      w.paragraph('A tax lien means a government agency has filed a claim for unpaid taxes. A judgment lien means someone won a court judgment against the business and filed it as a claim on its property. A released lien has been paid or removed.', { size: 9, color: MUTED, gap: 6 });
+      w.table(
+        ['Type', 'Filed by', 'Status', 'Filed', 'Amount', 'File number'],
+        [92, 132, 56, 60, 60, CONTENT_W - 400],
+        lr.filings.map((f) => [f.type, f.securedParty, f.status, f.filed || '-', f.amount || '-', f.fileNumber || '-']),
+      );
+    }
+    w.paragraph(`Source: official record sources for California tax and judgment liens. Searched for "${lr.searchedFor}" on ${fmtDate(lr.searchedAt)}. The same name can belong to an unrelated business, so confirm details with the filing office.`, { size: 8.5, color: MUTED });
+  }
+
   // Sanctions
   if (sx) {
     section('Sanctions screening', 50);
@@ -1757,6 +1862,25 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       `Source: CourtListener (Free Law Project) archive of federal court and bankruptcy records, searched for party name "${ct.searchedFor}" on ${fmtDate(ct.searchedAt)}. This archive holds many but not all federal cases, so a "no cases found" result does not prove none exist. PACER is the complete federal source.`,
       { size: 8.5, color: MUTED },
     );
+  }
+
+  // Civil lawsuits (state and federal courts)
+  if (cv) {
+    section('Civil lawsuits', 70);
+    if (cv.status === 'unavailable') {
+      w.paragraph('Court records could not be reached at the time of this search. Search the California superior court for the county directly before relying on this report.');
+    } else if (cv.cases.length === 0) {
+      w.paragraph(`No civil lawsuits naming "${cv.searchedFor}" were found in state or federal courts${ct && ct.status === 'searched' ? ' beyond any listed in the federal court sections above' : ''}.`);
+    } else {
+      const shown = cv.cases.slice(0, 15);
+      w.paragraph(`Lawsuits in state and federal courts that name this business, California cases first, then open cases, then the most recent.${cv.cases.length > shown.length ? ` Showing ${shown.length} of ${cv.cases.length}.` : ''} Being named in a lawsuit does not mean the business did anything wrong.`, { size: 9, color: MUTED, gap: 6 });
+      w.table(
+        ['Case', 'Court', 'Status', 'Filed', 'Case number'],
+        [168, 128, 58, 58, CONTENT_W - 412],
+        shown.map((c) => [`${c.title}${c.caseType ? `\n${c.caseType}` : ''}`, c.court, c.status, c.filed || '-', c.docketNumber || '-']),
+      );
+    }
+    w.paragraph(`Source: official state and federal court records. Searched for "${cv.searchedFor}" on ${fmtDate(cv.searchedAt)}. The same name can belong to an unrelated business. Court records can be incomplete or delayed, so confirm with the court before relying on them.`, { size: 8.5, color: MUTED });
   }
 
   // Property environmental check
@@ -1850,7 +1974,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
   // Limits
   w.heading('Sources and limits', 60);
   if (input.request.propertyAddress) w.paragraph('The property environmental check is a screening of government lists only. It is not a Phase I or Phase II Environmental Site Assessment, does not include a site visit, historical maps, or other records of past uses, and does not determine whether a property is contaminated.', { size: 9, color: MUTED });
-  w.paragraph(LIMITS_TEXT, { size: 9, color: MUTED });
+  w.paragraph(input.civil && input.civil.status === 'searched' ? LIMITS_TEXT.replace(' or California state court cases', '') : LIMITS_TEXT, { size: 9, color: MUTED });
 
   // Footers with page numbers
   const pages = doc.getPages();
@@ -2202,7 +2326,7 @@ const newReportId = (d: Date) => {
 // Runs the full engine: entity search + two-step check, sanctions screening, federal court search.
 export async function runReport(
   form: { company: string; email: string; role?: string; propertyAddress: string; entityName?: string; county?: string; reportUse?: string },
-  keys: { sosApiKey?: string; courtListenerToken?: string; cobaltKey?: string; cobaltRaw?: Raw; cobaltDummy?: string },
+  keys: { sosApiKey?: string; courtListenerToken?: string; cobaltKey?: string; cobaltRaw?: Raw; cobaltDummy?: string; baselayerKey?: string },
 ): Promise<ReportInput & { cobaltRaw?: Raw; soiPdf?: { pdf: Uint8Array; date: string } }> {
   const now = new Date();
   const name = (form.entityName ?? '').trim();
@@ -2261,7 +2385,39 @@ export async function runReport(
 
   await entityTask;
   const topName = (entitySearch as ReportInput['entitySearch'])?.records[0]?.name ?? '';
-  const [sanctions, courts, environment, historic] = await Promise.all([name ? screenSanctions([name, topName]) : Promise.resolve(null), courtTask, envTask, histTask]);
+  // Liens and civil lawsuits: search the official registered name when we found one.
+  const blName = topName || name;
+  const blTask = name && keys.baselayerKey
+    ? Promise.all([
+        blLienSearch(blName, keys.baselayerKey).catch(() => null),
+        blDocketSearch(blName, keys.baselayerKey).catch(() => null),
+      ])
+    : Promise.resolve(null);
+  const [sanctions, courts, environment, historic, bl] = await Promise.all([name ? screenSanctions([name, topName]) : Promise.resolve(null), courtTask, envTask, histTask, blTask]);
+
+  let liens: LienResult | null = null;
+  let civil: CivilResult | null = null;
+  if (bl) {
+    const blAt = new Date();
+    const all = parseLiens(blName, bl[0], blAt);
+    liens = { ...all, filings: all.filings.filter((f) => !isUccType(f.type)) };
+    // UCC: add any filings the state business record search missed, or use these if it could not run.
+    const extraUcc: UccFiling[] = all.filings.filter((f) => isUccType(f.type)).map((f) => ({ fileNumber: f.fileNumber, type: 'UCC-1 Financing Statement', filed: f.filed, lapse: f.lapse, status: f.status, securedParty: f.securedParty, collateral: f.collateral }));
+    if (all.status === 'searched') {
+      if (!ucc || (ucc as UccResult).status !== 'searched') ucc = { searchedAt: blAt, searchedFor: blName, status: 'searched', filings: extraUcc };
+      else {
+        const u = ucc as UccResult;
+        const have = new Set(u.filings.map((f) => normNum(f.fileNumber)));
+        u.filings.push(...extraUcc.filter((f) => !have.has(normNum(f.fileNumber))));
+      }
+    }
+    civil = parseCivil(blName, bl[1], blAt);
+    // Federal cases already listed in the federal court sections are not repeated.
+    if (courts && courts.status === 'searched') {
+      const fed = new Set([...courts.bankruptcyCases, ...courts.otherCases].map((c) => normNum(c.docketNumber)));
+      civil.cases = civil.cases.filter((c) => !fed.has(normNum(c.docketNumber)));
+    }
+  }
 
   return {
     sample: false,
@@ -2276,6 +2432,8 @@ export async function runReport(
     courts,
     people,
     ucc,
+    liens,
+    civil,
     environment,
     historic,
     cobaltRaw,
@@ -2364,7 +2522,9 @@ export async function GET(request: Request) {
         { company: 'CA Research Group (internal test)', email: 'william@caresearchgroup.com', propertyAddress: q('address'), entityName: q('name'), reportUse: 'Internal test' },
         {
           courtListenerToken: process.env.COURTLISTENER_TOKEN,
-          cobaltKey: process.env.COBALT_API_KEY,
+          baselayerKey: process.env.BASELAYER_API_KEY,
+          // &blonly=1 skips the paid business-record lookup (for sandbox lien and court tests)
+          cobaltKey: q('blonly') === '1' ? undefined : process.env.COBALT_API_KEY,
           cobaltDummy: q('dummy') || undefined,
           // &saved=<base64 of a saved answer> re-renders without spending a lookup
           cobaltRaw: q('saved') ? (JSON.parse(atob(q('saved').replace(/-/g, '+').replace(/_/g, '/'))) as Raw) : undefined,
@@ -2412,7 +2572,7 @@ export async function GET(request: Request) {
         county: q('county') || undefined,
         reportUse: q('use') || undefined,
       },
-      { sosApiKey: process.env.CA_SOS_API_KEY, courtListenerToken: process.env.COURTLISTENER_TOKEN, cobaltKey: process.env.COBALT_API_KEY },
+      { sosApiKey: process.env.CA_SOS_API_KEY, courtListenerToken: process.env.COURTLISTENER_TOKEN, cobaltKey: process.env.COBALT_API_KEY, baselayerKey: process.env.BASELAYER_API_KEY },
     );
     return pdfResponse(await buildReportPdf(input, await loadLogo(url.origin)), `CA-Research-Group-${input.reportId}.pdf`);
   } catch (err) {
@@ -2429,7 +2589,7 @@ export async function POST(request: Request) {
       if (!b.name || !b.cobaltRaw) return jsonError('Send { name, cobaltRaw }', 400);
       const input = await runReport(
         { company: 'CA Research Group (internal test)', email: 'william@caresearchgroup.com', propertyAddress: '', entityName: b.name, reportUse: 'Internal test' },
-        { courtListenerToken: process.env.COURTLISTENER_TOKEN, cobaltRaw: b.cobaltRaw },
+        { courtListenerToken: process.env.COURTLISTENER_TOKEN, cobaltRaw: b.cobaltRaw, baselayerKey: process.env.BASELAYER_API_KEY },
       );
       const res = pdfResponse(await buildReportPdf(input, await loadLogo(url.origin)), `CA-Research-Group-TEST-${input.reportId}.pdf`);
       res.headers.set('X-Soi-Status', lastSoiProblem || (input.soiPdf ? 'read' : 'none'));
@@ -2586,7 +2746,7 @@ export async function POST(request: Request) {
   try {
     const input = await runReport(
       { company: customer.company, email: customer.email || 'Not provided', role: customer.role || undefined, propertyAddress: address, entityName: entityName || undefined, county: g('county') || undefined, reportUse: g('use') || undefined },
-      { sosApiKey: process.env.CA_SOS_API_KEY, courtListenerToken: process.env.COURTLISTENER_TOKEN, cobaltKey: process.env.COBALT_API_KEY },
+      { sosApiKey: process.env.CA_SOS_API_KEY, courtListenerToken: process.env.COURTLISTENER_TOKEN, cobaltKey: process.env.COBALT_API_KEY, baselayerKey: process.env.BASELAYER_API_KEY },
     );
     // No matching business: don't send a report and don't count it against the client's plan.
     if (input.entitySearch && input.entitySearch.records.length === 0) {
