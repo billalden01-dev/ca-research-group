@@ -300,6 +300,15 @@ async function blPost(path: string, body: Record<string, unknown>, key: string):
 export const blLienSearch = (name: string, key: string) => blPost('/lien_searches/adhoc', { name, search_states: ['CA'] }, key);
 export const blDocketSearch = (name: string, key: string) => blPost('/docket_searches/adhoc', { name, options: ['Order.Litigations'] }, key);
 
+// A failed search is charged, but clients come first: try once more before reporting "could not be reached".
+// Bad requests (4xx) are not retried, since a second try would fail the same way.
+async function blWithRetry(run: () => Promise<Raw>): Promise<Raw | null> {
+  const first = await run().catch(() => null);
+  if (first && (blOk(first) || (Number(first.httpStatus) >= 400 && Number(first.httpStatus) < 500))) return first;
+  await sleep(2000);
+  return (await run().catch(() => null)) ?? first;
+}
+
 const blOk = (r: Raw) => Number(r.httpStatus) >= 200 && Number(r.httpStatus) < 300 && str(r.state).toUpperCase() === 'COMPLETED';
 const normNum = (x: string) => x.toUpperCase().replace(/[^A-Z0-9]/g, '');
 const isUccType = (t: string) => /ucc/i.test(t);
@@ -2389,8 +2398,8 @@ export async function runReport(
   const blName = topName || name;
   const blTask = name && keys.baselayerKey
     ? Promise.all([
-        blLienSearch(blName, keys.baselayerKey).catch(() => null),
-        blDocketSearch(blName, keys.baselayerKey).catch(() => null),
+        blWithRetry(() => blLienSearch(blName, keys.baselayerKey as string)),
+        blWithRetry(() => blDocketSearch(blName, keys.baselayerKey as string)),
       ])
     : Promise.resolve(null);
   const [sanctions, courts, environment, historic, bl] = await Promise.all([name ? screenSanctions([name, topName]) : Promise.resolve(null), courtTask, envTask, histTask, blTask]);
