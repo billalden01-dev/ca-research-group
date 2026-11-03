@@ -1786,7 +1786,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
 
   // Tax and judgment liens
   if (lr) {
-    section('Tax and judgment liens', 70);
+    section('Tax and judgment liens', 150);
     if (lr.status === 'unavailable') {
       w.paragraph('Lien records could not be reached at the time of this search. Search county recorder and state records directly before relying on this report.');
     } else if (lr.filings.length === 0) {
@@ -1866,7 +1866,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
 
   // Civil lawsuits (state and federal courts)
   if (cv) {
-    section('Civil lawsuits', 70);
+    section('Civil lawsuits', 150);
     if (cv.status === 'unavailable') {
       w.paragraph('Court records could not be reached at the time of this search. Search the California superior court for the county directly before relying on this report.');
     } else if (cv.cases.length === 0) {
