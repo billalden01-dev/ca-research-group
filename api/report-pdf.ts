@@ -1171,6 +1171,22 @@ const SAMPLE_INPUT: ReportInput = {
       { fileNumber: 'U000000000001', type: 'UCC-1 Financing Statement', filed: '2018-02-20', lapse: '2023-02-20', status: 'Lapsed', securedParty: 'Sample Equipment Finance Co.', collateral: 'Equipment' },
     ],
   },
+  liens: {
+    searchedAt: new Date(),
+    searchedFor: 'Sample Holdings LLC',
+    status: 'searched',
+    filings: [
+      { fileNumber: 'SAMPLE-2021-0045512', type: 'State tax lien', filed: '2021-06-14', lapse: '', status: 'Released', securedParty: 'Sample State Tax Agency', amount: '$4,210' },
+    ],
+  },
+  civil: {
+    searchedAt: new Date(),
+    searchedFor: 'Sample Holdings LLC',
+    status: 'searched',
+    cases: [
+      { title: 'EXAMPLE SUPPLY CO. vs. SAMPLE HOLDINGS LLC', court: 'California State, Santa Clara County, Superior Court', state: 'CA', caseType: 'Breach of contract', status: 'Closed', filed: '2022-03-08', closed: '2023-01-19', docketNumber: '22CV000000', open: false },
+    ],
+  },
   sanctions: { searchedAt: new Date(), namesChecked: ['Sample Holdings LLC', 'Sample Capital Partners LLC'], available: true, matches: [] },
   courts: {
     searchedAt: new Date(),
