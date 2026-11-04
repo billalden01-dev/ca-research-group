@@ -2059,6 +2059,11 @@ export const VOUCHER_DAYS = 5;
 // Free pilot: PILOT_REPORTS reports per agent, good through PILOT_END. Agents join themselves at /pilot.html?code=PILOT_CODE.
 export const PILOT_PLAN = 'Pilot (5 free reports)';
 export const PILOT_REPORTS = 5;
+// Free trial for new people (from Nov 2026): TRIAL_REPORTS reports within TRIAL_DAYS days of signing up.
+export const TRIAL_PLAN = 'Free trial (2 reports, 14 days)';
+export const TRIAL_REPORTS = 2;
+export const TRIAL_DAYS = 14;
+const trialEnd = () => pacificToday(new Date(Date.now() + TRIAL_DAYS * 86400000));
 const pilotEnd = () => process.env.PILOT_END || '2026-11-20';
 const pilotCode = () => (process.env.PILOT_CODE || 'PILOT2026').toUpperCase();
 const PILOT_AGREEMENT = [
@@ -2096,15 +2101,16 @@ export async function findCustomer(code: string): Promise<Customer | null> {
   if (!r) return null;
   const f = r.fields;
   const plan = selectName(f['Plan']);
-  if (plan === PILOT_PLAN) {
+  if (plan === PILOT_PLAN || plan === TRIAL_PLAN) {
+    const freeLimit = plan === TRIAL_PLAN ? TRIAL_REPORTS : PILOT_REPORTS;
     const expires = str(f['Voucher Expires']).slice(0, 10);
     const usedTotal = Number(f['Reports Total'] ?? 0) || 0;
     const active = selectName(f['Subscription Status']) === 'Active';
     const expired = !expires || expires < pacificToday();
     return {
       id: r.id, company: str(f['Company']) || 'Your company', email: str(f['Contact Email']), role: selectName(f['Role']), plan,
-      used: usedTotal, limit: PILOT_REPORTS, usedTotal,
-      canRun: active && Boolean(str(f['Link Code'])) && !expired && usedTotal < PILOT_REPORTS,
+      used: usedTotal, limit: freeLimit, usedTotal,
+      canRun: active && Boolean(str(f['Link Code'])) && !expired && usedTotal < freeLimit,
       active, voucher: false, pilot: true, expires, expired, dataKey: str(f['Data Key']).trim() || undefined,
     };
   }
@@ -2169,7 +2175,7 @@ async function createVoucher(company: string, contactName: string, email: string
 }
 
 async function findPilotByEmail(email: string): Promise<{ id: string; code: string } | null> {
-  const formula = encodeURIComponent(`AND(LOWER({Contact Email})='${email.toLowerCase()}', {Plan}='${PILOT_PLAN}')`);
+  const formula = encodeURIComponent(`AND(LOWER({Contact Email})='${email.toLowerCase()}', OR({Plan}='${PILOT_PLAN}', {Plan}='${TRIAL_PLAN}'))`);
   const d = await airtable(`${CUSTOMERS_TABLE}?maxRecords=1&filterByFormula=${formula}`);
   const r = d.records?.[0];
   return r ? { id: r.id, code: str(r.fields['Link Code']) } : null;
@@ -2188,10 +2194,10 @@ async function createPilot(p: { name: string; company: string; email: string; ro
           'Contact Name': p.name,
           'Contact Email': p.email,
           ...(p.role ? { Role: p.role } : {}),
-          Plan: PILOT_PLAN,
+          Plan: TRIAL_PLAN,
           'Subscription Status': 'Active',
           'Link Code': code,
-          'Voucher Expires': pilotEnd(),
+          'Voucher Expires': trialEnd(),
           'Signed Up': pacificToday(),
           'Agreed At': agreedAt,
           'Agreement Record': [
@@ -2200,7 +2206,7 @@ async function createPilot(p: { name: string; company: string; email: string; ro
             `Version: ${PILOT_TERMS_VERSION}`,
             ...PILOT_AGREEMENT.map((t, i) => `[x] ${i + 1}. ${t}`),
           ].join('\n'),
-          Notes: `Joined the free pilot on ${pacificToday()} (${PILOT_REPORTS} reports through ${pilotEnd()}).`,
+          Notes: `Started the free trial on ${pacificToday()} (${TRIAL_REPORTS} reports through ${trialEnd()}).`,
         },
       }],
     }),
@@ -2214,8 +2220,8 @@ async function emailPilotLink(to: string, name: string, code: string): Promise<b
   const link = `https://www.caresearchgroup.com/report.html?c=${code}`;
   const notify = process.env.NOTIFY_EMAIL;
   const html = `<div style="font-family:Arial,sans-serif;color:#1e293b;max-width:560px;line-height:1.6">
-<p style="font-size:20px;color:#1e1b4b;font-weight:bold;margin:0 0 12px">Welcome to the CA Research Group pilot</p>
-<p>Hi ${escapeHtml(name.split(' ')[0] || 'there')}, thanks for joining. You have <strong>${PILOT_REPORTS} free reports</strong> to use through <strong>${escapeHtml(friendlyDate(pilotEnd()))}</strong>. No credit card needed.</p>
+<p style="font-size:20px;color:#1e1b4b;font-weight:bold;margin:0 0 12px">Welcome to your CA Research Group free trial</p>
+<p>Hi ${escapeHtml(name.split(' ')[0] || 'there')}, thanks for joining. You have <strong>${TRIAL_REPORTS} free reports</strong> to use through <strong>${escapeHtml(friendlyDate(trialEnd()))}</strong>. No credit card needed.</p>
 <p><a href="${link}" style="display:inline-block;background:#1e1b4b;color:#ffffff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Request a Report &rarr;</a></p>
 <p>Use this button anytime you need a report. Enter the business name, and your PDF report opens right away and is emailed to you. Save this email so you can always find your link.</p>
 <p>This link is just for you, so please don't share it. We'd love your feedback: just reply to this email.</p>
@@ -2653,7 +2659,6 @@ export async function POST(request: Request) {
     if (g('code').toUpperCase() !== pilotCode()) return htmlPage('Pilot code not recognized', 'Please use the link from your invitation email, or contact william@caresearchgroup.com.', 403);
     if (!name || !company || !EMAIL_OK.test(email)) return htmlPage('A few details are missing', 'Please go back and enter your name, company, and a valid work email.', 400);
     if (g('agreeTerms') !== 'yes' || g('agreeAccuracy') !== 'yes') return htmlPage('Please check both boxes', 'Please go back and check both agreement boxes to join the pilot.', 400);
-    if (pacificToday() > pilotEnd()) return htmlPage('The pilot has ended', 'Thank you for your interest. Please see our plans at caresearchgroup.com.', 410);
     try {
       const existing = await findPilotByEmail(email);
       const code = existing?.code || (await createPilot({ name, company, email, role: g('role'), ip: (request.headers.get('x-forwarded-for') || '').split(',')[0].trim() }));
@@ -2663,7 +2668,7 @@ export async function POST(request: Request) {
         `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>You're in - CA Research Group</title>
 <style>body{margin:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1e293b}.c{max-width:520px;margin:60px auto;padding:0 16px}.k{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:32px;text-align:center}img{height:48px;margin-bottom:16px}h1{font-family:Georgia,serif;color:#1e1b4b;font-size:26px;margin:0 0 12px}p{color:#475569;line-height:1.6;margin:0 0 14px;font-size:16px}a.b{display:block;margin-top:8px;padding:15px;background:#1e1b4b;color:#fff;border-radius:10px;font-weight:bold;text-decoration:none;font-size:16px}</style></head>
 <body><div class="c"><div class="k"><img src="/logo-tight.png" alt="CA Research Group"><h1>You're in!</h1>
-<p>You have <strong>${PILOT_REPORTS} free reports</strong> through <strong>${escapeHtml(friendlyDate(pilotEnd()))}</strong>.</p>
+<p>You have <strong>${existing ? 'your free reports' : `${TRIAL_REPORTS} free reports`}</strong>${existing ? '' : ` through <strong>${escapeHtml(friendlyDate(trialEnd()))}</strong>`}.</p>
 <p>${sent ? `We emailed your private link to <strong>${escapeHtml(email)}</strong>. Save that email so you can always find it.` : 'Bookmark the button below so you can always find your link.'}</p>
 <a class="b" href="${link}">Request your first report &rarr;</a></div></div></body></html>`,
         { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } },
@@ -2748,7 +2753,7 @@ export async function POST(request: Request) {
     if (customer.pilot) {
       return customer.expired
         ? htmlPage('The pilot has ended', 'Thank you for being part of our pilot. To keep running reports, choose a plan at caresearchgroup.com, or reply to our email and we will set you up.', 410)
-        : htmlPage('Pilot reports used', `Thank you for trying CA Research Group. You have used all ${PILOT_REPORTS} free pilot reports. To keep running reports, choose a plan at caresearchgroup.com, or reply to our email and we will help.`, 429);
+        : htmlPage('Pilot reports used', `Thank you for trying CA Research Group. You have used all ${customer.limit} free reports. To keep running reports, choose a plan at caresearchgroup.com, or reply to our email and we will help.`, 429);
     }
     if (customer.voucher) {
       return customer.usedTotal > 0
