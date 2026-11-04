@@ -33,7 +33,7 @@ const AGREEMENT_TEXT = [
   'I agree to the Terms of Service and Privacy Policy.',
   'I understand reports are based on official public records, which may occasionally be incomplete or outdated, and that CA Research Group recommends doing my own due diligence before making any decision.',
 ];
-const TERMS_VERSION = 'Terms of Service effective October 18, 2026';
+const TERMS_VERSION = 'Terms of Service effective November 4, 2026';
 
 const ROLES = [
   'Hard money lender or lending institution',
