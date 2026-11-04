@@ -2050,7 +2050,7 @@ export function businessNameProblem(name: string): string | null {
   return null;
 }
 
-export type Customer = { id: string; company: string; email: string; role: string; plan: string; used: number; limit: number; canRun: boolean; active: boolean; voucher: boolean; pilot: boolean; expires: string; expired: boolean; usedTotal: number };
+export type Customer = { id: string; company: string; email: string; role: string; plan: string; used: number; limit: number; canRun: boolean; active: boolean; voucher: boolean; pilot: boolean; expires: string; expired: boolean; usedTotal: number; dataKey?: string };
 
 // A complimentary report voucher: one free report, good through the date in Voucher Expires (Pacific time).
 export const VOUCHER_PLAN = 'Complimentary Report (5-day voucher)';
@@ -2105,7 +2105,7 @@ export async function findCustomer(code: string): Promise<Customer | null> {
       id: r.id, company: str(f['Company']) || 'Your company', email: str(f['Contact Email']), role: selectName(f['Role']), plan,
       used: usedTotal, limit: PILOT_REPORTS, usedTotal,
       canRun: active && Boolean(str(f['Link Code'])) && !expired && usedTotal < PILOT_REPORTS,
-      active, voucher: false, pilot: true, expires, expired,
+      active, voucher: false, pilot: true, expires, expired, dataKey: str(f['Data Key']).trim() || undefined,
     };
   }
   return {
@@ -2123,6 +2123,7 @@ export async function findCustomer(code: string): Promise<Customer | null> {
     expires: str(f['Voucher Expires']).slice(0, 10),
     expired: selectName(f['Plan']) === VOUCHER_PLAN && (!str(f['Voucher Expires']) || str(f['Voucher Expires']).slice(0, 10) < pacificToday()),
     usedTotal: Number(f['Reports Total'] ?? 0) || 0,
+    dataKey: str(f['Data Key']).trim() || undefined,
   };
 }
 
@@ -2771,7 +2772,8 @@ export async function POST(request: Request) {
   try {
     const input = await runReport(
       { company: customer.company, email: customer.email || 'Not provided', role: customer.role || undefined, propertyAddress: address, entityName: entityName || undefined, county: g('county') || undefined, reportUse: g('use') || undefined },
-      { sosApiKey: process.env.CA_SOS_API_KEY, courtListenerToken: process.env.COURTLISTENER_TOKEN, cobaltKey: process.env.COBALT_API_KEY, baselayerKey: process.env.BASELAYER_API_KEY },
+      // Each client uses its own data key (Airtable "Data Key"); no key = report without tax/judgment liens and lawsuits.
+      { sosApiKey: process.env.CA_SOS_API_KEY, courtListenerToken: process.env.COURTLISTENER_TOKEN, cobaltKey: process.env.COBALT_API_KEY, baselayerKey: customer.dataKey },
     );
     // No matching business: don't send a report and don't count it against the client's plan.
     if (input.entitySearch && input.entitySearch.records.length === 0) {

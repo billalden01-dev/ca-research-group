@@ -93,7 +93,7 @@ const SINGLE: Plan = {
 const AGREE_TERMS_TEXT = 'I agree to the Terms of Service and Privacy Policy.';
 const AGREE_ACCURACY_TEXT = 'I understand reports are based on official public records, which may occasionally be incomplete or outdated, and that CA Research Group recommends doing my own due diligence before making any decision.';
 
-const LAUNCH_BANNER = 'Sign up by January 31, 2027 to lock in launch pricing for as long as you stay subscribed.';
+const LAUNCH_BANNER = 'Sign up by December 31, 2026 to lock in launch pricing for as long as you stay subscribed.';
 
 const STEPS = [
   {
