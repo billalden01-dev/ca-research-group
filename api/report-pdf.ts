@@ -1698,7 +1698,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
   w.paragraph(flagged ? `${plural(flagged, 'item')} flagged for review. Details are in the numbered sections that follow.` : 'Nothing was flagged for review. Details are in the numbered sections that follow.', { font: bold, color: flagged ? rgb(194 / 255, 65 / 255, 12 / 255) : rgb(21 / 255, 128 / 255, 61 / 255), size: 10.5, gap: 6 });
   w.glance(glanceRows);
   w.callout(
-    'Verify before you rely on this report',
+    'A note about public records',
     'These are automated search results from public records. Public records can be incomplete, out of date, or wrong, and the same name can belong to unrelated businesses. Confirm anything important with the original source (the agency, court, or county) before making a lending, investment, or legal decision.',
     SAMPLE_BG,
     GOLD,
