@@ -23,6 +23,13 @@
   .steps { text-align: left; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 18px; margin: 4px 0 16px; }
   .steps b { color: #1e1b4b; }
   .steps ol { margin: 6px 0 0; padding-left: 20px; color: #334155; line-height: 1.6; font-size: 15px; }
+  form { text-align: left; margin: 4px 0 0; }
+  label.f { display: block; font-weight: bold; color: #1e1b4b; font-size: 14px; margin: 14px 0 6px; }
+  input[type=text] { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 16px; }
+  .hint { font-size: 13px; color: #64748b; margin: 6px 0 0; line-height: 1.5; }
+  .cert { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: #334155; line-height: 1.5; margin-top: 16px; text-align: left; }
+  .cert input { margin-top: 3px; }
+  .err { color: #b91c1c; font-size: 13px; margin: 6px 0 0; }
   .home { display: inline-block; margin-top: 14px; color: #1e1b4b; font-weight: bold; text-decoration: none; font-size: 14px; }
 </style>
 </head>
@@ -40,15 +47,30 @@
     <h1>Welcome aboard</h1>
     <p id="who"></p>
     <div class="steps">
-      <b>What happens next</b>
+      <b>Run your first report</b>
       <ol>
-        <li>Click <b>Run your first report now</b> below.</li>
-        <li>Check the business name and click <b>Run report</b>.</li>
+        <li>Enter the business name, and the property address if you have one.</li>
+        <li>Click <b>Run report</b>.</li>
         <li>Your PDF report opens in about a minute, and a copy is emailed to you.</li>
       </ol>
     </div>
-    <a class="btn primary" id="first" href="#">Run your first report now &rarr;</a>
-    <p style="margin-top:18px">Your private report link is below. No login is needed. Bookmark it or save the email, and keep it private.</p>
+    <form id="f" method="post" action="/api/report-pdf" target="_blank">
+      <input type="hidden" name="c" id="code">
+      <label class="f" for="name">Business name (businesses only, not individuals)</label>
+      <input id="name" name="name" type="text" required placeholder="e.g. Acme Holdings LLC">
+      <p id="nameErr" class="err hidden"></p>
+      <label class="f" for="address">Property address (optional)</label>
+      <input id="address" name="address" type="text" placeholder="e.g. 123 Main St, San Jose, CA 95125">
+      <p class="hint">Add an address to include environmental and historic checks for the property.</p>
+      <input type="hidden" name="use" id="use">
+      <label class="cert">
+        <input type="checkbox" name="certify" value="yes" required>
+        <span>I certify that I will use this report only for a lawful business purpose related to a real estate, lending, title, or legal matter. I will not use it to decide eligibility for credit, employment, insurance, or housing for any individual, and I understand it contains only information from public sources. I agree to the <a href="/terms.html" target="_blank" rel="noopener" style="color:#1d4ed8">Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener" style="color:#1d4ed8">Privacy Policy</a>.</span>
+      </label>
+      <button class="btn primary" id="go" type="submit">Run report</button>
+      <p class="small hidden" id="sent" style="color:#1f6f43">&#10003; Your report is on its way. It opens in a new tab and is also emailed to you.</p>
+    </form>
+    <p style="margin-top:22px">Your private report link is below. No login is needed. Bookmark it or save the email, and keep it private.</p>
     <div class="link" id="link"></div>
     <button class="btn secondary" id="copy" type="button">Copy link</button>
     <p class="small" id="emailed"></p>
@@ -77,9 +99,8 @@
             var co = d.company ? ' for ' + d.company : '';
             $('who').textContent = d.single ? 'Your report' + co + ' is paid and ready to run.' : 'Your subscription' + co + ' is active.';
             $('link').textContent = d.link;
-            var q = new URLSearchParams({ c: d.code });
-            ['address', 'name', 'county', 'use'].forEach(function (k) { if (d.first && d.first[k]) q.set(k, d.first[k]); });
-            $('first').href = '/report.html?' + q.toString();
+            $('code').value = d.code;
+            ['address', 'name', 'use'].forEach(function (k) { if (d.first && d.first[k]) $(k).value = d.first[k]; });
             $('emailed').textContent = d.email ? 'We also emailed this link to ' + d.email + '.' : '';
             $('copy').onclick = function () {
               navigator.clipboard.writeText(d.link).then(function () { $('copy').textContent = 'Copied'; }, function () {});
@@ -94,6 +115,19 @@
         .catch(function () { if (tries < 20) setTimeout(check, 3000); else show('slow'); });
     }
     if (!sid) show('slow'); else check();
+    var BIZ = /\b(llc|lllp|llp|lp|inc|incorporated|corp|corporation|co|company|companies|ltd|limited|pc|pllc|trust|partnership|partners|holdings?|group|fund|bank|association|assn|foundation|property|properties|investments?|capital|ventures?|enterprises?|realty|development|developers?|lending|mortgage|financial|management|church|ministries|cooperative|coop)\b/i;
+    var IDNUM = /\b(\d{3}-?\d{2}-?\d{4}|\d{2}-?\d{7})\b/;
+    $('name').addEventListener('input', function () { $('nameErr').classList.add('hidden'); });
+    $('f').addEventListener('submit', function (e) {
+      var n = $('name').value.trim(), msg = '';
+      if (!n) msg = 'Please enter the business name, for example "Acme Holdings LLC".';
+      else if (IDNUM.test(n)) msg = 'Please do not enter tax ID or Social Security numbers. Enter the business name only.';
+      else if (!BIZ.test(n.replace(/\./g, ''))) msg = 'Business names only. Please include the entity type, for example "Acme Holdings LLC". We do not search individuals.';
+      if (msg) { e.preventDefault(); $('nameErr').textContent = msg; $('nameErr').classList.remove('hidden'); $('name').focus(); return; }
+      $('go').disabled = true; $('go').textContent = 'Running report...';
+      $('sent').classList.remove('hidden');
+      setTimeout(function () { $('go').disabled = false; $('go').textContent = 'Run report'; }, 20000);
+    });
   })();
 </script>
 </body>
