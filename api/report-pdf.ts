@@ -75,12 +75,12 @@ export type Officer = { name: string; title: string; address?: string };
 export type PeopleResult = { searchedAt: Date; statementDate?: string; statementUrl?: string; officers: Officer[]; note?: string };
 
 // UCC liens (financing statements) filed against the business
-export type UccFiling = { fileNumber: string; type: string; filed: string; lapse: string; status: string; securedParty: string; collateral?: string };
-export type UccResult = { searchedAt: Date; searchedFor: string; status: 'searched' | 'unavailable'; filings: UccFiling[]; leftOut?: number; formed?: string };
+export type UccFiling = { fileNumber: string; type: string; filed: string; lapse: string; status: string; securedParty: string; collateral?: string; debtors?: string[] };
+export type UccResult = { searchedAt: Date; searchedFor: string; status: 'searched' | 'unavailable'; filings: UccFiling[]; leftOut?: number; formed?: string; otherName?: number };
 
 // Tax and judgment liens, and civil lawsuits (state and federal courts)
-export type LienFiling = { fileNumber: string; type: string; filed: string; lapse: string; status: string; securedParty: string; amount?: string; collateral?: string };
-export type LienResult = { searchedAt: Date; searchedFor: string; status: 'searched' | 'unavailable'; filings: LienFiling[]; leftOut?: number; formed?: string };
+export type LienFiling = { fileNumber: string; type: string; filed: string; lapse: string; status: string; securedParty: string; amount?: string; collateral?: string; debtors?: string[] };
+export type LienResult = { searchedAt: Date; searchedFor: string; status: 'searched' | 'unavailable'; filings: LienFiling[]; leftOut?: number; formed?: string; otherName?: number };
 export type CivilCase = { title: string; court: string; state: string; caseType: string; status: string; filed: string; closed: string; docketNumber: string; open: boolean };
 export type CivilResult = { searchedAt: Date; searchedFor: string; status: 'searched' | 'unavailable'; cases: CivilCase[]; leftOut?: number; formed?: string };
 
@@ -309,6 +309,19 @@ async function blWithRetry(run: () => Promise<Raw>): Promise<Raw | null> {
   return (await run().catch(() => null)) ?? first;
 }
 
+// Debtor names on a filing, whatever shape the source uses.
+function debtorNames(f: Raw): string[] {
+  const out: string[] = [];
+  const add = (v: unknown) => { if (typeof v === 'string' && v.trim()) out.push(v.trim()); else if (v && typeof v === 'object') { const o = v as Raw; const n = str(o.name) || str(o.organizationName) || str(o.fullName) || [str(o.firstName), str(o.lastName)].filter(Boolean).join(' '); if (n) out.push(n); } };
+  for (const k of ['debtors', 'debtorParties', 'debtor', 'debtorName', 'debtorNames']) { const v = (f as Raw)[k]; if (Array.isArray(v)) v.forEach(add); else add(v); }
+  if (Array.isArray(f.parties)) (f.parties as Raw[]).filter((p) => /debtor/i.test(str(p.role) || str(p.type))).forEach(add);
+  return out;
+}
+// Compare business names: same words, with LLC/Inc/Corp written the same way.
+const bizKey = (n: string) => ` ${n.toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9 ]+/g, ' ')} `
+  .replace(/ l l c | limited liability company /g, ' llc ').replace(/ incorporated /g, ' inc ').replace(/ corporation /g, ' corp ')
+  .replace(/ the /g, ' ').replace(/\s+/g, ' ').trim();
+
 const TAX_AGENCY = /employment development|franchise tax|internal revenue|\birs\b|board of equalization|department of tax and fee|cdtfa|u\.s\. treasury|department of the treasury/i;
 function looseDate(s: string): number | null {
   const v = (s || '').trim();
@@ -317,6 +330,7 @@ function looseDate(s: string): number | null {
   const t = m ? Date.UTC(+m[3], +m[1] - 1, +m[2]) : Date.parse(v.length === 10 ? `${v}T00:00:00Z` : v);
   return Number.isFinite(t) ? t : null;
 }
+const otherNameNote = (n?: number, what = 'filing') => (n ? ` ${n} ${what}${n === 1 ? '' : 's'} for a different business with a similar name ${n === 1 ? 'was' : 'were'} left out.` : '');
 const leftOutNote = (n?: number, formed?: string, what = 'filing') => (n && formed ? ` ${n} ${what}${n === 1 ? '' : 's'} under this name dated before this business was formed (${formed}) ${n === 1 ? 'was' : 'were'} left out, because ${n === 1 ? 'it belongs' : 'they belong'} to a different business with the same or a similar name.` : '');
 
 const blOk = (r: Raw) => Number(r.httpStatus) >= 200 && Number(r.httpStatus) < 300 && str(r.state).toUpperCase() === 'COMPLETED';
@@ -352,6 +366,7 @@ export function parseLiens(name: string, raw: Raw | null, searchedAt: Date): Lie
       securedParty: claimants.join('; ') || 'Not listed',
       amount: fmtMoney(f.lien_amount) || undefined,
       collateral: coll ? coll.slice(0, 160) + (coll.length > 160 ? '...' : '') : undefined,
+      debtors: parties.filter((p) => /debtor/i.test(str(p.role) || str(p.type))).map((p) => str(p.name)).filter(Boolean),
     } as LienFiling;
   });
   return { searchedAt, searchedFor: name, status: 'searched', filings };
@@ -954,6 +969,7 @@ export function fromCobalt(name: string, raw: Raw, searchedAt: Date, soiParsed?:
         lapse: str(f.lapseDate),
         status: str(f.status) || 'Not listed',
         securedParty: (Array.isArray(f.securedParties) ? f.securedParties : []).map((p: Raw) => str(p.name)).filter(Boolean).join('; ') || 'Not listed',
+        debtors: debtorNames(f),
       })),
     };
   }
@@ -1816,7 +1832,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
         uc.filings.map((f) => [`${f.securedParty}${f.collateral ? `\nCollateral: ${f.collateral}` : ''}`, f.status, f.filed || '-', f.lapse || '-', f.fileNumber || '-']),
       );
     }
-    w.paragraph(`Source: official California state business records (Secretary of State UCC filings). Searched for debtor name "${uc.searchedFor}" on ${fmtDate(uc.searchedAt)}.${leftOutNote(uc.leftOut, uc.formed)}`, { size: 8.5, color: MUTED });
+    w.paragraph(`Source: official California state business records (Secretary of State UCC filings). Searched for debtor name "${uc.searchedFor}" on ${fmtDate(uc.searchedAt)}.${otherNameNote(uc.otherName)}${leftOutNote(uc.leftOut, uc.formed)}`, { size: 8.5, color: MUTED });
   }
 
   // Tax and judgment liens
@@ -1834,7 +1850,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
         lr.filings.map((f) => [f.type, f.securedParty, f.status, f.filed || '-', f.amount || '-', f.fileNumber || '-']),
       );
     }
-    w.paragraph(`Source: official record sources for California tax and judgment liens. Searched for "${lr.searchedFor}" on ${fmtDate(lr.searchedAt)}. The same name can belong to an unrelated business, so confirm details with the filing office.${leftOutNote(lr.leftOut, lr.formed, 'lien')}`, { size: 8.5, color: MUTED });
+    w.paragraph(`Source: official record sources for California tax and judgment liens. Searched for "${lr.searchedFor}" on ${fmtDate(lr.searchedAt)}. The same name can belong to an unrelated business, so confirm details with the filing office.${otherNameNote(lr.otherName, 'lien')}${leftOutNote(lr.leftOut, lr.formed, 'lien')}`, { size: 8.5, color: MUTED });
   }
 
   // Sanctions
@@ -2444,7 +2460,7 @@ export async function runReport(
     const all = parseLiens(blName, bl[0], blAt);
     liens = { ...all, filings: all.filings.filter((f) => !isUccType(f.type)) };
     // UCC: add any filings the state business record search missed, or use these if it could not run.
-    const extraUcc: UccFiling[] = all.filings.filter((f) => isUccType(f.type)).map((f) => ({ fileNumber: f.fileNumber, type: 'UCC-1 Financing Statement', filed: f.filed, lapse: f.lapse, status: f.status, securedParty: f.securedParty, collateral: f.collateral }));
+    const extraUcc: UccFiling[] = all.filings.filter((f) => isUccType(f.type)).map((f) => ({ fileNumber: f.fileNumber, type: 'UCC-1 Financing Statement', filed: f.filed, lapse: f.lapse, status: f.status, securedParty: f.securedParty, collateral: f.collateral, debtors: f.debtors }));
     if (all.status === 'searched') {
       if (!ucc || (ucc as UccResult).status !== 'searched') ucc = { searchedAt: blAt, searchedFor: blName, status: 'searched', filings: extraUcc };
       else {
@@ -2469,11 +2485,18 @@ export async function runReport(
     const have = new Set(liens.filings.map((f) => normNum(f.fileNumber)));
     for (const f of u.filings.filter(isTax)) {
       if (have.has(normNum(f.fileNumber))) continue;
-      liens.filings.push({ fileNumber: f.fileNumber, type: /internal revenue|\birs\b|united states|u\.s\. treasury/i.test(f.securedParty) ? 'Federal tax lien' : 'State tax lien', filed: f.filed, lapse: f.lapse, status: f.status, securedParty: f.securedParty });
+      liens.filings.push({ fileNumber: f.fileNumber, type: /internal revenue|\birs\b|united states|u\.s\. treasury/i.test(f.securedParty) ? 'Federal tax lien' : 'State tax lien', filed: f.filed, lapse: f.lapse, status: f.status, securedParty: f.securedParty, debtors: f.debtors });
     }
     u.filings = u.filings.filter((f) => !isTax(f));
   }
-  // 2) Anything filed before the business was formed cannot be about this business.
+  // 2) When a filing lists its debtor, the debtor must be this exact business.
+  const official = bizKey(topName || name);
+  const sameDebtor = (d?: string[]) => !d || !d.length || d.some((x) => bizKey(x) === official);
+  if (official) {
+    if (ucc) { const u = ucc as UccResult; const n = u.filings.length; u.filings = u.filings.filter((f) => sameDebtor(f.debtors)); if (n - u.filings.length) u.otherName = n - u.filings.length; }
+    if (liens) { const n = liens.filings.length; liens.filings = liens.filings.filter((f) => sameDebtor(f.debtors)); if (n - liens.filings.length) liens.otherName = n - liens.filings.length; }
+  }
+  // 3) Anything filed before the business was formed cannot be about this business.
   const formedRaw = (entitySearch as ReportInput['entitySearch'])?.records[0]?.filingDate ?? '';
   const formedAt = looseDate(formedRaw);
   if (formedAt) {
