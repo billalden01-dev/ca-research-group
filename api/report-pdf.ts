@@ -76,13 +76,13 @@ export type PeopleResult = { searchedAt: Date; statementDate?: string; statement
 
 // UCC liens (financing statements) filed against the business
 export type UccFiling = { fileNumber: string; type: string; filed: string; lapse: string; status: string; securedParty: string; collateral?: string };
-export type UccResult = { searchedAt: Date; searchedFor: string; status: 'searched' | 'unavailable'; filings: UccFiling[] };
+export type UccResult = { searchedAt: Date; searchedFor: string; status: 'searched' | 'unavailable'; filings: UccFiling[]; leftOut?: number; formed?: string };
 
 // Tax and judgment liens, and civil lawsuits (state and federal courts)
 export type LienFiling = { fileNumber: string; type: string; filed: string; lapse: string; status: string; securedParty: string; amount?: string; collateral?: string };
-export type LienResult = { searchedAt: Date; searchedFor: string; status: 'searched' | 'unavailable'; filings: LienFiling[] };
+export type LienResult = { searchedAt: Date; searchedFor: string; status: 'searched' | 'unavailable'; filings: LienFiling[]; leftOut?: number; formed?: string };
 export type CivilCase = { title: string; court: string; state: string; caseType: string; status: string; filed: string; closed: string; docketNumber: string; open: boolean };
-export type CivilResult = { searchedAt: Date; searchedFor: string; status: 'searched' | 'unavailable'; cases: CivilCase[] };
+export type CivilResult = { searchedAt: Date; searchedFor: string; status: 'searched' | 'unavailable'; cases: CivilCase[]; leftOut?: number; formed?: string };
 
 export type Check = { label: string; result: 'Passed' | 'Flagged'; detail: string };
 export type Verification = { overall: 'Verified' | 'Needs attention'; checks: Check[] };
@@ -308,6 +308,16 @@ async function blWithRetry(run: () => Promise<Raw>): Promise<Raw | null> {
   await sleep(2000);
   return (await run().catch(() => null)) ?? first;
 }
+
+const TAX_AGENCY = /employment development|franchise tax|internal revenue|\birs\b|board of equalization|department of tax and fee|cdtfa|u\.s\. treasury|department of the treasury/i;
+function looseDate(s: string): number | null {
+  const v = (s || '').trim();
+  if (!v) return null;
+  const m = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  const t = m ? Date.UTC(+m[3], +m[1] - 1, +m[2]) : Date.parse(v.length === 10 ? `${v}T00:00:00Z` : v);
+  return Number.isFinite(t) ? t : null;
+}
+const leftOutNote = (n?: number, formed?: string, what = 'filing') => (n && formed ? ` ${n} ${what}${n === 1 ? '' : 's'} under this name dated before this business was formed (${formed}) ${n === 1 ? 'was' : 'were'} left out, because ${n === 1 ? 'it belongs' : 'they belong'} to a different business with the same or a similar name.` : '');
 
 const blOk = (r: Raw) => Number(r.httpStatus) >= 200 && Number(r.httpStatus) < 300 && str(r.state).toUpperCase() === 'COMPLETED';
 const normNum = (x: string) => x.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -1806,7 +1816,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
         uc.filings.map((f) => [`${f.securedParty}${f.collateral ? `\nCollateral: ${f.collateral}` : ''}`, f.status, f.filed || '-', f.lapse || '-', f.fileNumber || '-']),
       );
     }
-    w.paragraph(`Source: official California state business records (Secretary of State UCC filings). Searched for debtor name "${uc.searchedFor}" on ${fmtDate(uc.searchedAt)}.`, { size: 8.5, color: MUTED });
+    w.paragraph(`Source: official California state business records (Secretary of State UCC filings). Searched for debtor name "${uc.searchedFor}" on ${fmtDate(uc.searchedAt)}.${leftOutNote(uc.leftOut, uc.formed)}`, { size: 8.5, color: MUTED });
   }
 
   // Tax and judgment liens
@@ -1824,7 +1834,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
         lr.filings.map((f) => [f.type, f.securedParty, f.status, f.filed || '-', f.amount || '-', f.fileNumber || '-']),
       );
     }
-    w.paragraph(`Source: official record sources for California tax and judgment liens. Searched for "${lr.searchedFor}" on ${fmtDate(lr.searchedAt)}. The same name can belong to an unrelated business, so confirm details with the filing office.`, { size: 8.5, color: MUTED });
+    w.paragraph(`Source: official record sources for California tax and judgment liens. Searched for "${lr.searchedFor}" on ${fmtDate(lr.searchedAt)}. The same name can belong to an unrelated business, so confirm details with the filing office.${leftOutNote(lr.leftOut, lr.formed, 'lien')}`, { size: 8.5, color: MUTED });
   }
 
   // Sanctions
@@ -1905,7 +1915,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
         shown.map((c) => [`${c.title}${c.caseType ? `\n${c.caseType}` : ''}`, c.court, c.status, c.filed || '-', c.docketNumber || '-']),
       );
     }
-    w.paragraph(`Source: official state and federal court records. Searched for "${cv.searchedFor}" on ${fmtDate(cv.searchedAt)}. The same name can belong to an unrelated business. Court records can be incomplete or delayed, so confirm with the court before relying on them.`, { size: 8.5, color: MUTED });
+    w.paragraph(`Source: official state and federal court records. Searched for "${cv.searchedFor}" on ${fmtDate(cv.searchedAt)}. The same name can belong to an unrelated business. Court records can be incomplete or delayed, so confirm with the court before relying on them.${leftOutNote(cv.leftOut, cv.formed, 'case')}`, { size: 8.5, color: MUTED });
   }
 
   // Property environmental check
@@ -2449,6 +2459,29 @@ export async function runReport(
       const fed = new Set([...courts.bankruptcyCases, ...courts.otherCases].map((c) => normNum(c.docketNumber)));
       civil.cases = civil.cases.filter((c) => !fed.has(normNum(c.docketNumber)));
     }
+  }
+
+  // Accuracy: name searches can return records for a different, similarly named business.
+  // 1) Government tax liens filed as UCC records belong in the tax lien section.
+  if (ucc && liens) {
+    const u = ucc as UccResult;
+    const isTax = (f: UccFiling) => TAX_AGENCY.test(f.securedParty);
+    const have = new Set(liens.filings.map((f) => normNum(f.fileNumber)));
+    for (const f of u.filings.filter(isTax)) {
+      if (have.has(normNum(f.fileNumber))) continue;
+      liens.filings.push({ fileNumber: f.fileNumber, type: /internal revenue|\birs\b|united states|u\.s\. treasury/i.test(f.securedParty) ? 'Federal tax lien' : 'State tax lien', filed: f.filed, lapse: f.lapse, status: f.status, securedParty: f.securedParty });
+    }
+    u.filings = u.filings.filter((f) => !isTax(f));
+  }
+  // 2) Anything filed before the business was formed cannot be about this business.
+  const formedRaw = (entitySearch as ReportInput['entitySearch'])?.records[0]?.filingDate ?? '';
+  const formedAt = looseDate(formedRaw);
+  if (formedAt) {
+    const formedText = new Date(formedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+    const before = (d: string) => { const t = looseDate(d); return t !== null && t < formedAt - 86400000; };
+    if (ucc) { const u = ucc as UccResult; const n = u.filings.length; u.filings = u.filings.filter((f) => !before(f.filed)); if (n - u.filings.length) { u.leftOut = n - u.filings.length; u.formed = formedText; } }
+    if (liens) { const n = liens.filings.length; liens.filings = liens.filings.filter((f) => !before(f.filed)); if (n - liens.filings.length) { liens.leftOut = n - liens.filings.length; liens.formed = formedText; } }
+    if (civil) { const n = civil.cases.length; civil.cases = civil.cases.filter((c) => !before(c.filed)); if (n - civil.cases.length) { civil.leftOut = n - civil.cases.length; civil.formed = formedText; } }
   }
 
   return {
