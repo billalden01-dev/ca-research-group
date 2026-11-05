@@ -20,6 +20,10 @@
   .spinner { width: 28px; height: 28px; border: 3px solid #e2e8f0; border-top-color: #d6b968; border-radius: 50%; margin: 10px auto 16px; animation: spin 0.9s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .hidden { display: none; }
+  .steps { text-align: left; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 18px; margin: 4px 0 16px; }
+  .steps b { color: #1e1b4b; }
+  .steps ol { margin: 6px 0 0; padding-left: 20px; color: #334155; line-height: 1.6; font-size: 15px; }
+  .home { display: inline-block; margin-top: 14px; color: #1e1b4b; font-weight: bold; text-decoration: none; font-size: 14px; }
 </style>
 </head>
 <body>
@@ -35,16 +39,26 @@
   <div id="ready" class="hidden">
     <h1>Welcome aboard</h1>
     <p id="who"></p>
-    <p>This is your company's private report link. No login is needed. Bookmark it and keep it private.</p>
+    <div class="steps">
+      <b>What happens next</b>
+      <ol>
+        <li>Click <b>Run your first report now</b> below.</li>
+        <li>Check the business name and click <b>Run report</b>.</li>
+        <li>Your PDF report opens in about a minute, and a copy is emailed to you.</li>
+      </ol>
+    </div>
+    <a class="btn primary" id="first" href="#">Run your first report now &rarr;</a>
+    <p style="margin-top:18px">Your private report link is below. No login is needed. Bookmark it or save the email, and keep it private.</p>
     <div class="link" id="link"></div>
     <button class="btn secondary" id="copy" type="button">Copy link</button>
-    <a class="btn primary" id="first" href="#">Run your first report now &rarr;</a>
     <p class="small" id="emailed"></p>
+    <a class="home" href="/">&larr; Back to CA Research Group</a>
   </div>
 
   <div id="slow" class="hidden">
     <h1>Payment received</h1>
     <p>Your account is still being set up. Your private report link will arrive by email within a few minutes.</p>
+    <a class="home" href="/">&larr; Back to CA Research Group</a>
     <p class="small">Didn't get it? Email <a href="mailto:william@caresearchgroup.com">william@caresearchgroup.com</a> and we'll send it right away.</p>
   </div>
 </div></div>
@@ -60,7 +74,8 @@
         .then(function (r) { return r.json(); })
         .then(function (d) {
           if (d.ready) {
-            $('who').textContent = d.company ? 'Your subscription for ' + d.company + ' is active.' : 'Your subscription is active.';
+            var what = d.single ? 'Your report' : 'Your subscription';
+            $('who').textContent = d.company ? what + ' for ' + d.company + ' is ready.' : what + ' is ready.';
             $('link').textContent = d.link;
             var q = new URLSearchParams({ c: d.code });
             ['address', 'name', 'county', 'use'].forEach(function (k) { if (d.first && d.first[k]) q.set(k, d.first[k]); });

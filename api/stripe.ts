@@ -263,7 +263,7 @@ export async function handleCheckoutCompleted(session: StripeObj): Promise<strin
           'Subscription Status': 'Active',
           'Link Code': code,
           'Stripe Customer ID': customerId,
-          'Signed Up': new Date().toISOString().slice(0, 10),
+          'Signed Up': new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()),
           'Referred By': clip(meta.referredBy, 100) || undefined,
           'Agreed At': meta.agreedAt || undefined,
           'Agreement Record': meta.agreedAt
@@ -397,6 +397,7 @@ export async function GET(request: Request) {
       ready: true,
       company: str(rec.fields['Company']),
       email: str(rec.fields['Contact Email']),
+      single: Boolean(PLANS[str(meta.plan)]?.oneTime),
       link: privateLink(code),
       code,
       first: { address: meta.address ?? '', name: meta.entity ?? '', county: meta.county ?? '', use: meta.use ?? '' },
