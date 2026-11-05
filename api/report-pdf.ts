@@ -318,7 +318,7 @@ function debtorNames(f: Raw): string[] {
   return out;
 }
 // Compare business names: same words, with LLC/Inc/Corp written the same way.
-const bizKey = (n: string) => ` ${n.toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9 ]+/g, ' ')} `
+const bizKey = (n: string) => ` ${n.toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9 ]+/g, ' ').replace(/\b([a-z0-9]) (?=[a-z0-9]\b)/g, '$1')} `
   .replace(/ l l c | limited liability company /g, ' llc ').replace(/ incorporated /g, ' inc ').replace(/ corporation /g, ' corp ')
   .replace(/ the /g, ' ').replace(/\s+/g, ' ').trim();
 
