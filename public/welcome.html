@@ -74,8 +74,8 @@
         .then(function (r) { return r.json(); })
         .then(function (d) {
           if (d.ready) {
-            var what = d.single ? 'Your report' : 'Your subscription';
-            $('who').textContent = d.company ? what + ' for ' + d.company + ' is ready.' : what + ' is ready.';
+            var co = d.company ? ' for ' + d.company : '';
+            $('who').textContent = d.single ? 'Your report' + co + ' is paid and ready to run.' : 'Your subscription' + co + ' is active.';
             $('link').textContent = d.link;
             var q = new URLSearchParams({ c: d.code });
             ['address', 'name', 'county', 'use'].forEach(function (k) { if (d.first && d.first[k]) q.set(k, d.first[k]); });
