@@ -2248,8 +2248,9 @@ async function emailPilotLink(to: string, name: string, code: string): Promise<b
   const html = `<div style="font-family:Arial,sans-serif;color:#1e293b;max-width:560px;line-height:1.6">
 <p style="font-size:20px;color:#1e1b4b;font-weight:bold;margin:0 0 12px">Welcome to your CA Research Group free trial</p>
 <p>Hi ${escapeHtml(name.split(' ')[0] || 'there')}, thanks for joining. You have <strong>${TRIAL_REPORTS} free reports</strong> to use through <strong>${escapeHtml(friendlyDate(trialEnd()))}</strong>. No credit card needed.</p>
+<p style="background:#fef9e7;border:1px solid #e9d8a6;border-radius:8px;padding:12px 14px"><strong>One quick step on my end:</strong> I'm finishing the setup on your account now. Within a few hours you'll get a short email from me saying your link is fully ready, with liens and lawsuits included. Please wait for that note before running your first report, so you get the complete report.</p>
 <p><a href="${link}" style="display:inline-block;background:#1e1b4b;color:#ffffff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Request a Report &rarr;</a></p>
-<p>Use this button anytime you need a report. Enter the business name, and your PDF report opens right away and is emailed to you. Save this email so you can always find your link.</p>
+<p>Once your link is ready, use this button anytime you need a report. Enter the business name, and your PDF report opens right away and is emailed to you. Save this email so you can always find your link.</p>
 <p>This link is just for you, so please don't share it. We'd love your feedback: just reply to this email.</p>
 <p style="font-size:12px;color:#64748b">CA Research Group is not a law firm and does not provide legal advice. See our <a href="https://www.caresearchgroup.com/terms.html">Terms of Service</a> and <a href="https://www.caresearchgroup.com/privacy.html">Privacy Policy</a>.</p>
 </div>`;
@@ -2262,7 +2263,7 @@ async function emailPilotLink(to: string, name: string, code: string): Promise<b
         to: [to],
         bcc: notify ? [notify] : undefined,
         reply_to: 'william@caresearchgroup.com',
-        subject: 'Your CA Research Group pilot link (5 free reports)',
+        subject: `Your CA Research Group free trial (${TRIAL_REPORTS} free reports)`,
         html,
       }),
       signal: timeout(20000),
@@ -2726,7 +2727,8 @@ export async function POST(request: Request) {
 <body><div class="c"><div class="k"><img src="/logo-tight.png" alt="CA Research Group"><h1>You're in!</h1>
 <p>You have <strong>${existing ? 'your free reports' : `${TRIAL_REPORTS} free reports`}</strong>${existing ? '' : ` through <strong>${escapeHtml(friendlyDate(trialEnd()))}</strong>`}.</p>
 <p>${sent ? `We emailed your private link to <strong>${escapeHtml(email)}</strong>. Save that email so you can always find it.` : 'Bookmark the button below so you can always find your link.'}</p>
-<a class="b" href="${link}">Request your first report &rarr;</a></div></div></body></html>`,
+${existing ? '' : '<p><strong>One quick step on our end:</strong> we\'re finishing the setup on your account. Within a few hours you\'ll get a short email from Bill saying your link is fully ready, with liens and lawsuits included. Please wait for that note before running your first report.</p>'}
+<a class="b" href="${link}">Go to my report page &rarr;</a></div></div></body></html>`,
         { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } },
       );
     } catch {
