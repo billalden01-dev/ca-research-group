@@ -2248,6 +2248,7 @@ async function emailPilotLink(to: string, name: string, code: string): Promise<b
   const html = `<div style="font-family:Arial,sans-serif;color:#1e293b;max-width:560px;line-height:1.6">
 <p style="font-size:20px;color:#1e1b4b;font-weight:bold;margin:0 0 12px">Welcome to your CA Research Group free trial</p>
 <p>Hi ${escapeHtml(name.split(' ')[0] || 'there')}, thanks for joining. You have <strong>${TRIAL_REPORTS} free reports</strong> to use through <strong>${escapeHtml(friendlyDate(trialEnd()))}</strong>. No credit card needed.</p>
+<p style="background:#fef9e7;border:1px solid #e9d8a6;border-radius:8px;padding:12px 14px"><strong>Tip for your first report:</strong> if you have a property address, enter it too. Your report will then also include environmental and historic checks on the site.</p>
 <p><a href="${link}" style="display:inline-block;background:#1e1b4b;color:#ffffff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Request a Report &rarr;</a></p>
 <p>Use this button anytime you need a report. Enter the business name, and your PDF report opens right away and is emailed to you. Save this email so you can always find your link.</p>
 <p>This link is just for you, so please don't share it. We'd love your feedback: just reply to this email.</p>
