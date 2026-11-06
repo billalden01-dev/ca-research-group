@@ -2262,7 +2262,7 @@ async function emailPilotLink(to: string, name: string, code: string): Promise<b
         to: [to],
         bcc: notify ? [notify] : undefined,
         reply_to: 'william@caresearchgroup.com',
-        subject: 'Your CA Research Group pilot link (5 free reports)',
+        subject: `Your CA Research Group free trial (${TRIAL_REPORTS} free reports)`,
         html,
       }),
       signal: timeout(20000),
