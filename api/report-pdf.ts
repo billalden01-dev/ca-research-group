@@ -945,7 +945,7 @@ export function fromCobalt(name: string, raw: Raw, searchedAt: Date, soiParsed?:
         statementUrl: soi && /^https:\/\/bizfileonline\.sos\.ca\.gov\//.test(str(soi.url)) ? soiLink(str(soi.url)) : undefined,
         officers,
         note: soiUnreadable && !officers.length
-          ? `The owners and managers are listed on the business's Statement of Information${soi && str(soi.date) ? ` filed ${str(soi.date)}` : ''}. Download it from the California Secretary of State using the link below.`
+          ? `We couldn't read the names from this filing automatically, so click the link below to see them on the official state document${soi && str(soi.date) ? ` (filed ${str(soi.date)})` : ''}.`
           : undefined,
       }
     : null;
@@ -1587,10 +1587,10 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
   if (input.people?.statementUrl && !input.people.officers.length) {
     w.linkBox(
       'Owners and managers',
-      `Listed on the business's official Statement of Information${input.people.statementDate ? ` filed ${input.people.statementDate}` : ''}.`,
-      'Download the official Statement of Information (lists the managers)',
+      `We couldn't read the names from this filing automatically, so click the link below to see them on the official state document${input.people.statementDate ? ` (filed ${input.people.statementDate})` : ''}.`,
+      'Click here to download the official state document, which lists the owners and managers',
       input.people.statementUrl,
-      'Printed copy? Open the digital report or your report email and click the link to download it.',
+      'Reading a printed copy? Open this report on your computer or phone, or use the link in your report email, then click the link above.',
     );
   }
 
@@ -1808,8 +1808,10 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
     }
     if (pp.note) w.paragraph(pp.note, { gap: 4 });
     if (pp.statementUrl) {
-      w.link('Download the official Statement of Information (lists the managers)', pp.statementUrl);
-      w.paragraph('Printed copy? Open the digital report or your report email and click the link to download it.', { size: 8.5, color: MUTED });
+      w.link(pp.officers.length
+        ? 'Want the official copy? Click here to download the state document these names came from.'
+        : 'Click here to download the official state document, which lists the owners and managers', pp.statementUrl);
+      w.paragraph('Reading a printed copy? Open this report on your computer or phone, or use the link in your report email, then click the link above.', { size: 8.5, color: MUTED });
     }
     w.paragraph(
       `Source: the business's Statement of Information${pp.statementDate ? ` filed ${pp.statementDate}` : ''}, from official California state business records. Checked on ${fmtDate(pp.searchedAt)}. A business can change its owners or managers before filing a new statement.`,
