@@ -322,7 +322,7 @@ export async function createProviderClient(name: string, extId: string, key: str
   const res = await fetch(`${BL_BASE}/organizations`, {
     method: 'POST',
     headers: { 'X-API-Key': key, 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ name: name.slice(0, 120) || extId, type: process.env.BASELAYER_ORG_TYPE || 'OTHER', external_id: extId, ...(email ? { contact: { name: name.slice(0, 120), email } } : {}) }),
+    body: JSON.stringify({ name: name.slice(0, 120) || extId, type: process.env.BASELAYER_ORG_TYPE || 'other', external_id: extId, ...(email ? { contact: { name: name.slice(0, 120), email } } : {}) }),
     signal: timeout(20000),
   });
   const text = await res.text();
