@@ -2278,6 +2278,23 @@ async function findPilotByEmail(email: string): Promise<{ id: string; code: stri
   return r ? { id: r.id, code: str(r.fields['Link Code']) } : null;
 }
 
+// Limits on the open free-trial page (/try), so nobody can run up costs with many trial sign-ups.
+const TRIALS_PER_DAY = () => Number(process.env.TRIALS_PER_DAY || 5);
+const WEBMAIL = /@(gmail|googlemail|yahoo|ymail|hotmail|outlook|live|msn|aol|icloud|me|mac|comcast|att|sbcglobal|verizon|protonmail|proton)\./i;
+async function trialLimitProblem(email: string): Promise<string> {
+  const plan = `{Plan}='${TRIAL_PLAN}'`;
+  const today = await airtable(`${CUSTOMERS_TABLE}?maxRecords=50&fields%5B%5D=Company&filterByFormula=${encodeURIComponent(`AND(${plan}, DATETIME_FORMAT({Signed Up}, 'YYYY-MM-DD')='${pacificToday()}')`)}`);
+  if ((today.records?.length ?? 0) >= TRIALS_PER_DAY()) return `Daily limit of ${TRIALS_PER_DAY()} new free trials reached.`;
+  if (!WEBMAIL.test(email)) {
+    const domain = email.slice(email.lastIndexOf('@')).toLowerCase();
+    if (/^@[a-z0-9.-]+$/.test(domain)) {
+      const same = await airtable(`${CUSTOMERS_TABLE}?maxRecords=1&fields%5B%5D=Company&filterByFormula=${encodeURIComponent(`AND(${plan}, RIGHT(LOWER({Contact Email}), ${domain.length})='${domain}')`)}`);
+      if (same.records?.length) return `Someone from ${domain} already has a free trial (${str(same.records[0].fields['Company'])}).`;
+    }
+  }
+  return '';
+}
+
 async function createPilot(p: { name: string; company: string; email: string; role: string; ip: string }): Promise<string> {
   const code = newLinkCode();
   const agreedAt = new Date().toISOString();
@@ -2849,6 +2866,13 @@ export async function POST(request: Request) {
     if (g('agreeTerms') !== 'yes' || g('agreeAccuracy') !== 'yes') return htmlPage('Please check both boxes', 'Please go back and check both agreement boxes to start your free trial.', 400);
     try {
       const existing = await findPilotByEmail(email);
+      if (openTrial && !existing) {
+        const limit = await trialLimitProblem(email).catch(() => '');
+        if (limit) {
+          await alertBill(`Free trial request needs your OK: ${company}`, `${name}\n${company}\n${email}\nRole: ${g('role') || 'not given'}\n\nNot started automatically: ${limit}\nTo approve, tell Claude "set up a trial for ${email}", or reply to them yourself.`).catch(() => undefined);
+          return htmlPage('Thank you!', "We received your request. We'll email your free trial link shortly.", 200);
+        }
+      }
       const code = existing?.code || (await createPilot({ name, company, email, role: g('role'), ip: (request.headers.get('x-forwarded-for') || '').split(',')[0].trim() }));
       if (!existing) await alertBill(`New free trial: ${company}`, `${name}\n${company}\n${email}\nRole: ${g('role') || 'not given'}\nSigned up at ${openTrial ? 'caresearchgroup.com/try' : 'the pilot page'}. Their private link was emailed to them.`).catch(() => undefined);
       const sent = await emailPilotLink(email, name, code);
