@@ -1,5 +1,8 @@
 {
   "functions": {
     "api/report-pdf.ts": { "maxDuration": 180 }
-  }
+  },
+  "rewrites": [
+    { "source": "/try", "destination": "/try.html" }
+  ]
 }

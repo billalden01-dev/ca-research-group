@@ -2842,12 +2842,15 @@ export async function POST(request: Request) {
     const name = g('name').slice(0, 100);
     const company = g('company').slice(0, 150);
     const email = g('email').toLowerCase().slice(0, 200);
-    if (g('code').toUpperCase() !== pilotCode()) return htmlPage('Pilot code not recognized', 'Please use the link from your invitation email, or contact william@caresearchgroup.com.', 403);
+    // /try.html is open to anyone (one free trial per email); pilot.html still needs the invitation code.
+    const openTrial = g('open') === '1';
+    if (!openTrial && g('code').toUpperCase() !== pilotCode()) return htmlPage('Pilot code not recognized', 'Please use the link from your invitation email, or contact william@caresearchgroup.com.', 403);
     if (!name || !company || !EMAIL_OK.test(email)) return htmlPage('A few details are missing', 'Please go back and enter your name, company, and a valid work email.', 400);
-    if (g('agreeTerms') !== 'yes' || g('agreeAccuracy') !== 'yes') return htmlPage('Please check both boxes', 'Please go back and check both agreement boxes to join the pilot.', 400);
+    if (g('agreeTerms') !== 'yes' || g('agreeAccuracy') !== 'yes') return htmlPage('Please check both boxes', 'Please go back and check both agreement boxes to start your free trial.', 400);
     try {
       const existing = await findPilotByEmail(email);
       const code = existing?.code || (await createPilot({ name, company, email, role: g('role'), ip: (request.headers.get('x-forwarded-for') || '').split(',')[0].trim() }));
+      if (!existing) await alertBill(`New free trial: ${company}`, `${name}\n${company}\n${email}\nRole: ${g('role') || 'not given'}\nSigned up at ${openTrial ? 'caresearchgroup.com/try' : 'the pilot page'}. Their private link was emailed to them.`).catch(() => undefined);
       const sent = await emailPilotLink(email, name, code);
       const link = `https://www.caresearchgroup.com/report.html?c=${code}`;
       return new Response(
@@ -2860,7 +2863,7 @@ export async function POST(request: Request) {
         { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } },
       );
     } catch {
-      return htmlPage('Temporarily unavailable', 'We could not set up your pilot link just now. Please try again in a few minutes, or email william@caresearchgroup.com.', 503);
+      return htmlPage('Temporarily unavailable', 'We could not set up your trial link just now. Please try again in a few minutes, or email william@caresearchgroup.com.', 503);
     }
   }
 
