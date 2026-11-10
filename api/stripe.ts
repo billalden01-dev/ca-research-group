@@ -148,6 +148,35 @@ const ALERT_TO = () => process.env.ALERT_EMAIL || 'william@caresearchgroup.com';
 const recordUrl = (id: string) => `https://airtable.com/${AIRTABLE_BASE}/${CUSTOMERS_TABLE}/${id}`;
 const releaseLink = (id: string) => `${SITE}/api/stripe?release=${id}`;
 
+// Opens the client's own account on the data provider's side with our account key (see api/report-pdf.ts).
+const federationKey = () => (process.env.BASELAYER_FEDERATION_KEY || '').trim() || undefined;
+const providerIdFor = (airtableId: string) => `carg-${airtableId}`;
+async function createProviderClient(name: string, extId: string, key: string, email?: string): Promise<{ ok: boolean; status: number; detail: string }> {
+  const res = await fetch('https://api.baselayer.com/organizations', {
+    method: 'POST',
+    headers: { 'X-API-Key': key, 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ name: name.slice(0, 120) || extId, type: process.env.BASELAYER_ORG_TYPE || 'BUSINESS', external_id: extId, ...(email ? { contact: { name: name.slice(0, 120), email } } : {}) }),
+    signal: timeout(20000),
+  });
+  const text = await res.text();
+  return { ok: res.ok || res.status === 409 || /already exists/i.test(text), status: res.status, detail: text.slice(0, 300) };
+}
+
+// Sets up the client's provider account automatically. Returns true when it worked.
+async function autoSetup(recId: string, company: string, email: string): Promise<{ ok: boolean; note: string }> {
+  const fed = federationKey();
+  if (!fed) return { ok: false, note: '' };
+  try {
+    const extId = providerIdFor(recId);
+    const r = await createProviderClient(company, extId, fed, email || undefined);
+    if (!r.ok) return { ok: false, note: `Automatic setup failed (HTTP ${r.status}): ${r.detail.slice(0, 200)}` };
+    await airtable(CUSTOMERS_TABLE, { method: 'PATCH', body: JSON.stringify({ typecast: true, records: [{ id: recId, fields: { 'Provider Client ID': extId } }] }) });
+    return { ok: true, note: `Provider client ${extId} set up automatically.` };
+  } catch (e) {
+    return { ok: false, note: `Automatic setup failed: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
 async function getRecord(id: string): Promise<AirtableRecord | null> {
   if (!/^rec[A-Za-z0-9]{14}$/.test(id)) return null;
   const token = process.env.AIRTABLE_TOKEN;
@@ -247,11 +276,12 @@ async function sendSetupEmail(to: string, company: string, plan: string, oneTime
 }
 
 // Alert to Bill: a new client paid and needs a Data Key.
-async function sendNewClientAlert(recId: string, f: { name: string; company: string; email: string; plan: string }) {
+async function sendNewClientAlert(recId: string, f: { name: string; company: string; email: string; plan: string }, autoNote = '') {
   const row = (k: string, v: string) => `<tr><td style="padding:4px 12px 4px 0;color:#64748b">${k}</td><td style="padding:4px 0"><b>${escapeHtml(v || '-')}</b></td></tr>`;
   const html = `<div style="font-family:-apple-system,Segoe UI,sans-serif;color:#1e293b;line-height:1.6;max-width:560px">
 <h2 style="font-family:Georgia,serif;color:#1e1b4b">New paying client: add their Data Key</h2>
 <table>${row('Name', f.name)}${row('Company', f.company)}${row('Email', f.email)}${row('Plan', f.plan)}</table>
+${autoNote ? `<p style="color:#b91c1c">${escapeHtml(autoNote)}</p><p>Clicking the link at the bottom tries the automatic setup again and sends their link if it works. Otherwise, do these steps:</p>` : ''}
 <ol>
 <li>Create their data key in the provider console.</li>
 <li>Paste it into the <b>Data Key</b> field of <a href="${recordUrl(recId)}">their Airtable record</a>.</li>
@@ -260,6 +290,17 @@ async function sendNewClientAlert(recId: string, f: { name: string; company: str
 <p style="font-size:13px;color:#64748b">If the link hasn't gone out a few minutes after you paste the key, <a href="${releaseLink(recId)}">click here to send it</a>. (It only sends once, and only after the key is in Airtable.)</p>
 </div>`;
   await sendEmail(ALERT_TO(), `New client: ${f.company || f.email} (${f.plan}) needs a Data Key`, html);
+}
+
+// FYI to Bill when everything was automatic.
+async function sendNewClientFyi(f: { name: string; company: string; email: string; plan: string }) {
+  const row = (k: string, v: string) => `<tr><td style="padding:4px 12px 4px 0;color:#64748b">${k}</td><td style="padding:4px 0"><b>${escapeHtml(v || '-')}</b></td></tr>`;
+  const html = `<div style="font-family:-apple-system,Segoe UI,sans-serif;color:#1e293b;line-height:1.6;max-width:560px">
+<h2 style="font-family:Georgia,serif;color:#1e1b4b">New paying client (all set, nothing to do)</h2>
+<table>${row('Name', f.name)}${row('Company', f.company)}${row('Email', f.email)}${row('Plan', f.plan)}</table>
+<p>Their account was set up automatically and their private link has been emailed to them.</p>
+</div>`;
+  await sendEmail(ALERT_TO(), `New client: ${f.company || f.email} (${f.plan}), all set`, html);
 }
 
 async function sendWelcomeEmail(to: string, company: string, plan: string, code: string, oneTime = false) {
@@ -339,8 +380,25 @@ export async function handleCheckoutCompleted(session: StripeObj): Promise<strin
     }),
   });
   const recId = created.records?.[0]?.id ?? '';
-  // The private link waits for the client's Data Key (see ?release=). Tell the client, alert Bill.
-  const problems: string[] = [];
+  const who = { name: clip(details.name), company: clip(meta.company), email, plan: plan?.label ?? '' };
+  // Best case: open the client's provider account automatically and send their private link right away.
+  const auto = await autoSetup(recId, clip(meta.company) || clip(details.name) || email, email);
+  if (auto.ok) {
+    const done: string[] = [auto.note];
+    try {
+      await airtable(CUSTOMERS_TABLE, { method: 'PATCH', body: JSON.stringify({ typecast: true, records: [{ id: recId, fields: { 'Setup Status': SETUP_SENT } }] }) });
+      if (email) await sendWelcomeEmail(email, clip(meta.company), plan?.label ?? 'your plan', code, isOneTime);
+    } catch (err) {
+      console.error('Welcome email failed', err);
+      done.push(`Welcome email NOT sent: ${err instanceof Error ? err.message : 'error'}`);
+      await airtable(CUSTOMERS_TABLE, { method: 'PATCH', body: JSON.stringify({ typecast: true, records: [{ id: recId, fields: { 'Setup Status': SETUP_WAITING } }] }) }).catch(() => undefined);
+    }
+    await sendNewClientFyi(who).catch(() => undefined);
+    await airtable(CUSTOMERS_TABLE, { method: 'PATCH', body: JSON.stringify({ records: [{ id: recId, fields: { Notes: [...notes, ...done].join('\n') } }] }) }).catch(() => undefined);
+    return `added and link sent: ${recId}`;
+  }
+  // Otherwise the private link waits for setup (see ?release=). Tell the client, alert Bill.
+  const problems: string[] = auto.note ? [auto.note] : [];
   try {
     if (email) await sendSetupEmail(email, clip(meta.company), plan?.label ?? 'your plan', isOneTime);
   } catch (err) {
@@ -348,7 +406,7 @@ export async function handleCheckoutCompleted(session: StripeObj): Promise<strin
     problems.push(`Thank-you email NOT sent: ${err instanceof Error ? err.message : 'error'}`);
   }
   try {
-    await sendNewClientAlert(recId, { name: clip(details.name), company: clip(meta.company), email, plan: plan?.label ?? '' });
+    await sendNewClientAlert(recId, who, auto.note);
   } catch (err) {
     console.error('New client alert failed', err);
     problems.push(`Alert to Bill NOT sent: ${err instanceof Error ? err.message : 'error'}`);
@@ -458,7 +516,10 @@ export async function releaseLinkFor(recId: string): Promise<{ status: string; m
   const company = str(f['Company']);
   if (setup === SETUP_SENT) return { status: 'already_sent', message: `The private link was already sent to ${company || 'this client'}.` };
   if (setup !== SETUP_WAITING) return { status: 'not_waiting', message: 'This client is not waiting for a link (nothing was sent).' };
-  if (!str(f['Data Key']).trim()) return { status: 'no_key', message: 'No Data Key yet. Paste it into the Data Key field in Airtable, then try again.' };
+  if (!str(f['Data Key']).trim() && !str(f['Provider Client ID'])) {
+    const auto = await autoSetup(recId, str(f['Company']) || str(f['Contact Email']), str(f['Contact Email']));
+    if (!auto.ok) return { status: 'no_key', message: auto.note || 'No Data Key yet. Paste it into the Data Key field in Airtable, then try again.' };
+  }
   const email = str(f['Contact Email']);
   const code = str(f['Link Code']);
   if (!email || !code) return { status: 'missing', message: 'This record has no email or link code. Please check it in Airtable.' };

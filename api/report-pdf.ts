@@ -295,10 +295,10 @@ async function blRead(res: Response): Promise<Raw> {
 
 // Starts a search and waits up to 25 seconds for it. A search that takes longer comes back as 202 (still processing)
 // with a Location header; blWithRetry then checks that link until the search finishes, instead of paying for a new one.
-async function blPost(path: string, body: Record<string, unknown>, key: string): Promise<Raw> {
+async function blPost(path: string, body: Record<string, unknown>, key: string, extId?: string): Promise<Raw> {
   const res = await fetch(`${BL_BASE}${path}`, {
     method: 'POST',
-    headers: { 'X-API-Key': key, 'Content-Type': 'application/json', Accept: 'application/json', Prefer: 'wait=25' },
+    headers: { 'X-API-Key': key, ...(extId ? { 'X-External-ID': extId } : {}), 'Content-Type': 'application/json', Accept: 'application/json', Prefer: 'wait=25' },
     body: JSON.stringify(body),
     signal: timeout(45000),
   });
@@ -309,14 +309,33 @@ async function blPost(path: string, body: Record<string, unknown>, key: string):
   return { ...data, _pollUrl: pollUrl };
 }
 
-export const blLienSearch = (name: string, key: string) => blPost('/lien_searches/adhoc', { name, search_states: ['CA'] }, key);
-export const blDocketSearch = (name: string, key: string) => blPost('/docket_searches/adhoc', { name, options: ['Order.Litigations'] }, key);
+export const blLienSearch = (name: string, key: string, extId?: string) => blPost('/lien_searches/adhoc', { name, search_states: ['CA'] }, key, extId);
+export const blDocketSearch = (name: string, key: string, extId?: string) => blPost('/docket_searches/adhoc', { name, options: ['Order.Litigations'] }, key, extId);
+
+// ---------- One provider account per client, made automatically ----------
+// Our account key (BASELAYER_FEDERATION_KEY in Vercel; Bill pastes it) can open a client account on the provider's side
+// (POST /organizations with our own external_id) and run that client's searches with the header X-External-ID.
+// No hand-made key per client is needed.
+export const federationKey = () => (process.env.BASELAYER_FEDERATION_KEY || '').trim() || undefined;
+export const providerIdFor = (airtableId: string) => `carg-${airtableId}`;
+export async function createProviderClient(name: string, extId: string, key: string, email?: string): Promise<{ ok: boolean; status: number; detail: string }> {
+  const res = await fetch(`${BL_BASE}/organizations`, {
+    method: 'POST',
+    headers: { 'X-API-Key': key, 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ name: name.slice(0, 120) || extId, type: process.env.BASELAYER_ORG_TYPE || 'BUSINESS', external_id: extId, ...(email ? { contact: { name: name.slice(0, 120), email } } : {}) }),
+    signal: timeout(20000),
+  });
+  const text = await res.text();
+  // Already set up (e.g. a retry) counts as success.
+  const ok = res.ok || res.status === 409 || /already exists/i.test(text);
+  return { ok, status: res.status, detail: text.slice(0, 400) };
+}
 
 const blPending = (r: Raw) => Number(r.httpStatus) === 202 || /^(PENDING|EXECUTING)$/i.test(str(r.state));
 
 // One search, start to finish. Network errors and provider errors (5xx) get one more try; bad requests (4xx) do not,
 // since a second try would fail the same way. A search still processing is checked again every 4 seconds until done.
-async function blWithRetry(run: () => Promise<Raw>, key: string, deadline: number): Promise<Raw> {
+async function blWithRetry(run: () => Promise<Raw>, key: string, deadline: number, extId?: string): Promise<Raw> {
   const attempt = () => run().catch((e) => ({ httpStatus: 0, error: e instanceof Error ? `${e.name}: ${e.message}` : String(e) }) as Raw);
   let r = await attempt();
   let retried = false;
@@ -331,7 +350,7 @@ async function blWithRetry(run: () => Promise<Raw>, key: string, deadline: numbe
     await sleep(4000);
     polls++;
     try {
-      const res = await fetch(pollUrl, { headers: { 'X-API-Key': key, Accept: 'application/json' }, signal: timeout(15000) });
+      const res = await fetch(pollUrl, { headers: { 'X-API-Key': key, ...(extId ? { 'X-External-ID': extId } : {}), Accept: 'application/json' }, signal: timeout(15000) });
       const g = await blRead(res);
       // A finished search read back with GET answers 200; keep checking only while it is still processing.
       r = { ...g, httpStatus: res.ok && !/^(PENDING|EXECUTING)$/i.test(str(g.state)) ? 200 : res.status === 200 ? 202 : res.status, _pollUrl: pollUrl };
@@ -2125,7 +2144,7 @@ export function businessNameProblem(name: string): string | null {
   return null;
 }
 
-export type Customer = { id: string; company: string; email: string; role: string; plan: string; used: number; limit: number; canRun: boolean; active: boolean; voucher: boolean; pilot: boolean; expires: string; expired: boolean; usedTotal: number; dataKey?: string; setupWaiting?: boolean };
+export type Customer = { id: string; company: string; email: string; role: string; plan: string; used: number; limit: number; canRun: boolean; active: boolean; voucher: boolean; pilot: boolean; expires: string; expired: boolean; usedTotal: number; dataKey?: string; providerId?: string; setupWaiting?: boolean };
 
 // A complimentary report voucher: one free report, good through the date in Voucher Expires (Pacific time).
 export const VOUCHER_PLAN = 'Complimentary Report (5-day voucher)';
@@ -2186,7 +2205,7 @@ export async function findCustomer(code: string): Promise<Customer | null> {
       id: r.id, company: str(f['Company']) || 'Your company', email: str(f['Contact Email']), role: selectName(f['Role']), plan,
       used: usedTotal, limit: freeLimit, usedTotal,
       canRun: active && Boolean(str(f['Link Code'])) && !expired && usedTotal < freeLimit,
-      active, voucher: false, pilot: true, expires, expired, dataKey: str(f['Data Key']).trim() || undefined,
+      active, voucher: false, pilot: true, expires, expired, dataKey: str(f['Data Key']).trim() || undefined, providerId: str(f['Provider Client ID']) || undefined,
     };
   }
   return {
@@ -2206,7 +2225,8 @@ export async function findCustomer(code: string): Promise<Customer | null> {
     usedTotal: Number(f['Reports Total'] ?? 0) || 0,
     dataKey: str(f['Data Key']).trim() || undefined,
     // New online sign-ups wait for their Data Key before they can run reports (see api/stripe.ts).
-    setupWaiting: selectName(f['Setup Status']) === 'Waiting for data key' && !str(f['Data Key']).trim(),
+    providerId: str(f['Provider Client ID']) || undefined,
+    setupWaiting: selectName(f['Setup Status']) === 'Waiting for data key' && !str(f['Data Key']).trim() && !str(f['Provider Client ID']),
   };
 }
 
@@ -2344,6 +2364,23 @@ async function recentDuplicate(customerId: string, business: string, address: st
   return (d.records ?? []).some((r) => Array.isArray(r.fields['Customer']) && (r.fields['Customer'] as string[]).includes(customerId));
 }
 
+// Which key (and provider client) a client's lien and lawsuit searches run under.
+// With our account key in Vercel, each client gets their own provider client account the first time they need one.
+async function providerAccess(c: Customer): Promise<{ key?: string; extId?: string; note?: string }> {
+  const fed = federationKey();
+  if (!fed) return { key: c.dataKey };
+  if (c.providerId) return { key: fed, extId: c.providerId };
+  const extId = providerIdFor(c.id);
+  try {
+    const r = await createProviderClient(c.company, extId, fed, c.email || undefined);
+    if (!r.ok) return { key: c.dataKey, note: `Provider client setup failed (HTTP ${r.status}): ${r.detail.slice(0, 200)}` };
+    await airtable(CUSTOMERS_TABLE, { method: 'PATCH', body: JSON.stringify({ records: [{ id: c.id, fields: { 'Provider Client ID': extId } }] }) }).catch(() => undefined);
+    return { key: fed, extId, note: 'Provider client account created.' };
+  } catch (e) {
+    return { key: c.dataKey, note: `Provider client setup failed: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
 // Short plain email to Bill (problems worth knowing about right away).
 async function alertBill(subject: string, text: string): Promise<void> {
   const key = process.env.RESEND_API_KEY;
@@ -2456,7 +2493,7 @@ const newReportId = (d: Date) => {
 // Runs the full engine: entity search + two-step check, sanctions screening, federal court search.
 export async function runReport(
   form: { company: string; email: string; role?: string; propertyAddress: string; entityName?: string; county?: string; reportUse?: string },
-  keys: { sosApiKey?: string; courtListenerToken?: string; cobaltKey?: string; cobaltRaw?: Raw; cobaltDummy?: string; baselayerKey?: string },
+  keys: { sosApiKey?: string; courtListenerToken?: string; cobaltKey?: string; cobaltRaw?: Raw; cobaltDummy?: string; baselayerKey?: string; baselayerExtId?: string; baselayerNote?: string },
 ): Promise<ReportInput & { cobaltRaw?: Raw; soiPdf?: { pdf: Uint8Array; date: string }; blNotes?: string }> {
   const now = new Date();
   // Leave time to build and email the PDF within the 180-second limit.
@@ -2524,8 +2561,8 @@ export async function runReport(
   const blKey = keys.baselayerKey as string;
   const blTask = name && blKey && !noMatch
     ? Promise.all([
-        blWithRetry(() => blLienSearch(blName, blKey), blKey, deadline),
-        blWithRetry(() => blDocketSearch(blName, blKey), blKey, deadline),
+        blWithRetry(() => blLienSearch(blName, blKey, keys.baselayerExtId), blKey, deadline, keys.baselayerExtId),
+        blWithRetry(() => blDocketSearch(blName, blKey, keys.baselayerExtId), blKey, deadline, keys.baselayerExtId),
       ])
     : Promise.resolve(null);
   const [sanctions, courts, environment, historic, bl] = await Promise.all([name ? screenSanctions([name, topName]) : Promise.resolve(null), courtTask, envTask, histTask, blTask]);
@@ -2604,7 +2641,7 @@ export async function runReport(
     cobaltRaw,
     soiPdf,
     blNotes: bl
-      ? [blDiag('Liens', bl[0]), blDiag('Lawsuits', bl[1]), blKey.startsWith('sand') ? 'Data Key looks like a sandbox (test) key.' : ''].filter(Boolean).join('\n')
+      ? [blDiag('Liens', bl[0]), blDiag('Lawsuits', bl[1]), keys.baselayerExtId ? `Provider client: ${keys.baselayerExtId}` : '', keys.baselayerNote ?? '', blKey.startsWith('sand') ? 'Data Key looks like a sandbox (test) key.' : ''].filter(Boolean).join('\n')
       : !blKey ? 'Liens and lawsuits: skipped (no Data Key on this account).' : noMatch ? 'Liens and lawsuits: skipped (no matching business, to save the search fee).' : undefined,
   };
 }
@@ -2683,6 +2720,17 @@ export async function GET(request: Request) {
     const [liens, dockets] = await Promise.all([blLienSearch(q('bltest'), key), blDocketSearch(q('bltest'), key)]);
     return new Response(JSON.stringify({ name: q('bltest'), keyIsSandbox: key.startsWith('sand'), liens, dockets }, null, 2), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
   }
+  // Preview only: try opening a provider client account with our account key (shows the provider's raw answer, never the key).
+  if (q('fedtest') === '1' && process.env.VERCEL_ENV === 'preview') {
+    const fed = federationKey();
+    if (!fed) return jsonError('BASELAYER_FEDERATION_KEY is not set for Preview.', 500);
+    const res = await fetch(`${BL_BASE}/organizations`, {
+      method: 'POST',
+      headers: { 'X-API-Key': fed, 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ name: q('orgname') || 'CA Research Group (demo)', ...(q('type') ? { type: q('type') } : {}), ...(q('ext') ? { external_id: q('ext') } : {}) }),
+    });
+    return new Response(JSON.stringify({ status: res.status, body: (await res.text()).slice(0, 3000) }, null, 2), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+  }
   if (q('test') === '1' && process.env.VERCEL_ENV === 'preview') {
     if (!q('name')) return jsonError('Add &name=Business Name', 400);
     try {
@@ -2690,7 +2738,8 @@ export async function GET(request: Request) {
         { company: 'CA Research Group (internal test)', email: 'william@caresearchgroup.com', propertyAddress: q('address'), entityName: q('name'), reportUse: 'Internal test' },
         {
           courtListenerToken: process.env.COURTLISTENER_TOKEN,
-          baselayerKey: process.env.BASELAYER_API_KEY,
+          baselayerKey: q('ext') ? federationKey() : process.env.BASELAYER_API_KEY,
+          baselayerExtId: q('ext') || undefined,
           // &blonly=1 skips the paid business-record lookup (for sandbox lien and court tests)
           cobaltKey: q('blonly') === '1' ? undefined : process.env.COBALT_API_KEY,
           cobaltDummy: q('dummy') || undefined,
@@ -2698,6 +2747,7 @@ export async function GET(request: Request) {
           cobaltRaw: q('saved') ? (JSON.parse(atob(q('saved').replace(/-/g, '+').replace(/_/g, '/'))) as Raw) : undefined,
         },
       );
+      if (q('format') === 'notes') return new Response(JSON.stringify({ name: q('name'), liens: input.liens?.status, lienCount: input.liens?.filings.length, civil: input.civil?.status, caseCount: input.civil?.cases.length, notes: input.blNotes }, null, 2), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
       if (q('format') === 'json') return new Response(JSON.stringify({ ok: true, name: q('name'), cobaltRaw: input.cobaltRaw }, null, 2), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
       const res = pdfResponse(await buildReportPdf(input, await loadLogo(url.origin)), `CA-Research-Group-TEST-${input.reportId}.pdf`);
       res.headers.set('X-Soi-Status', lastSoiProblem || (input.soiPdf ? 'read' : 'none'));
@@ -2917,10 +2967,11 @@ export async function POST(request: Request) {
   }
 
   try {
+    // Liens and lawsuits run under the client's own provider client account (made automatically), or their Data Key.
+    const access = await providerAccess(customer);
     const input = await runReport(
       { company: customer.company, email: customer.email || 'Not provided', role: customer.role || undefined, propertyAddress: address, entityName: entityName || undefined, county: g('county') || undefined, reportUse: g('use') || undefined },
-      // Each client uses its own data key (Airtable "Data Key"); no key = report without tax/judgment liens and lawsuits.
-      { sosApiKey: process.env.CA_SOS_API_KEY, courtListenerToken: process.env.COURTLISTENER_TOKEN, cobaltKey: process.env.COBALT_API_KEY, baselayerKey: customer.dataKey },
+      { sosApiKey: process.env.CA_SOS_API_KEY, courtListenerToken: process.env.COURTLISTENER_TOKEN, cobaltKey: process.env.COBALT_API_KEY, baselayerKey: access.key, baselayerExtId: access.extId, baselayerNote: access.note },
     );
     // No matching business: don't send a report and don't count it against the client's plan.
     if (input.entitySearch && input.entitySearch.records.length === 0) {
@@ -2932,7 +2983,7 @@ export async function POST(request: Request) {
       );
     }
     // Liens or lawsuits could not be searched even though the client has a Data Key: free report, and Bill is told why.
-    const blFailed = Boolean(customer.dataKey) && (input.liens?.status === 'unavailable' || input.civil?.status === 'unavailable');
+    const blFailed = Boolean(access.key) && (input.liens?.status === 'unavailable' || input.civil?.status === 'unavailable');
     if (blFailed) input.notCounted = true;
     let pcode = '';
     if (!address) {
