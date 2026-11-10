@@ -2278,7 +2278,7 @@ async function findPilotByEmail(email: string): Promise<{ id: string; code: stri
   return r ? { id: r.id, code: str(r.fields['Link Code']) } : null;
 }
 
-async function createPilot(p: { name: string; company: string; email: string; role: string; ip: string }): Promise<string> {
+async function createPilot(p: { name: string; company: string; email: string; role: string; ip: string; how?: string }): Promise<string> {
   const code = newLinkCode();
   const agreedAt = new Date().toISOString();
   await airtable(CUSTOMERS_TABLE, {
@@ -2298,7 +2298,7 @@ async function createPilot(p: { name: string; company: string; email: string; ro
           'Signed Up': pacificToday(),
           'Agreed At': agreedAt,
           'Agreement Record': [
-            `Checked both boxes on ${agreedAt} (UTC)`,
+            p.how ? `${p.how} on ${agreedAt} (UTC)` : `Checked both boxes on ${agreedAt} (UTC)`,
             `By: ${p.email} for ${p.company}${p.ip ? ` from IP ${p.ip}` : ''}`,
             `Version: ${PILOT_TERMS_VERSION}`,
             ...PILOT_AGREEMENT.map((t, i) => `[x] ${i + 1}. ${t}`),
@@ -2310,6 +2310,192 @@ async function createPilot(p: { name: string; company: string; email: string; ro
   });
   return code;
 }
+
+// ---------- One-click personal trial links (public/start.html, table "Trial Links") ----------
+// Personal link: made for one person (the outreach task adds the row), works once, good for INVITE_DAYS days.
+// LinkedIn link: one shared row Bill pastes into LinkedIn messages; asks for name, company and email; Status "Off" switches it off.
+// Limits for both: TRIALS_PER_DAY new trials a day, one trial per company email domain (webmail checked per person).
+// Anything over a limit waits for Bill: he gets an email with an approve link.
+const TRIAL_LINKS_TABLE = 'tblLPB7kumM7tglxL';
+const PROSPECTS_TABLE = 'tblq5Jnyur6LBpfN1';
+const INVITE_DAYS = 30;
+const TRIALS_PER_DAY = () => Number(process.env.TRIALS_PER_DAY || 5);
+const WEBMAIL = /@(gmail|googlemail|yahoo|ymail|rocketmail|hotmail|outlook|live|msn|aol|icloud|me|mac|comcast|att|sbcglobal|pacbell|verizon|cox|charter|earthlink|protonmail|proton)\./i;
+const INVITE_CODE_OK = /^[A-Za-z0-9]{16,64}$/;
+
+export type TrialLink = {
+  id: string; code: string; type: 'Personal' | 'LinkedIn'; status: string;
+  name: string; company: string; email: string; created: string; expires: string; expired: boolean;
+  prospectId?: string; customerId?: string; approveCode: string;
+};
+
+// Last day a personal link works (Pacific). LinkedIn links don't expire.
+export const inviteExpires = (created: string) => (created ? addDays(created, INVITE_DAYS) : '');
+
+function toTrialLink(r: AirtableRecord): TrialLink {
+  const f = r.fields;
+  const type = selectName(f['Type']) === 'LinkedIn' ? 'LinkedIn' : 'Personal';
+  const created = str(f['Created']).slice(0, 10) || str((r as { createdTime?: string }).createdTime).slice(0, 10);
+  const expires = type === 'Personal' ? inviteExpires(created) : '';
+  const firstLink = (v: unknown) => (Array.isArray(v) && v.length ? str(v[0]) : undefined);
+  return {
+    id: r.id, code: str(f['Code']), type, status: selectName(f['Status']) || 'Unused',
+    name: str(f['Name']), company: str(f['Company']), email: str(f['Email']).toLowerCase(), created, expires,
+    expired: type === 'Personal' && (!expires || expires < pacificToday()),
+    prospectId: firstLink(f['Prospect']), customerId: firstLink(f['Customer']), approveCode: str(f['Approve Code']),
+  };
+}
+
+async function findTrialLink(code: string, field: 'Code' | 'Approve Code' = 'Code'): Promise<TrialLink | null> {
+  if (!INVITE_CODE_OK.test(code)) return null; // letters and numbers only, so safe inside the formula
+  const d = await airtable(`${TRIAL_LINKS_TABLE}?maxRecords=1&filterByFormula=${encodeURIComponent(`{${field}}='${code}'`)}`);
+  const r = d.records?.[0];
+  return r ? toTrialLink(r) : null;
+}
+
+async function updateTrialLink(id: string, fields: Record<string, unknown>): Promise<void> {
+  await airtable(TRIAL_LINKS_TABLE, { method: 'PATCH', body: JSON.stringify({ typecast: true, records: [{ id, fields }] }) });
+}
+
+// Any existing account for this email (trial, pilot or paid), so nobody gets a second account.
+async function findCustomerByEmail(email: string): Promise<{ id: string; code: string; plan: string; active: boolean } | null> {
+  const d = await airtable(`${CUSTOMERS_TABLE}?maxRecords=1&filterByFormula=${encodeURIComponent(`LOWER({Contact Email})='${email.toLowerCase()}'`)}`);
+  const r = d.records?.[0];
+  return r ? { id: r.id, code: str(r.fields['Link Code']), plan: selectName(r.fields['Plan']), active: selectName(r.fields['Subscription Status']) === 'Active' } : null;
+}
+
+export function emailDomain(email: string): string {
+  const at = email.lastIndexOf('@');
+  return at < 0 ? '' : email.slice(at).toLowerCase();
+}
+
+// '' = OK to start now. Otherwise the reason it needs Bill's OK.
+async function trialLimitProblem(email: string): Promise<string> {
+  const plan = `{Plan}='${TRIAL_PLAN}'`;
+  const today = await airtable(`${CUSTOMERS_TABLE}?maxRecords=50&fields%5B%5D=Company&filterByFormula=${encodeURIComponent(`AND(${plan}, DATETIME_FORMAT({Signed Up}, 'YYYY-MM-DD')='${pacificToday()}')`)}`);
+  if ((today.records?.length ?? 0) >= TRIALS_PER_DAY()) return `The daily limit of ${TRIALS_PER_DAY()} new free trials was already reached today.`;
+  if (!WEBMAIL.test(email)) {
+    const domain = emailDomain(email);
+    if (/^@[a-z0-9.-]+$/.test(domain)) {
+      const same = await airtable(`${CUSTOMERS_TABLE}?maxRecords=1&fields%5B%5D=Company&fields%5B%5D=Contact%20Email&filterByFormula=${encodeURIComponent(`AND(${plan}, RIGHT(LOWER({Contact Email}), ${domain.length})='${domain}')`)}`);
+      if (same.records?.length) return `Someone from ${domain} already has a free trial (${str(same.records[0].fields['Company'])}, ${str(same.records[0].fields['Contact Email'])}).`;
+    }
+  }
+  return '';
+}
+
+async function noteOnProspect(prospectId: string | undefined, line: string): Promise<void> {
+  if (!prospectId) return;
+  const d = await airtable(`${PROSPECTS_TABLE}?maxRecords=1&filterByFormula=${encodeURIComponent(`RECORD_ID()='${prospectId}'`)}`);
+  const old = str(d.records?.[0]?.fields['Notes']);
+  await airtable(PROSPECTS_TABLE, { method: 'PATCH', body: JSON.stringify({ records: [{ id: prospectId, fields: { Notes: old ? `${old}\n${line}` : line } }] }) });
+}
+
+export type TrialStartResult =
+  | { kind: 'started'; email: string; name: string; code: string; sent: boolean }
+  | { kind: 'existing'; email: string; sent: boolean }
+  | { kind: 'waiting' }
+  | { kind: 'problem'; title: string; message: string; status: number };
+
+// Starts a free trial from a trial link. who = the person (from the link for Personal, from the form for LinkedIn).
+// approvedByBill skips the daily and per-company limits (Bill clicked his approve link).
+export async function startTrialFromLink(
+  link: TrialLink,
+  who: { name: string; company: string; email: string; role: string; ip: string },
+  approvedByBill = false,
+): Promise<TrialStartResult> {
+  if (link.status === 'Off') return { kind: 'problem', title: 'This link is switched off', message: 'Please contact Bill Alden at william@caresearchgroup.com or (408) 780-2215 and he will set you up.', status: 410 };
+  if (link.expired) return { kind: 'problem', title: 'This link has expired', message: 'Free trial links are good for 30 days. Just reply to Bill\'s email, or write to william@caresearchgroup.com, and he will send you a new one.', status: 410 };
+  if (!who.name || !who.company || !EMAIL_OK.test(who.email)) return { kind: 'problem', title: 'A few details are missing', message: 'Please go back and enter your name, company and a valid work email.', status: 400 };
+  const email = who.email.toLowerCase();
+  const source = link.type === 'LinkedIn' ? 'the LinkedIn trial link' : 'their personal trial link';
+  const now = new Date().toISOString();
+
+  // Already has an account (clicked twice, or already a client): just send their private link again.
+  const existing = await findCustomerByEmail(email);
+  if (existing?.code && existing.active) {
+    const sent = await emailPilotLink(email, who.name, existing.code);
+    if (link.type === 'Personal' && link.status !== 'Used') await updateTrialLink(link.id, { Status: 'Used', 'Used At': now, Customer: [existing.id] }).catch(() => undefined);
+    return { kind: 'existing', email, sent };
+  }
+  if (link.type === 'Personal' && link.status === 'Used') {
+    return { kind: 'problem', title: 'This link was already used', message: 'Your free trial was already started from this link. Check your email for "Your CA Research Group free trial", or write to william@caresearchgroup.com.', status: 410 };
+  }
+
+  if (!approvedByBill) {
+    const limit = await trialLimitProblem(email);
+    if (limit) {
+      if (link.type === 'Personal' && link.status === 'Waiting for Bill' && link.approveCode) return { kind: 'waiting' };
+      // LinkedIn requests get their own row, so each one can be approved separately.
+      const approveCode = newLinkCode().replace(/[^A-Za-z0-9]/g, '').slice(0, 24);
+      let rowId = link.id;
+      if (link.type === 'LinkedIn') {
+        const dup = await airtable(`${TRIAL_LINKS_TABLE}?maxRecords=1&filterByFormula=${encodeURIComponent(`AND(LOWER({Email})='${email}', {Status}='Waiting for Bill')`)}`);
+        if (dup.records?.length) return { kind: 'waiting' }; // already asked; Bill already has the email
+        const d = await airtable(TRIAL_LINKS_TABLE, {
+          method: 'POST',
+          body: JSON.stringify({ typecast: true, records: [{ fields: { Code: newLinkCode().replace(/[^A-Za-z0-9]/g, '').slice(0, 24), Type: 'Personal', Status: 'Waiting for Bill', Name: who.name, Company: who.company, Email: email, Created: pacificToday(), 'Approve Code': approveCode, Notes: `Asked through the LinkedIn trial link on ${pacificToday()}. Role: ${who.role || 'not given'}.` } }] }),
+        });
+        rowId = d.records?.[0]?.id ?? '';
+      } else {
+        await updateTrialLink(link.id, { Status: 'Waiting for Bill', 'Approve Code': approveCode, Notes: `Clicked ${pacificToday()}, over a limit: ${limit}` });
+      }
+      await alertBill(
+        `Free trial needs your OK: ${who.company}`,
+        `${who.name}\n${who.company}\n${email}\nRole: ${who.role || 'not given'}\nCame from ${source}.\n\nNot started automatically: ${limit}\n\nTo approve it, click here (then press the button on the page):\nhttps://www.caresearchgroup.com/api/report-pdf?approve=${approveCode}\n\nTo say no, just do nothing. They were told you'll be in touch shortly.`,
+      ).catch(() => undefined);
+      if (!rowId) throw new Error('Could not save the request.');
+      return { kind: 'waiting' };
+    }
+  }
+
+  const code = await createPilot({ name: who.name, company: who.company, email, role: who.role, ip: who.ip, how: approvedByBill ? `Approved by Bill; the person clicked "Start my free trial" (agreeing to the statements below) from ${source}` : `Clicked "Start my free trial" from ${source}, next to the statement that clicking means agreeing to the items below,` });
+  const customer = await findCustomerByEmail(email);
+  if (link.type === 'Personal') {
+    await updateTrialLink(link.id, { Status: 'Used', 'Used At': now, ...(customer ? { Customer: [customer.id] } : {}) }).catch(() => undefined);
+  } else if (customer) {
+    await airtable(CUSTOMERS_TABLE, { method: 'PATCH', body: JSON.stringify({ records: [{ id: customer.id, fields: { 'Referred By': 'LinkedIn trial link' } }] }) }).catch(() => undefined);
+  }
+  await noteOnProspect(link.prospectId, `Started free trial ${pacificToday()} from ${source}.`).catch(() => undefined);
+  const sent = await emailPilotLink(email, who.name, code);
+  await alertBill(
+    `New free trial: ${who.company}`,
+    `${who.name}\n${who.company}\n${email}\nRole: ${who.role || 'not given'}\nStarted from ${source}${approvedByBill ? ' (you approved it)' : ''}.\n${sent ? 'Their private report link was emailed to them.' : 'NOTE: the welcome email did not go out. Their private link is in Airtable Customers.'}`,
+  ).catch(() => undefined);
+  return { kind: 'started', email, name: who.name, code, sent };
+}
+
+const youreInPage = (r: { kind: 'started' | 'existing'; email: string; sent: boolean }) =>
+  new Response(
+    `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>You're in - CA Research Group</title>
+<style>body{margin:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1e293b}.c{max-width:520px;margin:60px auto;padding:0 16px}.k{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:32px;text-align:center}img{height:48px;margin-bottom:16px}h1{font-family:Georgia,serif;color:#1e1b4b;font-size:26px;margin:0 0 12px}p{color:#475569;line-height:1.6;margin:0 0 14px;font-size:16px}.tip{background:#fef9e7;border:1px solid #e9d8a6;border-radius:8px;padding:12px 14px;font-size:15px}</style></head>
+<body><div class="c"><div class="k"><img src="/logo-tight.png" alt="CA Research Group"><h1>${r.kind === 'started' ? "You're in!" : 'Welcome back'}</h1>
+${r.kind === 'started' ? `<p>Your free trial is ready: <strong>${TRIAL_REPORTS} free reports</strong> to use through <strong>${escapeHtml(friendlyDate(trialEnd()))}</strong>. No credit card needed.</p>` : '<p>You already have an account with us.</p>'}
+<p>${r.sent ? `We just emailed your private report link to <strong>${escapeHtml(r.email)}</strong>. Open that email and click <strong>Request a Report</strong>.` : 'We could not send the email just now. Bill will send your private link shortly.'}</p>
+<p class="tip"><strong>Tip:</strong> if you have a property address, add it too. The report will then include environmental and historic checks on the site.</p>
+</div></div></body></html>`,
+    { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } },
+  );
+
+const waitingPage = () => htmlPage('Thank you!', "We received your request. Bill will email your free trial link shortly, usually the same business day.", 200);
+
+const approvePage = (link: TrialLink, done = '') =>
+  new Response(
+    `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Approve free trial - CA Research Group</title>
+<style>body{margin:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1e293b}.c{max-width:520px;margin:60px auto;padding:0 16px}.k{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:32px;text-align:center}h1{font-family:Georgia,serif;color:#1e1b4b;font-size:24px;margin:0 0 12px}p{color:#475569;line-height:1.6;margin:0 0 12px}button{width:100%;padding:15px;background:#1e1b4b;color:#fff;border:0;border-radius:10px;font-size:16px;font-weight:bold;cursor:pointer}</style></head>
+<body><div class="c"><div class="k"><h1>${done ? escapeHtml(done) : 'Approve this free trial?'}</h1>
+<p><strong>${escapeHtml(link.name)}</strong><br>${escapeHtml(link.company)}<br>${escapeHtml(link.email)}</p>
+${done ? '' : `<form method="post" action="/api/report-pdf"><input type="hidden" name="approve" value="${escapeHtml(link.approveCode)}"><button type="submit">Yes, start their trial and email their link</button></form>`}
+</div></div></body></html>`,
+    { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } },
+  );
+
+// Preview only: made-up links so the start page can be seen without Airtable.
+const SAMPLE_LINKS: Record<string, TrialLink> = {
+  samplePersonal0000: { id: 'recSample', code: 'samplePersonal0000', type: 'Personal', status: 'Unused', name: 'Jeff Sample', company: 'Sample Lending Co.', email: 'jeff@example.com', created: pacificToday(), expires: inviteExpires(pacificToday()), expired: false, approveCode: '' },
+  sampleLinkedIn0000: { id: 'recSample2', code: 'sampleLinkedIn0000', type: 'LinkedIn', status: 'Unused', name: '', company: '', email: '', created: pacificToday(), expires: '', expired: false, approveCode: '' },
+};
+const sampleLink = (code: string) => (process.env.VERCEL_ENV === 'preview' ? SAMPLE_LINKS[code] ?? null : null);
 
 async function emailPilotLink(to: string, name: string, code: string): Promise<boolean> {
   const key = process.env.RESEND_API_KEY;
@@ -2682,6 +2868,31 @@ export async function GET(request: Request) {
     return pdfResponse(await buildReportPdf(input, await loadLogo(url.origin)), 'CA-Research-Group-Sample-Report.pdf');
   }
 
+  // Personal trial link: what the start page shows (never starts anything; the button POSTs).
+  if (q('invite')) {
+    try {
+      const link = sampleLink(q('invite')) ?? (await findTrialLink(q('invite')));
+      if (!link) return jsonError('This link is not recognized.', 404);
+      const state = link.status === 'Off' ? 'off' : link.expired ? 'expired' : link.type === 'Personal' && link.status === 'Used' ? 'used' : link.status === 'Waiting for Bill' ? 'waiting' : 'ready';
+      return new Response(
+        JSON.stringify({ ok: true, type: link.type, state, firstName: link.name.split(' ')[0] || '', company: link.company, email: link.email, reports: TRIAL_REPORTS, days: TRIAL_DAYS, trialEndsText: friendlyDate(trialEnd()) }),
+        { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } },
+      );
+    } catch {
+      return jsonError('Temporarily unavailable', 503);
+    }
+  }
+  // Bill's approve link (from the "needs your OK" email). Shows a button; the button does the work.
+  if (q('approve')) {
+    try {
+      const link = await findTrialLink(q('approve'), 'Approve Code');
+      if (!link) return htmlPage('Link not recognized', 'This approve link is not recognized. It may have been used already.', 404);
+      if (link.status === 'Used') return approvePage(link, 'Already approved');
+      return approvePage(link);
+    } catch {
+      return htmlPage('Temporarily unavailable', 'Please try again in a minute.', 503);
+    }
+  }
   if (q('ptoken')) {
     try {
       const pc = await findPropertyCheck(q('ptoken'));
@@ -2836,12 +3047,46 @@ export async function POST(request: Request) {
     return htmlPage('You are unsubscribed', `We will not send marketing emails to ${email} again. If you are a subscriber, you will still get your report emails.`, 200);
   }
 
+  // One-click trial (public/start.html).
+  if (g('trial') === '1') {
+    if (g('website')) return htmlPage('Thank you', 'Please check your email for your link.', 200); // spam bots fill the hidden field
+    const ip = (request.headers.get('x-forwarded-for') || '').split(',')[0].trim();
+    try {
+      const sample = sampleLink(g('i'));
+      const link = sample ?? (await findTrialLink(g('i')));
+      if (!link) return htmlPage('Link not recognized', 'Please use the button in your email from Bill Alden, or write to william@caresearchgroup.com.', 404);
+      const who = link.type === 'Personal'
+        ? { name: link.name || g('name').slice(0, 100), company: link.company || g('company').slice(0, 150), email: link.email, role: '', ip }
+        : { name: g('name').slice(0, 100), company: g('company').slice(0, 150), email: g('email').toLowerCase().slice(0, 200), role: g('role').slice(0, 100), ip };
+      if (sample) return youreInPage({ kind: 'started', email: who.email || 'you@example.com', sent: true }); // preview: nothing is saved or sent
+      const r = await startTrialFromLink(link, who);
+      if (r.kind === 'problem') return htmlPage(r.title, r.message, r.status);
+      if (r.kind === 'waiting') return waitingPage();
+      return youreInPage(r);
+    } catch {
+      return htmlPage('Temporarily unavailable', 'We could not start your trial just now. Please try again in a few minutes, or write to william@caresearchgroup.com.', 503);
+    }
+  }
+  if (g('approve')) {
+    try {
+      const link = await findTrialLink(g('approve'), 'Approve Code');
+      if (!link) return htmlPage('Link not recognized', 'This approve link is not recognized.', 404);
+      if (link.status === 'Used') return approvePage(link, 'Already approved');
+      const r = await startTrialFromLink({ ...link, status: 'Unused', type: 'Personal', expired: false }, { name: link.name, company: link.company, email: link.email, role: '', ip: '' }, true);
+      if (r.kind === 'problem') return htmlPage(r.title, r.message, r.status);
+      return approvePage(link, r.kind === 'started' ? (r.sent ? 'Done! Their trial started and their link was emailed.' : 'Trial started, but the email did not go out. Their link is in Airtable Customers.') : 'They already had an account. Their link was re-sent.');
+    } catch {
+      return htmlPage('Temporarily unavailable', 'Please try again in a minute.', 503);
+    }
+  }
+
   // Free pilot sign-up (public/pilot.html): creates the agent's private link and emails it to them.
   if (g('pilot') === '1') {
     if (g('website')) return htmlPage('Thank you', 'Please check your email for your link.', 200); // spam bots fill the hidden field
     const name = g('name').slice(0, 100);
     const company = g('company').slice(0, 150);
     const email = g('email').toLowerCase().slice(0, 200);
+    if (process.env.PILOT_SIGNUPS !== 'on') return htmlPage('Pilot sign-up has closed', 'The free pilot is closed to new sign-ups. If you would like a free trial, write to william@caresearchgroup.com and Bill will send you a link.', 410);
     if (g('code').toUpperCase() !== pilotCode()) return htmlPage('Pilot code not recognized', 'Please use the link from your invitation email, or contact william@caresearchgroup.com.', 403);
     if (!name || !company || !EMAIL_OK.test(email)) return htmlPage('A few details are missing', 'Please go back and enter your name, company, and a valid work email.', 400);
     if (g('agreeTerms') !== 'yes' || g('agreeAccuracy') !== 'yes') return htmlPage('Please check both boxes', 'Please go back and check both agreement boxes to join the pilot.', 400);

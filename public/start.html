@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Your Free Trial - CA Research Group</title>
+<link rel="icon" href="/favicon.png">
+<style>
+  body { margin: 0; background: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1e293b; }
+  .wrap { max-width: 540px; margin: 36px auto; padding: 0 16px; }
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 28px; box-shadow: 0 10px 28px rgba(30,27,75,0.08); }
+  .logo { height: 52px; display: block; margin: 0 auto 18px; }
+  h1 { font-family: Georgia, serif; color: #1e1b4b; font-size: 26px; margin: 0 0 8px; text-align: center; }
+  .lead { text-align: center; color: #475569; font-size: 16px; line-height: 1.6; margin: 0 0 16px; }
+  .perk { background: #fbf7ea; border: 2px solid #d6b968; border-radius: 12px; padding: 12px 14px; margin: 0 0 6px; text-align: center; color: #1e1b4b; }
+  .perk b { display: block; font-family: Georgia, serif; font-size: 22px; }
+  .perk span { display: block; font-size: 14px; color: #6e561c; margin-top: 4px; }
+  label { display: block; font-size: 15px; font-weight: bold; color: #1e1b4b; margin: 16px 0 6px; }
+  input[type=text], input[type=email], select { width: 100%; box-sizing: border-box; padding: 13px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; background: #fff; }
+  button { width: 100%; margin-top: 22px; padding: 16px; background: #1e1b4b; color: #fff; border: 0; border-radius: 10px; font-size: 17px; font-weight: bold; cursor: pointer; }
+  button:disabled { background: #94a3b8; cursor: wait; }
+  .agree { font-size: 13px; color: #64748b; line-height: 1.55; margin: 12px 0 0; text-align: center; }
+  .agree a { color: #1d4ed8; }
+  .note { font-size: 13px; color: #64748b; text-align: center; margin-top: 14px; line-height: 1.5; }
+  .msg { text-align: center; color: #475569; font-size: 16px; line-height: 1.6; }
+  .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <img class="logo" src="/logo-tight.png" alt="CA Research Group">
+    <div id="loading" class="msg">One moment...</div>
+
+    <div id="ready" hidden>
+      <h1 id="hello">Your free trial is ready</h1>
+      <p class="lead">Public-record reports on the California businesses behind your deals, in under a minute.</p>
+      <div class="perk"><b><span id="reports" style="display:inline;font-size:inherit;color:inherit;margin:0">2</span> free reports</b><span id="days">Use them within 14 days. No credit card needed.</span></div>
+
+      <form id="f" method="post" action="/api/report-pdf">
+        <input type="hidden" name="trial" value="1">
+        <input type="hidden" name="i" id="i">
+        <div class="hp" aria-hidden="true"><label for="website">Leave this empty</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
+
+        <div id="who" hidden>
+          <label for="name">Your name</label>
+          <input type="text" id="name" name="name" autocomplete="name" maxlength="100">
+          <label for="company">Your company</label>
+          <input type="text" id="company" name="company" autocomplete="organization" maxlength="150">
+          <label for="role">Your role</label>
+          <select id="role" name="role">
+            <option value="">Select one</option>
+            <option value="Commercial real estate broker">Commercial real estate broker or agent</option>
+            <option value="Hard money lender or lending institution">Lender</option>
+            <option value="Title or escrow company">Title or escrow</option>
+            <option value="Attorney or legal counsel">Attorney</option>
+            <option value="Real estate investor">Investor or landlord</option>
+            <option value="Other">Other</option>
+          </select>
+          <label for="email">Work email (your private link is sent here)</label>
+          <input type="email" id="email" name="email" autocomplete="email" maxlength="200" placeholder="name@firm.com">
+        </div>
+
+        <button id="go" type="submit">Start my free trial</button>
+        <p class="agree">By clicking, you agree to our <a href="/terms.html" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>, and you understand reports are based on official public records, which may occasionally be incomplete or outdated, and that CA Research Group recommends doing your own due diligence before making any decision.</p>
+        <p class="note" id="sendto">Your private report link is emailed to you right away. Businesses only; we never research individuals.</p>
+      </form>
+    </div>
+
+    <div id="other" class="msg" hidden>
+      <h1 id="otherTitle"></h1>
+      <p id="otherText"></p>
+    </div>
+  </div>
+</div>
+<script>
+  (function () {
+    var code = new URLSearchParams(location.search).get('i') || '';
+    var $ = function (id) { return document.getElementById(id); };
+    function show(title, text) {
+      $('loading').hidden = true; $('ready').hidden = true;
+      $('otherTitle').textContent = title; $('otherText').textContent = text; $('other').hidden = false;
+    }
+    if (!code) return show('Link not recognized', 'Please use the button in your email from Bill Alden, or write to william@caresearchgroup.com.');
+    $('i').value = code;
+    fetch('/api/report-pdf?invite=' + encodeURIComponent(code), { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || !d.ok) return show('Link not recognized', 'Please use the button in your email from Bill Alden, or write to william@caresearchgroup.com.');
+        if (d.state === 'off') return show('This link is switched off', 'Please contact Bill Alden at william@caresearchgroup.com or (408) 780-2215 and he will set you up.');
+        if (d.state === 'expired') return show('This link has expired', "Free trial links are good for 30 days. Just reply to Bill's email, or write to william@caresearchgroup.com, and he will send you a new one.");
+        if (d.state === 'waiting') return show('Thank you!', 'We received your request. Bill will email your free trial link shortly, usually the same business day.');
+        $('reports').textContent = d.reports;
+        $('days').textContent = 'Use them through ' + d.trialEndsText + '. No credit card needed.';
+        if (d.type === 'LinkedIn') {
+          $('hello').textContent = 'Start your free trial';
+          $('who').hidden = false;
+          ['name', 'company', 'email'].forEach(function (k) { $(k).required = true; });
+        } else {
+          if (d.state === 'used') $('go').textContent = 'Send my private link again';
+          $('hello').textContent = d.firstName ? 'Hi ' + d.firstName + ', your free trial is ready' : 'Your free trial is ready';
+          if (d.email) $('sendto').textContent = 'Your private report link is emailed to ' + d.email + ' right away. Businesses only; we never research individuals.';
+        }
+        $('loading').hidden = true; $('ready').hidden = false;
+      })
+      .catch(function () { show('Temporarily unavailable', 'Please try again in a few minutes, or write to william@caresearchgroup.com.'); });
+    $('f').addEventListener('submit', function () { var b = $('go'); setTimeout(function () { b.disabled = true; b.textContent = 'Starting your trial...'; }, 0); });
+  })();
+</script>
+</body>
+</html>
