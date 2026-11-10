@@ -24,6 +24,7 @@
   .agree a { color: #1d4ed8; }
   .note { font-size: 13px; color: #64748b; text-align: center; margin-top: 14px; line-height: 1.5; }
   .msg { text-align: center; color: #475569; font-size: 16px; line-height: 1.6; }
+  .good { text-align: center; font-size: 14px; color: #6e561c; margin: 14px 0 0; }
   .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 </style>
 </head>
@@ -62,6 +63,7 @@
           <input type="email" id="email" name="email" autocomplete="email" maxlength="200" placeholder="name@firm.com">
         </div>
 
+        <p class="good" id="good" hidden></p>
         <button id="go" type="submit">Start my free trial</button>
         <p class="agree">By clicking, you agree to our <a href="/terms.html" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>, and you understand reports are based on official public records, which may occasionally be incomplete or outdated, and that CA Research Group recommends doing your own due diligence before making any decision.</p>
         <p class="note" id="sendto">Your private report link is emailed to you right away. Businesses only; we never research individuals.</p>
@@ -99,6 +101,7 @@
           ['name', 'company', 'email'].forEach(function (k) { $(k).required = true; });
         } else {
           if (d.state === 'used') $('go').textContent = 'Send my private link again';
+          else if (d.linkGoodThroughText) { $('good').textContent = 'This link is good through ' + d.linkGoodThroughText + '.'; $('good').hidden = false; }
           $('hello').textContent = d.firstName ? 'Hi ' + d.firstName + ', your free trial is ready' : 'Your free trial is ready';
           if (d.email) $('sendto').textContent = 'Your private report link is emailed to ' + d.email + ' right away. Businesses only; we never research individuals.';
         }

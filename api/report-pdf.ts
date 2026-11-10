@@ -2875,7 +2875,7 @@ export async function GET(request: Request) {
       if (!link) return jsonError('This link is not recognized.', 404);
       const state = link.status === 'Off' ? 'off' : link.expired ? 'expired' : link.type === 'Personal' && link.status === 'Used' ? 'used' : link.status === 'Waiting for Bill' ? 'waiting' : 'ready';
       return new Response(
-        JSON.stringify({ ok: true, type: link.type, state, firstName: link.name.split(' ')[0] || '', company: link.company, email: link.email, reports: TRIAL_REPORTS, days: TRIAL_DAYS, trialEndsText: friendlyDate(trialEnd()) }),
+        JSON.stringify({ ok: true, type: link.type, state, firstName: link.name.split(' ')[0] || '', company: link.company, email: link.email, reports: TRIAL_REPORTS, days: TRIAL_DAYS, trialEndsText: friendlyDate(trialEnd()), linkGoodThroughText: link.type === 'Personal' ? friendlyDate(link.expires) : '' }),
         { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } },
       );
     } catch {
