@@ -112,7 +112,7 @@ const STEPS = [
 
 const AFTER_SUBSCRIBE = [
   'Choose a plan and accept our Terms of Service, then fill in your details and the first business you want researched, and pay securely by card.',
-  'We email your company a private link. Bookmark it. There is no password to remember.',
+  "One-time setup: after you sign up, we'll email your private report link, usually within an hour during business hours. From then on, just use your link to get reports in under a minute. Bookmark it. There is no password to remember.",
   'Use that link any time to request another report. Each request counts toward your monthly plan (or uses your single report).',
   'Your PDF report is sent to your work email.',
 ];
@@ -578,7 +578,7 @@ export default function App() {
                   <button type="submit" disabled={paying} style={{ backgroundColor: paying ? '#94a3b8' : '#1e1b4b', color: '#ffffff', fontSize: '15px', fontWeight: 'bold', border: 'none', borderRadius: '10px', padding: '14px', cursor: paying ? 'wait' : 'pointer', marginTop: '10px' }}>
                     {paying ? 'Opening secure payment...' : 'Continue to Secure Payment ➔'}
                   </button>
-                  <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748b', margin: '-8px 0 0 0' }}>Payments are processed by Stripe. Your private report link is emailed right after payment.</p>
+                  <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748b', margin: '-8px 0 0 0' }}>Payments are processed by Stripe. One-time setup: after you sign up, we'll email your private report link, usually within an hour during business hours. From then on, just use your link to get reports in under a minute.</p>
 
                   <button type="button" onClick={() => setWizardStep(2)} style={{ background: 'none', border: 'none', color: '#64748b', textDecoration: 'underline', cursor: 'pointer', alignSelf: 'center' }}>➔ Back to Terms</button>
                 </form>

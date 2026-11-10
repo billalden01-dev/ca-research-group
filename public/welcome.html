@@ -77,9 +77,18 @@
     <a class="home" href="/">&larr; Back to CA Research Group</a>
   </div>
 
+  <div id="setup" class="hidden">
+    <h1>Thank you!</h1>
+    <p id="setupWho"></p>
+    <div class="steps" style="font-size:15px;color:#334155;line-height:1.6"><b>One-time setup:</b> after you sign up, we'll email your private report link, usually within an hour during business hours. From then on, just use your link to get reports in under a minute.</div>
+    <p class="small" id="setupEmail"></p>
+    <a class="home" href="/">&larr; Back to CA Research Group</a>
+    <p class="small">Questions? Email <a href="mailto:william@caresearchgroup.com">william@caresearchgroup.com</a>.</p>
+  </div>
+
   <div id="slow" class="hidden">
     <h1>Payment received</h1>
-    <p>Your account is still being set up. Your private report link will arrive by email within a few minutes.</p>
+    <p>One-time setup: after you sign up, we'll email your private report link, usually within an hour during business hours. From then on, just use your link to get reports in under a minute.</p>
     <a class="home" href="/">&larr; Back to CA Research Group</a>
     <p class="small">Didn't get it? Email <a href="mailto:william@caresearchgroup.com">william@caresearchgroup.com</a> and we'll send it right away.</p>
   </div>
@@ -89,13 +98,17 @@
     var $ = function (id) { return document.getElementById(id); };
     var sid = new URLSearchParams(location.search).get('session_id') || '';
     var tries = 0;
-    function show(id) { ['wait', 'ready', 'slow'].forEach(function (x) { $(x).classList.toggle('hidden', x !== id); }); }
+    function show(id) { ['wait', 'ready', 'setup', 'slow'].forEach(function (x) { $(x).classList.toggle('hidden', x !== id); }); }
     function check() {
       tries++;
       fetch('/api/stripe?session_id=' + encodeURIComponent(sid), { cache: 'no-store' })
         .then(function (r) { return r.json(); })
         .then(function (d) {
-          if (d.ready) {
+          if (d.ready && d.setup) {
+            $('setupWho').textContent = d.single ? 'Your payment for a single report' + (d.company ? ' for ' + d.company : '') + ' was received.' : 'Your subscription' + (d.company ? ' for ' + d.company : '') + ' is active.';
+            $('setupEmail').textContent = d.email ? 'We will send it to ' + d.email + '.' : '';
+            show('setup');
+          } else if (d.ready) {
             var co = d.company ? ' for ' + d.company : '';
             $('who').textContent = d.single ? 'Your report' + co + ' is paid and ready to run.' : 'Your subscription' + co + ' is active.';
             $('link').textContent = d.link;

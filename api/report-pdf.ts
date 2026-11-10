@@ -52,6 +52,8 @@ export type ReportInput = {
   propertyCheckUrl?: string;
   // Set when this PDF is a property-only check added to an earlier report
   propertyCheckFor?: { reportId: string; business: string };
+  // Liens or lawsuits could not be searched: the report is free (not counted against the plan)
+  notCounted?: boolean;
 };
 
 // Historic listing check: National Register of Historic Places listings in California near an address
@@ -284,29 +286,73 @@ export async function searchFederalCases(name: string, token: string | undefined
 
 const BL_BASE = 'https://api.baselayer.com';
 
-async function blPost(path: string, body: Record<string, unknown>, key: string): Promise<Raw> {
-  const res = await fetch(`${BL_BASE}${path}`, {
-    method: 'POST',
-    headers: { 'X-API-Key': key, 'Content-Type': 'application/json', Accept: 'application/json', Prefer: 'wait=55' },
-    body: JSON.stringify(body),
-    signal: timeout(60000),
-  });
+async function blRead(res: Response): Promise<Raw> {
   const text = await res.text();
   let data: Raw = {};
   try { data = JSON.parse(text) as Raw; } catch { data = { raw: text.slice(0, 500) }; }
-  return { httpStatus: res.status, ...data };
+  return { ...data, httpStatus: res.status };
+}
+
+// Starts a search and waits up to 25 seconds for it. A search that takes longer comes back as 202 (still processing)
+// with a Location header; blWithRetry then checks that link until the search finishes, instead of paying for a new one.
+async function blPost(path: string, body: Record<string, unknown>, key: string): Promise<Raw> {
+  const res = await fetch(`${BL_BASE}${path}`, {
+    method: 'POST',
+    headers: { 'X-API-Key': key, 'Content-Type': 'application/json', Accept: 'application/json', Prefer: 'wait=25' },
+    body: JSON.stringify(body),
+    signal: timeout(45000),
+  });
+  const data = await blRead(res);
+  const loc = res.headers.get('location') || '';
+  const rid = res.headers.get('x-resource-id') || str(data.id);
+  const pollUrl = loc ? new URL(loc, BL_BASE).toString() : rid ? `${BL_BASE}${path.replace(/\/adhoc$/, '')}/${rid}` : '';
+  return { ...data, _pollUrl: pollUrl };
 }
 
 export const blLienSearch = (name: string, key: string) => blPost('/lien_searches/adhoc', { name, search_states: ['CA'] }, key);
 export const blDocketSearch = (name: string, key: string) => blPost('/docket_searches/adhoc', { name, options: ['Order.Litigations'] }, key);
 
-// A failed search is charged, but clients come first: try once more before reporting "could not be reached".
-// Bad requests (4xx) are not retried, since a second try would fail the same way.
-async function blWithRetry(run: () => Promise<Raw>): Promise<Raw | null> {
-  const first = await run().catch(() => null);
-  if (first && (blOk(first) || (Number(first.httpStatus) >= 400 && Number(first.httpStatus) < 500))) return first;
-  await sleep(2000);
-  return (await run().catch(() => null)) ?? first;
+const blPending = (r: Raw) => Number(r.httpStatus) === 202 || /^(PENDING|EXECUTING)$/i.test(str(r.state));
+
+// One search, start to finish. Network errors and provider errors (5xx) get one more try; bad requests (4xx) do not,
+// since a second try would fail the same way. A search still processing is checked again every 4 seconds until done.
+async function blWithRetry(run: () => Promise<Raw>, key: string, deadline: number): Promise<Raw> {
+  const attempt = () => run().catch((e) => ({ httpStatus: 0, error: e instanceof Error ? `${e.name}: ${e.message}` : String(e) }) as Raw);
+  let r = await attempt();
+  let retried = false;
+  if (!blOk(r) && !blPending(r) && (Number(r.httpStatus) === 0 || Number(r.httpStatus) >= 500) && Date.now() < deadline - 30000) {
+    await sleep(2000);
+    r = await attempt();
+    retried = true;
+  }
+  const pollUrl = str(r._pollUrl);
+  let polls = 0;
+  while (blPending(r) && pollUrl && Date.now() < deadline - 5000) {
+    await sleep(4000);
+    polls++;
+    try {
+      const res = await fetch(pollUrl, { headers: { 'X-API-Key': key, Accept: 'application/json' }, signal: timeout(15000) });
+      const g = await blRead(res);
+      // A finished search read back with GET answers 200; keep checking only while it is still processing.
+      r = { ...g, httpStatus: res.ok && !/^(PENDING|EXECUTING)$/i.test(str(g.state)) ? 200 : res.status === 200 ? 202 : res.status, _pollUrl: pollUrl };
+    } catch (e) {
+      r = { ...r, pollError: e instanceof Error ? e.message : String(e) };
+    }
+  }
+  return { ...r, _retried: retried, _polls: polls };
+}
+
+// Plain-language reason for the Report Requests Notes (never includes the key).
+export function blDiag(label: string, r: Raw | null): string {
+  if (!r) return `${label}: not run`;
+  const errText = [r.error, r.detail, r.message, r.pollError].map((v) => (typeof v === 'string' ? v : v ? JSON.stringify(v) : '')).filter(Boolean).join(' | ').slice(0, 300);
+  const parts = [`HTTP ${str(r.httpStatus) || '?'}`, `state ${str(r.state) || '-'}`];
+  if (errText) parts.push(`error: ${errText}`);
+  if (!errText && r.raw) parts.push(`reply: ${str(r.raw).slice(0, 200)}`);
+  if (r._retried) parts.push('tried twice');
+  if (Number(r._polls)) parts.push(`checked again ${str(r._polls)}x`);
+  if (blPending(r)) parts.push('still processing when we stopped waiting');
+  return `${label}: ${blOk(r) ? 'OK' : 'NOT RUN'} (${parts.join(', ')})`;
 }
 
 // Debtor names on a filing, whatever shape the source uses.
@@ -1807,10 +1853,11 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       );
     }
     if (pp.note) w.paragraph(pp.note, { gap: 4 });
-    if (pp.statementUrl) {
-      w.link(pp.officers.length
-        ? 'Want the official copy? Click here to download the state document these names came from.'
-        : 'Click here to download the official state document, which lists the owners and managers', pp.statementUrl);
+    if (pp.statementUrl && !pp.officers.length) {
+      // The link is in the box on page 1; don't repeat it here.
+      w.paragraph('See the link on page 1.');
+    } else if (pp.statementUrl) {
+      w.link('Want the official copy? Click here to download the state document these names came from.', pp.statementUrl);
       w.paragraph('Reading a printed copy? Open this report on your computer or phone, or use the link in your report email, then click the link above.', { size: 8.5, color: MUTED });
     }
     w.paragraph(
@@ -1841,7 +1888,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
   if (lr) {
     section('Tax and judgment liens', 150);
     if (lr.status === 'unavailable') {
-      w.paragraph('Lien records could not be reached at the time of this search. Search county recorder and state records directly before relying on this report.');
+      w.paragraph(`Lien records could not be reached at the time of this search. Search county recorder and state records directly before relying on this report.${input.notCounted ? ' Because this part could not be searched, this report was not counted against your plan.' : ''}`);
     } else if (lr.filings.length === 0) {
       w.paragraph(`No federal tax liens, state tax liens, or judgment liens naming "${lr.searchedFor}" were found in California.`);
     } else {
@@ -1921,7 +1968,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
   if (cv) {
     section('Civil lawsuits', 150);
     if (cv.status === 'unavailable') {
-      w.paragraph('Court records could not be reached at the time of this search. Search the California superior court for the county directly before relying on this report.');
+      w.paragraph(`Court records could not be reached at the time of this search. Search the California superior court for the county directly before relying on this report.${input.notCounted ? ' Because this part could not be searched, this report was not counted against your plan.' : ''}`);
     } else if (cv.cases.length === 0) {
       w.paragraph(`No civil lawsuits naming "${cv.searchedFor}" were found in state or federal courts${ct && ct.status === 'searched' ? ' beyond any listed in the federal court sections above' : ''}.`);
     } else {
@@ -2078,7 +2125,7 @@ export function businessNameProblem(name: string): string | null {
   return null;
 }
 
-export type Customer = { id: string; company: string; email: string; role: string; plan: string; used: number; limit: number; canRun: boolean; active: boolean; voucher: boolean; pilot: boolean; expires: string; expired: boolean; usedTotal: number; dataKey?: string };
+export type Customer = { id: string; company: string; email: string; role: string; plan: string; used: number; limit: number; canRun: boolean; active: boolean; voucher: boolean; pilot: boolean; expires: string; expired: boolean; usedTotal: number; dataKey?: string; setupWaiting?: boolean };
 
 // A complimentary report voucher: one free report, good through the date in Voucher Expires (Pacific time).
 export const VOUCHER_PLAN = 'Complimentary Report (5-day voucher)';
@@ -2158,6 +2205,8 @@ export async function findCustomer(code: string): Promise<Customer | null> {
     expired: selectName(f['Plan']) === VOUCHER_PLAN && (!str(f['Voucher Expires']) || str(f['Voucher Expires']).slice(0, 10) < pacificToday()),
     usedTotal: Number(f['Reports Total'] ?? 0) || 0,
     dataKey: str(f['Data Key']).trim() || undefined,
+    // New online sign-ups wait for their Data Key before they can run reports (see api/stripe.ts).
+    setupWaiting: selectName(f['Setup Status']) === 'Waiting for data key' && !str(f['Data Key']).trim(),
   };
 }
 
@@ -2287,6 +2336,26 @@ async function updateRequest(id: string, fields: Record<string, unknown>) {
 }
 
 // Looks up the report that owns a property check link, and its customer
+// A request for the same business (and address) by the same client in the last 10 minutes that is running or finished.
+async function recentDuplicate(customerId: string, business: string, address: string): Promise<boolean> {
+  const q = (v: string) => `"${v.trim().toLowerCase().replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+  const formula = `AND(IS_AFTER({Requested At}, DATEADD(NOW(), -10, 'minutes')), LOWER(TRIM({Business Name}))=${q(business)}, LOWER(TRIM({Property Address}&''))=${q(address)}, OR({Status}='Received', {Status}='Completed', {Status}='Completed - not counted'))`;
+  const d = await airtable(`${REQUESTS_TABLE}?maxRecords=20&filterByFormula=${encodeURIComponent(formula)}`);
+  return (d.records ?? []).some((r) => Array.isArray(r.fields['Customer']) && (r.fields['Customer'] as string[]).includes(customerId));
+}
+
+// Short plain email to Bill (problems worth knowing about right away).
+async function alertBill(subject: string, text: string): Promise<void> {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return;
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: process.env.RESEND_FROM || 'CA Research Group <onboarding@resend.dev>', to: [process.env.ALERT_EMAIL || 'william@caresearchgroup.com'], subject, text }),
+    signal: timeout(15000),
+  });
+}
+
 async function findPropertyCheck(token: string): Promise<{ id: string; reportId: string; business: string; used: boolean; customer: Customer | null } | null> {
   if (!/^[A-Za-z0-9]{20,40}$/.test(token)) return null;
   const d = await airtable(`${REQUESTS_TABLE}?maxRecords=1&filterByFormula=${encodeURIComponent(`{Property Check Code}='${token}'`)}`);
@@ -2388,8 +2457,10 @@ const newReportId = (d: Date) => {
 export async function runReport(
   form: { company: string; email: string; role?: string; propertyAddress: string; entityName?: string; county?: string; reportUse?: string },
   keys: { sosApiKey?: string; courtListenerToken?: string; cobaltKey?: string; cobaltRaw?: Raw; cobaltDummy?: string; baselayerKey?: string },
-): Promise<ReportInput & { cobaltRaw?: Raw; soiPdf?: { pdf: Uint8Array; date: string } }> {
+): Promise<ReportInput & { cobaltRaw?: Raw; soiPdf?: { pdf: Uint8Array; date: string }; blNotes?: string }> {
   const now = new Date();
+  // Leave time to build and email the PDF within the 180-second limit.
+  const deadline = now.getTime() + 150000;
   const name = (form.entityName ?? '').trim();
   let entitySearch: ReportInput['entitySearch'] = null;
   let entityNote: string | undefined;
@@ -2448,10 +2519,13 @@ export async function runReport(
   const topName = (entitySearch as ReportInput['entitySearch'])?.records[0]?.name ?? '';
   // Liens and civil lawsuits: search the official registered name when we found one.
   const blName = topName || name;
-  const blTask = name && keys.baselayerKey
+  // No matching business: skip the paid lien and lawsuit searches (the client is not charged, so neither should we be).
+  const noMatch = Boolean(entitySearch) && (entitySearch as unknown as { records: EntityRecord[] }).records.length === 0;
+  const blKey = keys.baselayerKey as string;
+  const blTask = name && blKey && !noMatch
     ? Promise.all([
-        blWithRetry(() => blLienSearch(blName, keys.baselayerKey as string)),
-        blWithRetry(() => blDocketSearch(blName, keys.baselayerKey as string)),
+        blWithRetry(() => blLienSearch(blName, blKey), blKey, deadline),
+        blWithRetry(() => blDocketSearch(blName, blKey), blKey, deadline),
       ])
     : Promise.resolve(null);
   const [sanctions, courts, environment, historic, bl] = await Promise.all([name ? screenSanctions([name, topName]) : Promise.resolve(null), courtTask, envTask, histTask, blTask]);
@@ -2529,6 +2603,9 @@ export async function runReport(
     historic,
     cobaltRaw,
     soiPdf,
+    blNotes: bl
+      ? [blDiag('Liens', bl[0]), blDiag('Lawsuits', bl[1]), blKey.startsWith('sand') ? 'Data Key looks like a sandbox (test) key.' : ''].filter(Boolean).join('\n')
+      : !blKey ? 'Liens and lawsuits: skipped (no Data Key on this account).' : noMatch ? 'Liens and lawsuits: skipped (no matching business, to save the search fee).' : undefined,
   };
 }
 
@@ -2584,7 +2661,7 @@ export async function GET(request: Request) {
       return new Response(
         JSON.stringify({
           ok: true, company: c.company, plan: c.plan, active: c.active, used: c.used, limit: c.limit >= 999999 ? null : c.limit, canRun: c.canRun,
-          voucher: c.voucher, pilot: c.pilot, expires: c.expires, expiresText: friendlyDate(c.expires), expired: c.expired, voucherUsed: c.voucher && c.usedTotal > 0,
+          voucher: c.voucher, pilot: c.pilot, expires: c.expires, expiresText: friendlyDate(c.expires), expired: c.expired, voucherUsed: c.voucher && c.usedTotal > 0, setup: Boolean(c.setupWaiting),
         }),
         { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } },
       );
@@ -2789,6 +2866,7 @@ export async function POST(request: Request) {
   }
   if (!customer) return htmlPage('Link not recognized', 'This report link is not valid. Please contact CA Research Group for your current private link.', 404);
   if (!customer.active) return htmlPage('Subscription not active', 'Your subscription is not active right now. Please contact CA Research Group to reactivate it.', 403);
+  if (customer.setupWaiting) return htmlPage('Almost ready', "Your account is still being set up. We'll email your private report link, usually within an hour during business hours. From then on, just use your link to get reports in under a minute.", 403);
 
   const address = g('address');
   const entityName = g('name');
@@ -2826,6 +2904,11 @@ export async function POST(request: Request) {
     );
   }
 
+  // Same business (and address) from the same client in the last 10 minutes: don't run (or charge) it twice.
+  if (await recentDuplicate(customer.id, entityName, address).catch(() => false)) {
+    return htmlPage('Already requested', 'You already ran this report a few minutes ago. Check your email or the open tab. This did not count toward your plan.', 409);
+  }
+
   let requestId = '';
   try {
     requestId = await logRequest({ ...base, Status: 'Received' });
@@ -2841,13 +2924,16 @@ export async function POST(request: Request) {
     );
     // No matching business: don't send a report and don't count it against the client's plan.
     if (input.entitySearch && input.entitySearch.records.length === 0) {
-      await updateRequest(requestId, { Status: 'No match', Notes: `No exact match for "${entityName}". Not counted against the plan.` }).catch(() => undefined);
+      await updateRequest(requestId, { Status: 'No match', Notes: `No exact match for "${entityName}". Not counted against the plan.${input.blNotes ? `\n${input.blNotes}` : ''}` }).catch(() => undefined);
       return htmlPage(
         'No exact match found',
         `We couldn't find a California business registered as "${entityName}". Please check the spelling and include the entity type (for example "LLC" or "Inc."), then try again. This search did not count toward your plan.`,
         200,
       );
     }
+    // Liens or lawsuits could not be searched even though the client has a Data Key: free report, and Bill is told why.
+    const blFailed = Boolean(customer.dataKey) && (input.liens?.status === 'unavailable' || input.civil?.status === 'unavailable');
+    if (blFailed) input.notCounted = true;
     let pcode = '';
     if (!address) {
       pcode = newLinkCode();
@@ -2857,16 +2943,17 @@ export async function POST(request: Request) {
     const courtsSearched = input.courts?.status === 'searched';
     const mail = await emailReport(customer.email, input, pdf, { voucher: customer.voucher, soiPdf: input.soiPdf });
     await updateRequest(requestId, {
-      Notes: mail.sent ? mail.detail : `Email not sent: ${mail.detail}`,
+      Notes: [mail.sent ? mail.detail : `Email not sent: ${mail.detail}`, input.blNotes, blFailed ? 'Not counted against the plan (liens or lawsuits NOT RUN).' : ''].filter(Boolean).join('\n'),
       'Report ID': input.reportId,
       ...(pcode ? { 'Property Check Code': pcode } : {}),
-      Status: 'Completed',
+      Status: blFailed ? 'Completed - not counted' : 'Completed',
       'Two-Step Check': input.verification?.overall ?? 'Not run',
       'Sanctions Matches': input.sanctions?.available ? input.sanctions.matches.length : null,
       'Federal Cases': courtsSearched ? input.courts?.total ?? null : null,
       'Bankruptcy Cases': courtsSearched ? input.courts?.bankruptcyTotal ?? null : null,
     }).catch((e) => console.error('Airtable update failed:', e instanceof Error ? e.message : e));
-    console.log('Report', input.reportId, mail.sent ? 'emailed' : `email not sent: ${mail.detail}`);
+    console.log('Report', input.reportId, mail.sent ? 'emailed' : `email not sent: ${mail.detail}`, input.blNotes ?? '');
+    if (blFailed) await alertBill(`Liens/lawsuits NOT RUN on ${input.reportId}`, `${customer.company}: "${entityName}"\n${input.blNotes ?? ''}\nThe report was not counted against their plan.`).catch(() => undefined);
     return pdfResponse(pdf, `CA-Research-Group-${input.reportId}.pdf`);
   } catch (err) {
     await updateRequest(requestId, { Status: 'Failed', Notes: err instanceof Error ? err.message : 'Report failed.' }).catch(() => undefined);

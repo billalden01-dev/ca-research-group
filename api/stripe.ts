@@ -5,6 +5,11 @@
 //   POST from Stripe (stripe-signature)  -> webhook: adds the customer to Airtable, emails their private link,
 //                                           and keeps Subscription Status in step with Stripe
 //   GET ?session_id=cs_...               -> the welcome page asks whether the new account is ready
+//   GET ?release=rec...                  -> after Bill pastes the client's Data Key in Airtable, emails the client their private link
+//
+// New paying clients wait for their Data Key (Bill makes each one by hand in the data provider console).
+// Their record gets Setup Status "Waiting for data key"; Bill gets an alert email; the private link goes out
+// only once the key is in Airtable (an Airtable automation calls ?release=, or Bill clicks the link in the alert).
 //
 // Vercel Environment Variables:
 //   STRIPE_SECRET_KEY      (required) sk_test_... while testing, sk_live_... when live
@@ -136,6 +141,23 @@ function newLinkCode(): string {
 const privateLink = (code: string) => `${SITE}/report.html?c=${code}`;
 const manageLink = (code: string) => `${SITE}/api/stripe?portal=${code}`;
 
+export const SETUP_WAITING = 'Waiting for data key';
+export const SETUP_SENT = 'Link sent';
+export const SETUP_TEXT = "One-time setup: after you sign up, we'll email your private report link, usually within an hour during business hours. From then on, just use your link to get reports in under a minute.";
+const ALERT_TO = () => process.env.ALERT_EMAIL || 'william@caresearchgroup.com';
+const recordUrl = (id: string) => `https://airtable.com/${AIRTABLE_BASE}/${CUSTOMERS_TABLE}/${id}`;
+const releaseLink = (id: string) => `${SITE}/api/stripe?release=${id}`;
+
+async function getRecord(id: string): Promise<AirtableRecord | null> {
+  if (!/^rec[A-Za-z0-9]{14}$/.test(id)) return null;
+  const token = process.env.AIRTABLE_TOKEN;
+  if (!token) throw new Error('AIRTABLE_TOKEN is missing in Vercel.');
+  const res = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE}/${CUSTOMERS_TABLE}/${id}`, { headers: { Authorization: `Bearer ${token}` }, signal: timeout(15000) });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Airtable returned ${res.status}`);
+  return (await res.json()) as AirtableRecord;
+}
+
 async function findByLinkCode(code: string): Promise<AirtableRecord | null> {
   // Link codes are letters, numbers, dashes and underscores only, so they are safe inside the formula.
   if (!/^[A-Za-z0-9_-]{12,64}$/.test(code)) return null;
@@ -199,6 +221,47 @@ const STATUS_FROM_STRIPE: Record<string, string> = {
 
 const escapeHtml = (t: string) => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 
+async function sendEmail(to: string, subject: string, html: string, bccNotify = false) {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) throw new Error('RESEND_API_KEY is missing in Vercel.');
+  const notify = bccNotify ? process.env.NOTIFY_EMAIL : undefined;
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: process.env.RESEND_FROM || 'CA Research Group <onboarding@resend.dev>', to: [to], bcc: notify ? [notify] : undefined, reply_to: 'william@caresearchgroup.com', subject, html }),
+    signal: timeout(15000),
+  });
+  if (!res.ok) throw new Error(`Resend returned ${res.status}: ${(await res.text()).slice(0, 200)}`);
+}
+
+// Right after payment: thank-you note to the client (no link yet).
+async function sendSetupEmail(to: string, company: string, plan: string, oneTime: boolean) {
+  const html = `<div style="font-family:-apple-system,Segoe UI,sans-serif;color:#1e293b;line-height:1.6;max-width:560px">
+<h2 style="font-family:Georgia,serif;color:#1e1b4b">Thank you for your order</h2>
+<p>Thank you for ${oneTime ? 'your order' : 'subscribing'}${company ? `, ${escapeHtml(company)}` : ''}. Your ${oneTime ? 'purchase' : 'plan'}: <strong>${escapeHtml(plan)}</strong>.</p>
+<p><strong>${escapeHtml(SETUP_TEXT)}</strong></p>
+<p>Questions? Just reply to this email.</p>
+<p style="font-size:12px;color:#64748b">See our <a href="${SITE}/terms.html">Terms of Service</a> and <a href="${SITE}/privacy.html">Privacy Policy</a>. CA Research Group is not a law firm and does not provide legal advice.</p>
+</div>`;
+  await sendEmail(to, 'Thank you for your CA Research Group order', html);
+}
+
+// Alert to Bill: a new client paid and needs a Data Key.
+async function sendNewClientAlert(recId: string, f: { name: string; company: string; email: string; plan: string }) {
+  const row = (k: string, v: string) => `<tr><td style="padding:4px 12px 4px 0;color:#64748b">${k}</td><td style="padding:4px 0"><b>${escapeHtml(v || '-')}</b></td></tr>`;
+  const html = `<div style="font-family:-apple-system,Segoe UI,sans-serif;color:#1e293b;line-height:1.6;max-width:560px">
+<h2 style="font-family:Georgia,serif;color:#1e1b4b">New paying client: add their Data Key</h2>
+<table>${row('Name', f.name)}${row('Company', f.company)}${row('Email', f.email)}${row('Plan', f.plan)}</table>
+<ol>
+<li>Create their data key in the provider console.</li>
+<li>Paste it into the <b>Data Key</b> field of <a href="${recordUrl(recId)}">their Airtable record</a>.</li>
+<li>Their private link is emailed to them automatically.</li>
+</ol>
+<p style="font-size:13px;color:#64748b">If the link hasn't gone out a few minutes after you paste the key, <a href="${releaseLink(recId)}">click here to send it</a>. (It only sends once, and only after the key is in Airtable.)</p>
+</div>`;
+  await sendEmail(ALERT_TO(), `New client: ${f.company || f.email} (${f.plan}) needs a Data Key`, html);
+}
+
 async function sendWelcomeEmail(to: string, company: string, plan: string, code: string, oneTime = false) {
   const key = process.env.RESEND_API_KEY;
   if (!key) throw new Error('RESEND_API_KEY is missing in Vercel.');
@@ -261,6 +324,7 @@ export async function handleCheckoutCompleted(session: StripeObj): Promise<strin
           Role: ROLES.includes(meta.role) ? meta.role : undefined,
           Plan: plan?.label,
           'Subscription Status': 'Active',
+          'Setup Status': SETUP_WAITING,
           'Link Code': code,
           'Stripe Customer ID': customerId,
           'Signed Up': new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()),
@@ -275,16 +339,27 @@ export async function handleCheckoutCompleted(session: StripeObj): Promise<strin
     }),
   });
   const recId = created.records?.[0]?.id ?? '';
+  // The private link waits for the client's Data Key (see ?release=). Tell the client, alert Bill.
+  const problems: string[] = [];
   try {
-    if (email) await sendWelcomeEmail(email, clip(meta.company), plan?.label ?? 'your plan', code, isOneTime);
+    if (email) await sendSetupEmail(email, clip(meta.company), plan?.label ?? 'your plan', isOneTime);
   } catch (err) {
-    console.error('Welcome email failed', err);
+    console.error('Setup email failed', err);
+    problems.push(`Thank-you email NOT sent: ${err instanceof Error ? err.message : 'error'}`);
+  }
+  try {
+    await sendNewClientAlert(recId, { name: clip(details.name), company: clip(meta.company), email, plan: plan?.label ?? '' });
+  } catch (err) {
+    console.error('New client alert failed', err);
+    problems.push(`Alert to Bill NOT sent: ${err instanceof Error ? err.message : 'error'}`);
+  }
+  if (problems.length) {
     await airtable(CUSTOMERS_TABLE, {
       method: 'PATCH',
-      body: JSON.stringify({ records: [{ id: recId, fields: { Notes: `${notes.join('\n')}\nWelcome email NOT sent: ${err instanceof Error ? err.message : 'error'}` } }] }),
+      body: JSON.stringify({ records: [{ id: recId, fields: { Notes: [...notes, ...problems].join('\n') } }] }),
     }).catch(() => undefined);
   }
-  return `added: ${recId}`;
+  return `added (waiting for data key): ${recId}`;
 }
 
 export async function handleSubscriptionChange(sub: StripeObj): Promise<string> {
@@ -372,6 +447,33 @@ async function createCheckout(request: Request): Promise<Response> {
   }
 }
 
+// ---------- Release the private link once the Data Key is in ----------
+
+// Safe to call any number of times: it only emails the client on file, only once, and only when their Data Key is in Airtable.
+export async function releaseLinkFor(recId: string): Promise<{ status: string; message: string }> {
+  const rec = await getRecord(recId);
+  if (!rec) return { status: 'not_found', message: 'Customer record not found.' };
+  const f = rec.fields;
+  const setup = str((f['Setup Status'] as { name?: string } | undefined)?.name ?? f['Setup Status']);
+  const company = str(f['Company']);
+  if (setup === SETUP_SENT) return { status: 'already_sent', message: `The private link was already sent to ${company || 'this client'}.` };
+  if (setup !== SETUP_WAITING) return { status: 'not_waiting', message: 'This client is not waiting for a link (nothing was sent).' };
+  if (!str(f['Data Key']).trim()) return { status: 'no_key', message: 'No Data Key yet. Paste it into the Data Key field in Airtable, then try again.' };
+  const email = str(f['Contact Email']);
+  const code = str(f['Link Code']);
+  if (!email || !code) return { status: 'missing', message: 'This record has no email or link code. Please check it in Airtable.' };
+  // Mark it sent first, so two calls at once cannot send two emails.
+  await airtable(CUSTOMERS_TABLE, { method: 'PATCH', body: JSON.stringify({ typecast: true, records: [{ id: recId, fields: { 'Setup Status': SETUP_SENT } }] }) });
+  const planName = str((f['Plan'] as { name?: string } | undefined)?.name ?? f['Plan']);
+  try {
+    await sendWelcomeEmail(email, company, planName || 'your plan', code, /Single Report/i.test(planName));
+  } catch (err) {
+    await airtable(CUSTOMERS_TABLE, { method: 'PATCH', body: JSON.stringify({ typecast: true, records: [{ id: recId, fields: { 'Setup Status': SETUP_WAITING } }] }) }).catch(() => undefined);
+    throw err;
+  }
+  return { status: 'sent', message: `Private link emailed to ${email}.` };
+}
+
 // ---------- Handlers ----------
 
 export async function POST(request: Request) {
@@ -384,6 +486,17 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   const portalCode = new URL(request.url).searchParams.get('portal');
   if (portalCode !== null) return openPortal(portalCode);
+  const release = new URL(request.url).searchParams.get('release');
+  if (release !== null) {
+    try {
+      const r = await releaseLinkFor(release);
+      if (new URL(request.url).searchParams.get('format') === 'json') return json(r, r.status === 'not_found' ? 404 : 200);
+      return htmlMessage(r.status === 'sent' ? 'Link sent' : 'Nothing sent', r.message, r.status === 'not_found' ? 404 : 200);
+    } catch (err) {
+      console.error('Release failed', err);
+      return htmlMessage('Not sent', 'The link email could not be sent just now. Please try again in a few minutes.', 503);
+    }
+  }
   const sessionId = new URL(request.url).searchParams.get('session_id') ?? '';
   if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(sessionId)) return json({ error: 'Missing or invalid session.' }, 400);
   try {
@@ -392,6 +505,11 @@ export async function GET(request: Request) {
     const rec = await findByStripeCustomer(str(session.customer));
     if (!rec) return json({ ready: false, paid: true });
     const meta = (session.metadata ?? {}) as Record<string, string>;
+    const setup = str((rec.fields['Setup Status'] as { name?: string } | undefined)?.name ?? rec.fields['Setup Status']);
+    // New clients wait for their Data Key: no link on the thank-you page.
+    if (setup === SETUP_WAITING) {
+      return json({ ready: true, setup: true, company: str(rec.fields['Company']), email: str(rec.fields['Contact Email']), single: Boolean(PLANS[str(meta.plan)]?.oneTime), message: SETUP_TEXT });
+    }
     const code = str(rec.fields['Link Code']);
     return json({
       ready: true,
