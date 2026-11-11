@@ -112,7 +112,7 @@ const STEPS = [
 
 const AFTER_SUBSCRIBE = [
   'Choose a plan and accept our Terms of Service, then fill in your details and the first business you want researched, and pay securely by card.',
-  "One-time setup: after you sign up, we'll email your private report link, usually within an hour during business hours. From then on, just use your link to get reports in under a minute. Bookmark it. There is no password to remember.",
+  "Right after you sign up, we'll email your private report link. From then on, just use your link to get reports in under a minute. Bookmark it. There is no password to remember.",
   'Use that link any time to request another report. Each request counts toward your monthly plan (or uses your single report).',
   'Your PDF report is sent to your work email.',
 ];
@@ -316,10 +316,10 @@ export default function App() {
         {/* HOME COMPONENT */}
         {currentPage === 'home' && (
           <div style={{ maxWidth: '980px', margin: '0 auto', padding: isMobile ? '20px 16px 56px 16px' : isShort ? '14px 20px 56px 20px' : '24px 20px 80px 20px', textAlign: 'center' }}>
-            <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '30px' : isShort ? '43px' : '50px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.12', marginBottom: '6px', textWrap: 'balance' } as React.CSSProperties}>Fast California <span style={{ whiteSpace: 'nowrap' }}>Public-Record</span> Research</h1>
-            <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '22px' : isShort ? '30px' : '34px', fontWeight: 500, color: '#9f7f2b', marginTop: '6px', marginBottom: isMobile ? '24px' : '28px', textWrap: 'balance' } as React.CSSProperties}>for Commercial Real Estate & Business Brokers,{isMobile ? ' ' : <br />}Lenders & Litigation Attorneys</h2>
+            <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '30px' : isShort ? '43px' : '50px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.12', marginBottom: '6px', textWrap: 'balance' } as React.CSSProperties}>Protect your deal by vetting the business behind it.</h1>
+            <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '22px' : isShort ? '30px' : '34px', fontWeight: 500, color: '#9f7f2b', marginTop: '6px', marginBottom: isMobile ? '24px' : '28px', textWrap: 'balance' } as React.CSSProperties}>California public-record research for Commercial Real Estate{isMobile ? ' ' : <br />}& Business Brokers, Lenders & Litigation Attorneys</h2>
             <p style={{ fontSize: isMobile ? '14px' : '15px', color: '#64748b', margin: isMobile ? '-14px auto 22px auto' : '-16px auto 26px auto', lineHeight: '1.5', textWrap: 'balance' } as React.CSSProperties}>Also a great fit for hard money lenders, investors, title professionals,{isMobile ? <br /> : ' '}commercial landlords and commercial property managers.</p>
-            <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>A clear PDF report in about a minute, built from official public records: business status and who manages it, liens, lawsuits and bankruptcy, and sanctions screening. Add a property address for environmental and historic checks.</p>
+            <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>One run searches several official sources and delivers one clear PDF report in about a minute: business status and who manages it, liens, lawsuits and bankruptcy, and sanctions screening. Add a property address for environmental and historic checks.</p>
             <button type="button" onClick={() => handleNavigate('pricing')} style={{ background: 'linear-gradient(180deg, #e8d28e 0%, #d6b968 100%)', boxShadow: '0 4px 14px rgba(214,185,104,0.35)', color: '#1e1b4b', fontSize: isMobile ? '15px' : '17px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: isMobile ? '14px 22px' : '15px 34px', cursor: 'pointer', margin: '0 0 14px 0' }}>Get Started: See Plans & Pricing →</button>
             <div style={{ margin: isMobile ? '0 0 26px 0' : '0 0 30px 0' }}>
               <button type="button" onClick={() => setShowVideo(true)} aria-label="Play the 1-minute video" style={{ display: 'inline-flex', alignItems: 'center', gap: '14px', background: '#ffffff', border: '1px solid #e6d6a3', borderRadius: '14px', padding: '8px 18px 8px 8px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(30,27,75,0.08)', textAlign: 'left', fontFamily: 'inherit' }}>
@@ -578,7 +578,7 @@ export default function App() {
                   <button type="submit" disabled={paying} style={{ backgroundColor: paying ? '#94a3b8' : '#1e1b4b', color: '#ffffff', fontSize: '15px', fontWeight: 'bold', border: 'none', borderRadius: '10px', padding: '14px', cursor: paying ? 'wait' : 'pointer', marginTop: '10px' }}>
                     {paying ? 'Opening secure payment...' : 'Continue to Secure Payment ➔'}
                   </button>
-                  <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748b', margin: '-8px 0 0 0' }}>Payments are processed by Stripe. One-time setup: after you sign up, we'll email your private report link, usually within an hour during business hours. From then on, just use your link to get reports in under a minute.</p>
+                  <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748b', margin: '-8px 0 0 0' }}>Payments are processed by Stripe. Right after you sign up, we'll email your private report link. From then on, just use your link to get reports in under a minute.</p>
 
                   <button type="button" onClick={() => setWizardStep(2)} style={{ background: 'none', border: 'none', color: '#64748b', textDecoration: 'underline', cursor: 'pointer', alignSelf: 'center' }}>➔ Back to Terms</button>
                 </form>
