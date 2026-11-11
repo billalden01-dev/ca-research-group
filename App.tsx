@@ -650,8 +650,8 @@ export default function App() {
         <div onClick={() => setShowVideo(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,14,40,0.82)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', width: '100%', maxWidth: '860px' }}>
             <button type="button" aria-label="Close video" onClick={() => setShowVideo(false)} style={{ position: 'absolute', top: '-44px', right: 0, background: 'none', border: 'none', color: '#ffffff', fontSize: '30px', cursor: 'pointer', lineHeight: 1 }}>×</button>
-            <video controls autoPlay playsInline poster="/intro-video-poster-v11.jpg" style={{ width: '100%', display: 'block', borderRadius: '14px', border: '3px solid #d6b968', backgroundColor: '#1e1b4b' }}>
-              <source src="/intro-video-v11.mp4" type="video/mp4" />
+            <video controls autoPlay playsInline poster="/intro-video-poster-v12.jpg" style={{ width: '100%', display: 'block', borderRadius: '14px', border: '3px solid #d6b968', backgroundColor: '#1e1b4b' }}>
+              <source src="/intro-video-v12.mp4" type="video/mp4" />
             </video>
           </div>
         </div>
