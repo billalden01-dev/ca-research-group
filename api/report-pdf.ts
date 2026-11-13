@@ -437,10 +437,18 @@ export function parseLiens(name: string, raw: Raw | null, searchedAt: Date): Lie
   return { searchedAt, searchedFor: name, status: 'searched', filings };
 }
 
+// Show dates one way everywhere: 04/20/2023 -> 2023-04-20.
+function isoDay(v: string): string {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(v.trim());
+  return m ? `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}` : v;
+}
+
 export function parseCivil(name: string, raw: Raw | null, searchedAt: Date): CivilResult {
   if (!raw || !blOk(raw)) return { searchedAt, searchedFor: name, status: 'unavailable', cases: [] };
   const cases = (Array.isArray(raw.dockets) ? (raw.dockets as Raw[]) : [])
     .filter((d) => !d.is_bankruptcy)
+    // Patent and trademark records are not lawsuits; leave them out.
+    .filter((d) => !/patent application|trademark/i.test(str(d.court)) && !/trademark|service mark/i.test(str(d.case_type)))
     .map((d) => {
       const status = str(d.status);
       const norm = str(d.normalized_status).toLowerCase();
@@ -1030,8 +1038,8 @@ export function fromCobalt(name: string, raw: Raw, searchedAt: Date, soiParsed?:
         .map((f) => ({
         fileNumber: str(f.fileNumber),
         type: str(f.type),
-        filed: str(f.filingDate),
-        lapse: str(f.lapseDate),
+        filed: isoDay(str(f.filingDate)),
+        lapse: isoDay(str(f.lapseDate)),
         status: str(f.status) || 'Not listed',
         securedParty: (Array.isArray(f.securedParties) ? f.securedParties : []).map((p: Raw) => str(p.name)).filter(Boolean).join('; ') || 'Not listed',
         debtors: debtorNames(f),
