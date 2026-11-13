@@ -449,6 +449,8 @@ export function parseCivil(name: string, raw: Raw | null, searchedAt: Date): Civ
     .filter((d) => !d.is_bankruptcy)
     // Patent and trademark records are not lawsuits; leave them out.
     .filter((d) => !/patent application|trademark/i.test(str(d.court)) && !/trademark|service mark/i.test(str(d.case_type)))
+    // Traffic tickets and vehicle-owner citations are not lawsuits; leave them out.
+    .filter((d) => !/traffic|owner responsibility|infraction/i.test(str(d.case_type)) && !/^\s*(\d+-)?\d{0,2}-?TR\b|^\d{2}TR\d/i.test(str(d.docket_number)))
     .map((d) => {
       const status = str(d.status);
       const norm = str(d.normalized_status).toLowerCase();
