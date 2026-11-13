@@ -2553,7 +2553,9 @@ async function updateRequest(id: string, fields: Record<string, unknown>) {
 // A request for the same business (and address) by the same client in the last 10 minutes that is running or finished.
 async function recentDuplicate(customerId: string, business: string, address: string): Promise<boolean> {
   const q = (v: string) => `"${v.trim().toLowerCase().replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-  const formula = `AND(IS_AFTER({Requested At}, DATEADD(NOW(), -10, 'minutes')), LOWER(TRIM({Business Name}))=${q(business)}, LOWER(TRIM({Property Address}&''))=${q(address)}, OR({Status}='Received', {Status}='Completed', {Status}='Completed - not counted'))`;
+  // Airtable's NOW() can lag by many minutes (even hours), so the cutoff time comes from here.
+  const cutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  const formula = `AND(IS_AFTER({Requested At}, DATETIME_PARSE('${cutoff}')), LOWER(TRIM({Business Name}))=${q(business)}, LOWER(TRIM({Property Address}&''))=${q(address)}, OR({Status}='Received', {Status}='Completed', {Status}='Completed - not counted'))`;
   const d = await airtable(`${REQUESTS_TABLE}?maxRecords=20&filterByFormula=${encodeURIComponent(formula)}`);
   return (d.records ?? []).some((r) => Array.isArray(r.fields['Customer']) && (r.fields['Customer'] as string[]).includes(customerId));
 }
