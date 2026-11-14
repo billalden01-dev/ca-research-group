@@ -561,9 +561,10 @@ export default function App() {
                     <label style={labelStyle}>How will you use this report? (optional)</label>
                     <select value={reportUse} onChange={(e) => setReportUse(e.target.value)} style={inputStyle}>
                       <option value="">Select one</option>
-                      <option value="Loan underwriting">Loan underwriting</option>
-                      <option value="Acquisition due diligence">Acquisition due diligence</option>
-                      <option value="Legal matter">Legal matter</option>
+                      <option value="Leasing to a business tenant (new or existing)">Leasing to a business tenant (new or existing)</option>
+                      <option value="Business loan (new or existing borrower)">Business loan (new or existing borrower)</option>
+                      <option value="Commercial property purchase or sale">Commercial property purchase or sale</option>
+                      <option value="Legal matter or lawsuit">Legal matter or lawsuit</option>
                       <option value="Other">Other</option>
                     </select>
                   </div>

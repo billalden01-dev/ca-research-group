@@ -58,11 +58,13 @@
         <label for="use">How will you use this report? (optional)</label>
         <select id="use" name="use">
           <option value="">Select one</option>
-          <option>Loan underwriting</option>
-          <option>Acquisition due diligence</option>
-          <option>Legal matter</option>
+          <option>Leasing to a business tenant (new or existing)</option>
+          <option>Business loan (new or existing borrower)</option>
+          <option>Commercial property purchase or sale</option>
+          <option>Legal matter or lawsuit</option>
           <option>Other</option>
         </select>
+        <input id="useOther" name="use_other" type="text" maxlength="100" class="hidden" placeholder="Briefly describe (optional)" style="margin-top:8px">
 
         <label class="cert">
           <input type="checkbox" name="certify" value="yes" required>
@@ -158,6 +160,7 @@
     // Refresh the "reports used" count whenever the client comes back to this tab (e.g. after viewing the PDF).
     document.addEventListener('visibilitychange', function () { if (!document.hidden && code) load(); });
   })();
+    document.getElementById('use').addEventListener('change', function () { var o = document.getElementById('useOther'); var on = this.value === 'Other'; o.classList.toggle('hidden', !on); if (!on) o.value = ''; });
 </script>
 </body>
 </html>

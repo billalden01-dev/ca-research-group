@@ -3177,6 +3177,8 @@ export async function POST(request: Request) {
 
   const address = g('address');
   const entityName = g('name');
+  // "Other" can carry a short description the client typed in.
+  const reportUse = g('use') === 'Other' && g('use_other') ? `Other: ${g('use_other').slice(0, 100)}` : g('use');
   if (!entityName.trim()) return htmlPage('Business name needed', 'Please go back and enter the business name, for example "Acme Holdings LLC".', 400);
   if (g('certify') !== 'yes') return htmlPage('Certification needed', 'Please go back and check the purpose certification box.', 400);
   const nameProblem = businessNameProblem(entityName);
@@ -3188,7 +3190,7 @@ export async function POST(request: Request) {
     'Business Name': entityName,
     'Property Address': address,
     County: g('county'),
-    'Report Use': g('use'),
+    'Report Use': reportUse,
     'Purpose Certified': true,
   };
 
@@ -3227,7 +3229,7 @@ export async function POST(request: Request) {
     // Liens and lawsuits run under the client's own provider client account (made automatically), or their Data Key.
     const access = await providerAccess(customer);
     const input = await runReport(
-      { company: customer.company, email: customer.email || 'Not provided', role: customer.role || undefined, propertyAddress: address, entityName: entityName || undefined, county: g('county') || undefined, reportUse: g('use') || undefined },
+      { company: customer.company, email: customer.email || 'Not provided', role: customer.role || undefined, propertyAddress: address, entityName: entityName || undefined, county: g('county') || undefined, reportUse: reportUse || undefined },
       { sosApiKey: process.env.CA_SOS_API_KEY, courtListenerToken: process.env.COURTLISTENER_TOKEN, cobaltKey: process.env.COBALT_API_KEY, baselayerKey: access.key, baselayerExtId: access.extId, baselayerNote: access.note },
     );
     // No matching business: don't send a report and don't count it against the client's plan.
