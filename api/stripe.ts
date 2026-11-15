@@ -391,7 +391,7 @@ ${oneTime ? '<p style="font-size:13px;color:#475569">Your single report can be r
 }
 
 const box = (inner: string) => `<div style="font-family:-apple-system,Segoe UI,sans-serif;color:#1e293b;line-height:1.6;max-width:560px">${inner}</div>`;
-const button = (href: string, text: string) => `<p><a href="${href}" style="display:inline-block;background:#1e1b4b;color:#ffffff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold">${escapeHtml(text)}</a></p>`;
+const button = (href: string, text: string) => `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:12px 0"><tr><td bgcolor="#1e1b4b" style="background-color:#1e1b4b;border-radius:8px"><a href="${href}" style="display:inline-block;padding:12px 20px;color:#ffffff;text-decoration:none;font-weight:bold"><font color="#ffffff">${escapeHtml(text)}</font></a></td></tr></table>`;
 
 // To the client: their existing account was updated (one more report, or a new plan). Same private link as before.
 export function accountUpdatedHtml(company: string, what: string, code: string): string {

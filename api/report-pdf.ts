@@ -2603,8 +2603,9 @@ export function limitEmail(c: { company: string; plan: string; limit: number; pi
   const trial = /trial/i.test(c.plan);
   const where = c.pilot ? (trial ? 'in your trial' : 'in your pilot') : o.monthly ? 'this month' : 'on your account';
   const subject = left === 1 ? `1 report left ${where}` : `You've used your reports ${where}`;
+  // Table-cell buttons with bgcolor: shows the dark background in every email program (Gmail can drop it on links).
   const btn = (href: string, text: string, dark = true) =>
-    `<a href="${href}" style="display:inline-block;margin:4px 6px 4px 0;background:${dark ? '#1e1b4b' : '#ffffff'};color:${dark ? '#ffffff' : '#1e1b4b'};border:1px solid #1e1b4b;padding:11px 18px;border-radius:8px;text-decoration:none;font-weight:bold">${esc(text)}</a>`;
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="display:inline-table;margin:4px 6px 4px 0"><tr><td bgcolor="${dark ? '#1e1b4b' : '#ffffff'}" style="background-color:${dark ? '#1e1b4b' : '#ffffff'};border:1px solid #1e1b4b;border-radius:8px"><a href="${href}" style="display:inline-block;padding:11px 18px;color:${dark ? '#ffffff' : '#1e1b4b'};text-decoration:none;font-weight:bold">${dark ? `<font color="#ffffff">${esc(text)}</font>` : esc(text)}</a></td></tr></table>`;
   const choices = [
     btn(`${SITE_URL}/api/stripe?extra=${code}`, `Run one more report: ${o.extraText}`),
     o.next ? btn(`${SITE_URL}/api/stripe?moveup=${code}`, `Move up to ${o.next.label}`, false) : '',
@@ -2614,7 +2615,7 @@ export function limitEmail(c: { company: string; plan: string; limit: number; pi
 <p>Hello,</p>
 <p>${left === 1 ? `You have <strong>1 report left</strong> ${where}${c.company ? ` for ${esc(c.company)}` : ''}.` : `You've used all of your reports ${where}${c.company ? ` for ${esc(c.company)}` : ''}.`}${o.monthly ? ` Your reports reset on <strong>${resetText()}</strong>.` : ''}</p>
 <p>${left === 1 ? 'If you need more, here are your choices:' : 'Need another report now? Here are your choices:'}</p>
-<p>${choices}</p>
+<div>${choices}</div>
 ${o.monthly ? `<p style="font-size:13px;color:#64748b">Or wait: your reports reset on ${resetText()}.</p>` : ''}
 <p><a href="${SITE_URL}/report.html?c=${code}" style="color:#1e1b4b">Go to your report page</a></p>
 <p>Questions? Just reply to this email.</p>
