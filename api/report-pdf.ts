@@ -9,7 +9,7 @@
 //   https://caresearchgroup.com/report.html?c=LINK_CODE
 
 import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage, PDFImage, PDFString } from 'pdf-lib';
-import { offerFor, resetText, SINGLE_PLAN } from './_offers';
+import { offerFor, resetText, SINGLE_PLAN } from './_offers.js';
 
 declare const process: { env: Record<string, string | undefined> };
 

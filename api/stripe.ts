@@ -22,7 +22,7 @@
 
 declare const process: { env: Record<string, string | undefined> };
 
-import { offerFor, pacificMonth, SINGLE_PLAN, MONTHLY } from './_offers';
+import { offerFor, pacificMonth, SINGLE_PLAN, MONTHLY } from './_offers.js';
 
 const SITE = 'https://www.caresearchgroup.com';
 
