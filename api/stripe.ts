@@ -706,7 +706,7 @@ async function oneMoreCheckout(code: string): Promise<Response> {
   }
 }
 
-type MoveUp = { rec: AirtableRecord; sub: StripeObj; next: { label: string; name: string; cents: number }; current: string; startUnix: number; startText: string };
+type MoveUp = { rec: AirtableRecord; sub: StripeObj; next: { label: string; name: string; cents: number }; current: string; startUnix: number; startText: string; scheduleId?: string };
 
 async function moveUpInfo(code: string): Promise<MoveUp | Response> {
   const rec = await findByLinkCode(code);
@@ -721,12 +721,20 @@ async function moveUpInfo(code: string): Promise<MoveUp | Response> {
   const subs = ((await stripe(`subscriptions?customer=${customer}&status=active&limit=5`)).data ?? []) as StripeObj[];
   const sub = subs.find((x) => str(x.id) === str(f['Stripe Subscription ID'])) ?? subs[0];
   if (!sub) return htmlMessage('Move up', 'We could not find your monthly plan in our billing system. Please email william@caresearchgroup.com and we will help.', 200);
-  if (sub.schedule) return htmlMessage('Already scheduled', 'A plan change is already scheduled for your account. Questions? Email william@caresearchgroup.com.', 200);
+  // A schedule with only the current phase (for example left by an earlier attempt that failed) is reused.
+  let scheduleId: string | undefined;
+  if (sub.schedule) {
+    scheduleId = str((sub.schedule as StripeObj)?.id ?? sub.schedule);
+    const existing = await stripe(`subscription_schedules/${scheduleId}`);
+    if (((existing.phases as StripeObj[]) ?? []).length > 1 || !['active', 'not_started'].includes(str(existing.status))) {
+      return htmlMessage('Already scheduled', 'A plan change is already scheduled for your account. Questions? Email william@caresearchgroup.com.', 200);
+    }
+  }
   const item = ((sub.items as { data?: StripeObj[] })?.data ?? [])[0] ?? {};
   const startUnix = Number(item.current_period_end ?? sub.current_period_end ?? 0);
   if (!startUnix) return htmlMessage('Move up', 'Please email william@caresearchgroup.com and we will move you up.', 200);
   const startText = new Date(startUnix * 1000).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Los_Angeles' });
-  return { rec, sub, next: offer.next, current, startUnix, startText };
+  return { rec, sub, next: offer.next, current, startUnix, startText, scheduleId };
 }
 
 async function moveUpPage(code: string): Promise<Response> {
@@ -749,15 +757,19 @@ async function confirmMoveUp(code: string): Promise<Response> {
     const m = await moveUpInfo(code);
     if (m instanceof Response) return m;
     const price = await stripe('prices', { currency: 'usd', unit_amount: m.next.cents, recurring: { interval: 'month' }, product_data: { name: `CA Research Group - ${m.next.name}` } });
-    const sched = await stripe('subscription_schedules', { from_subscription: str(m.sub.id) });
-    const p0 = ((sched.phases as StripeObj[]) ?? [])[0] ?? {};
+    const sched = m.scheduleId ? await stripe(`subscription_schedules/${m.scheduleId}`) : await stripe('subscription_schedules', { from_subscription: str(m.sub.id) });
+    const phases = (sched.phases as StripeObj[]) ?? [];
+    const p0 = phases[phases.length - 1] ?? {};
+    // The new plan's first month ends one month after it starts; then the schedule lets go and the plan simply continues.
+    const start = new Date(Number(p0.end_date) * 1000);
+    const end = Math.floor(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, start.getUTCDate(), start.getUTCHours(), start.getUTCMinutes()) / 1000);
     const p0items = ((p0.items as StripeObj[]) ?? []).map((it, i) => [i, { price: str((it.price as StripeObj)?.id ?? it.price), quantity: Number(it.quantity ?? 1) }]);
     await stripe(`subscription_schedules/${str(sched.id)}`, {
       end_behavior: 'release',
       proration_behavior: 'none',
       phases: {
         0: { items: Object.fromEntries(p0items), start_date: Number(p0.start_date), end_date: Number(p0.end_date) },
-        1: { items: { 0: { price: str(price.id), quantity: 1 } }, iterations: 1 },
+        1: { items: { 0: { price: str(price.id), quantity: 1 } }, end_date: end },
       },
     });
     const f = m.rec.fields;
