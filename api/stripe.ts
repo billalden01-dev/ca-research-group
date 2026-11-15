@@ -47,7 +47,7 @@ const ROLES = [
   'Commercial real estate agent or broker',
   'Commercial real estate brokerage (office)',
   'Commercial property manager or landlord',
-  'Commercial or hard money lender',
+  'Commercial or private lender',
   'Title or escrow (rep, officer or company)',
   // Earlier choices (kept so older links still save)
   'Hard money lender or lending institution',
