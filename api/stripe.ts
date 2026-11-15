@@ -523,8 +523,12 @@ async function applyToExisting(rec: AirtableRecord, session: StripeObj, plan: { 
       warn.push('They already had an active monthly plan. Check Stripe: they may now have TWO subscriptions. If so, cancel the old one.');
     }
     Object.assign(fields, { Plan: plan.label, 'Subscription Status': 'Active', 'Stripe Subscription ID': str(session.subscription) });
-    // Coming from a trial, pilot or single report: the new plan starts fresh this month.
-    if (!wasMonthly) Object.assign(fields, { 'Extra Reports': Number(f['Reports This Month'] ?? 0) || 0, 'Extra Reports Month': pacificMonth() });
+    // Coming from a trial, pilot or single report: the new plan starts fresh this month,
+    // and any paid single reports not used yet carry over (this month).
+    if (!wasMonthly) {
+      const paidLeft = oldPlan === SINGLE_PLAN ? Math.max(0, (Number(f['Monthly Report Limit'] ?? 0) || 0) - (Number(f['Reports Total'] ?? 0) || 0)) : 0;
+      Object.assign(fields, { 'Extra Reports': (Number(f['Reports This Month'] ?? 0) || 0) + paidLeft, 'Extra Reports Month': pacificMonth() });
+    }
     what = `Your plan is now ${plan.label}.`;
   }
   fields.Notes = addNote(f, `${todayPacific()}: ${isOneTime ? 'Bought one more report' : `Plan changed from ${oldPlan || 'none'} to ${plan.label}`} (checkout ${str(session.id)}).`);
