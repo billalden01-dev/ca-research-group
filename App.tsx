@@ -526,7 +526,7 @@ export default function App() {
                       <option value="Commercial real estate agent or broker">Commercial real estate agent or broker</option>
                       <option value="Commercial real estate brokerage (office)">Commercial real estate brokerage (office)</option>
                       <option value="Commercial property manager or landlord">Commercial property manager or landlord</option>
-                      <option value="Commercial lender (bank, credit union, private or hard money)">Commercial lender (bank, credit union, private or hard money)</option>
+                      <option value="Commercial or hard money lender">Commercial or hard money lender</option>
                       <option value="Title or escrow (rep, officer or company)">Title or escrow (rep, officer or company)</option>
                       <option value="Business broker">Business broker</option>
                       <option value="Real estate investor">Real estate investor</option>
