@@ -26,7 +26,8 @@
     <img src="/logo-tight.png" alt="CA Research Group">
     <h1>Run a Report</h1>
     <p class="sub">Private page for CA Research Group staff.</p>
-    <form method="get" action="/api/report-pdf" target="_blank">
+    <form method="post" action="/api/report-pdf" target="_blank">
+      <input type="hidden" name="staff" value="1">
       <label for="token">Report password</label>
       <input id="token" name="token" type="password" required autocomplete="current-password">
       <div class="hint">The LOOKUP_TOKEN password you saved in Vercel.</div>

@@ -67,8 +67,8 @@
       e.preventDefault();
       $('err').classList.add('hidden');
       $('go').disabled = true; $('go').textContent = 'Making voucher...';
-      var q = new URLSearchParams({ voucher: '1', token: $('pw').value, company: $('company').value.trim(), contact: $('contact').value.trim(), email: $('email').value.trim() });
-      fetch('/api/report-pdf?' + q.toString(), { cache: 'no-store' })
+      var q = new URLSearchParams({ staff: '1', voucher: '1', token: $('pw').value, company: $('company').value.trim(), contact: $('contact').value.trim(), email: $('email').value.trim() });
+      fetch('/api/report-pdf', { method: 'POST', body: q, cache: 'no-store' })
         .then(function (r) { return r.json().then(function (d) { return { status: r.status, d: d }; }); })
         .then(function (x) {
           $('go').disabled = false; $('go').textContent = 'Make voucher';

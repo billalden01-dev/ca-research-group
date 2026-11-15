@@ -155,7 +155,9 @@ const FAQS = [
 const planLabel = (plan: Plan) => (plan.id === 'single' ? `${plan.name} ($${plan.price})` : `${plan.name} ($${plan.price}/mo)`);
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<Page>('home');
+  // A client's own report page links here as /?c=CODE#pricing ("Choose a monthly plan") so the purchase keeps their account.
+  const clientCode = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('c') || '' : '';
+  const [currentPage, setCurrentPage] = useState<Page>(typeof window !== 'undefined' && (clientCode || window.location.hash === '#pricing') ? 'pricing' : 'home');
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
   const [wizardStep, setWizardStep] = useState<number>(1);
   const [agreed, setAgreed] = useState(false);
@@ -238,6 +240,7 @@ export default function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         plan: plan.id,
+        code: clientCode || undefined,
         company: companyName,
         role: roleType,
         email: corporateEmail,

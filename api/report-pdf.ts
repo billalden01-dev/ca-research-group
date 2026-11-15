@@ -9,6 +9,7 @@
 //   https://caresearchgroup.com/report.html?c=LINK_CODE
 
 import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage, PDFImage, PDFString } from 'pdf-lib';
+import { offerFor, resetText, SINGLE_PLAN } from './_offers';
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -2154,7 +2155,7 @@ export function businessNameProblem(name: string): string | null {
   return null;
 }
 
-export type Customer = { id: string; company: string; email: string; role: string; plan: string; used: number; limit: number; canRun: boolean; active: boolean; voucher: boolean; pilot: boolean; expires: string; expired: boolean; usedTotal: number; dataKey?: string; providerId?: string; setupWaiting?: boolean };
+export type Customer = { id: string; company: string; email: string; role: string; plan: string; used: number; limit: number; canRun: boolean; active: boolean; voucher: boolean; pilot: boolean; expires: string; expired: boolean; usedTotal: number; dataKey?: string; providerId?: string; setupWaiting?: boolean; stripe?: boolean };
 
 // A complimentary report voucher: one free report, good through the date in Voucher Expires (Pacific time).
 export const VOUCHER_PLAN = 'Complimentary Report (5-day voucher)';
@@ -2224,8 +2225,10 @@ export async function findCustomer(code: string): Promise<Customer | null> {
     email: str(f['Contact Email']),
     role: selectName(f['Role']),
     plan: selectName(f['Plan']),
-    used: Number(f['Reports This Month'] ?? 0) || 0,
+    // Single Report accounts count all reports ever (1 plus any extra reports bought); monthly plans count this month.
+    used: selectName(f['Plan']) === SINGLE_PLAN ? Number(f['Reports Total'] ?? 0) || 0 : Number(f['Reports This Month'] ?? 0) || 0,
     limit: Number(f['Monthly Report Limit'] ?? 0) || 0,
+    stripe: /^cus_[A-Za-z0-9]+$/.test(str(f['Stripe Customer ID'])),
     canRun: str(f['Can Run Report']) === 'YES',
     active: selectName(f['Subscription Status']) === 'Active',
     voucher: selectName(f['Plan']) === VOUCHER_PLAN,
@@ -2591,6 +2594,48 @@ async function alertBill(subject: string, text: string): Promise<void> {
   });
 }
 
+const SITE_URL = 'https://www.caresearchgroup.com';
+const esc = (t: string) => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
+
+// The "1 report left" / "no reports left" email. Exported so a test copy can be made.
+export function limitEmail(c: { company: string; plan: string; limit: number; pilot: boolean; stripe?: boolean }, code: string, left: number): { subject: string; html: string } {
+  const o = offerFor(c.plan, Boolean(c.stripe));
+  const trial = /trial/i.test(c.plan);
+  const where = c.pilot ? (trial ? 'in your trial' : 'in your pilot') : o.monthly ? 'this month' : 'on your account';
+  const subject = left === 1 ? `1 report left ${where}` : `You've used your reports ${where}`;
+  const btn = (href: string, text: string, dark = true) =>
+    `<a href="${href}" style="display:inline-block;margin:4px 6px 4px 0;background:${dark ? '#1e1b4b' : '#ffffff'};color:${dark ? '#ffffff' : '#1e1b4b'};border:1px solid #1e1b4b;padding:11px 18px;border-radius:8px;text-decoration:none;font-weight:bold">${esc(text)}</a>`;
+  const choices = [
+    btn(`${SITE_URL}/api/stripe?extra=${code}`, `Run one more report: ${o.extraText}`),
+    o.next ? btn(`${SITE_URL}/api/stripe?moveup=${code}`, `Move up to ${o.next.label}`, false) : '',
+    o.kind === 'oneoff' ? btn(`${SITE_URL}/?c=${code}#pricing`, 'Choose a monthly plan', false) : '',
+  ].join('');
+  const html = `<div style="font-family:-apple-system,Segoe UI,sans-serif;color:#1e293b;line-height:1.6;max-width:560px">
+<p>Hello,</p>
+<p>${left === 1 ? `You have <strong>1 report left</strong> ${where}${c.company ? ` for ${esc(c.company)}` : ''}.` : `You've used all of your reports ${where}${c.company ? ` for ${esc(c.company)}` : ''}.`}${o.monthly ? ` Your reports reset on <strong>${resetText()}</strong>.` : ''}</p>
+<p>${left === 1 ? 'If you need more, here are your choices:' : 'Need another report now? Here are your choices:'}</p>
+<p>${choices}</p>
+${o.monthly ? `<p style="font-size:13px;color:#64748b">Or wait: your reports reset on ${resetText()}.</p>` : ''}
+<p><a href="${SITE_URL}/report.html?c=${code}" style="color:#1e1b4b">Go to your report page</a></p>
+<p>Questions? Just reply to this email.</p>
+<p>Bill Alden<br>CA Research Group</p>
+</div>`;
+  return { subject, html };
+}
+
+async function sendLimitEmail(c: Customer, code: string, left: number): Promise<void> {
+  const key = process.env.RESEND_API_KEY;
+  if (!key || !c.email || !/^[A-Za-z0-9_-]{12,64}$/.test(code)) return;
+  const m = limitEmail(c, code, left);
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: process.env.RESEND_FROM || 'CA Research Group <onboarding@resend.dev>', to: [c.email], reply_to: 'william@caresearchgroup.com', subject: m.subject, html: m.html }),
+    signal: timeout(15000),
+  });
+  if (left === 0) await alertBill(`Client hit their limit: ${c.company}`, `${c.company} (${c.email}) has used all ${c.limit} reports on ${c.plan}.\nThey were emailed their choices (one more report, or a bigger plan).`);
+}
+
 async function findPropertyCheck(token: string): Promise<{ id: string; reportId: string; business: string; used: boolean; customer: Customer | null } | null> {
   if (!/^[A-Za-z0-9]{20,40}$/.test(token)) return null;
   const d = await airtable(`${REQUESTS_TABLE}?maxRecords=1&filterByFormula=${encodeURIComponent(`{Property Check Code}='${token}'`)}`);
@@ -2922,6 +2967,10 @@ export async function GET(request: Request) {
         JSON.stringify({
           ok: true, company: c.company, plan: c.plan, active: c.active, used: c.used, limit: c.limit >= 999999 ? null : c.limit, canRun: c.canRun,
           voucher: c.voucher, pilot: c.pilot, expires: c.expires, expiresText: friendlyDate(c.expires), expired: c.expired, voucherUsed: c.voucher && c.usedTotal > 0, setup: Boolean(c.setupWaiting),
+          offer: (() => {
+            const o = offerFor(c.plan, Boolean(c.stripe));
+            return { kind: o.kind, extraText: o.extraText, next: o.next?.label ?? '', resets: o.monthly ? resetText() : '' };
+          })(),
         }),
         { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } },
       );
@@ -2980,6 +3029,15 @@ export async function GET(request: Request) {
     }
   }
 
+  // Staff report page and voucher page now POST (password no longer in the web address).
+  if (q('token') || q('voucher')) return jsonError('This old link no longer works. Use the staff page at caresearchgroup.com/run-report.html.', 410);
+  return jsonError('Not found.', 404);
+}
+
+// Staff only (public/run-report.html and public/voucher.html): the password arrives in the form, never in the web address.
+async function staffPost(g: (k: string) => string, origin: string): Promise<Response> {
+  const q = g;
+  const url = { origin };
   const lookupToken = process.env.LOOKUP_TOKEN;
   if (!lookupToken) return jsonError('Setup not finished: LOOKUP_TOKEN is missing in Vercel. Add ?sample=1 to see the sample report.', 500);
   if (q('token') !== lookupToken) return jsonError('Not authorized.', 401);
@@ -3046,6 +3104,8 @@ export async function POST(request: Request) {
     return htmlPage('Something went wrong', 'The request could not be read. Please go back and try again.', 400);
   }
   const g = (k: string) => String(form.get(k) ?? '').trim().slice(0, 300);
+
+  if (g('staff') === '1') return staffPost(g, url.origin);
 
   // Unsubscribe form (public/unsubscribe.html)
   if (g('unsubscribe') === '1') {
@@ -3207,8 +3267,10 @@ export async function POST(request: Request) {
         : htmlPage('This voucher has expired', 'This complimentary report link has expired. Reply to our email or contact william@caresearchgroup.com and we will be happy to help.', 410);
     }
     return htmlPage(
-      'Monthly report limit reached',
-      `Your plan includes ${customer.limit} reports per month and this month's reports have been used. Please contact CA Research Group to upgrade your plan or add reports.`,
+      customer.plan === SINGLE_PLAN ? 'Report already used' : 'Monthly report limit reached',
+      customer.plan === SINGLE_PLAN
+        ? 'Your report has been used. Go back to your report page to run one more report or choose a monthly plan.'
+        : `This month's ${customer.limit} reports have been used. Go back to your report page to run one more report or move up to a bigger plan. Your reports reset on ${resetText()}.`,
       429,
     );
   }
@@ -3264,6 +3326,11 @@ export async function POST(request: Request) {
     }).catch((e) => console.error('Airtable update failed:', e instanceof Error ? e.message : e));
     console.log('Report', input.reportId, mail.sent ? 'emailed' : `email not sent: ${mail.detail}`, input.blNotes ?? '');
     if (blFailed) await alertBill(`Liens/lawsuits NOT RUN on ${input.reportId}`, `${customer.company}: "${entityName}"\n${input.blNotes ?? ''}\nThe report was not counted against their plan.`).catch(() => undefined);
+    // 1 report left, or none left: tell the client their choices, and tell Bill when they hit zero.
+    if (!blFailed && !customer.voucher && customer.limit < 999999) {
+      const left = customer.limit - customer.used - 1;
+      if (left === 1 || left === 0) await sendLimitEmail(customer, g('c'), left).catch((e) => console.error('Limit email failed', e));
+    }
     return pdfResponse(pdf, `CA-Research-Group-${input.reportId}.pdf`);
   } catch (err) {
     await updateRequest(requestId, { Status: 'Failed', Notes: err instanceof Error ? err.message : 'Report failed.' }).catch(() => undefined);

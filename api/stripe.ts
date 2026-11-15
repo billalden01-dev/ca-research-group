@@ -22,6 +22,8 @@
 
 declare const process: { env: Record<string, string | undefined> };
 
+import { offerFor, pacificMonth, SINGLE_PLAN, MONTHLY } from './_offers';
+
 const SITE = 'https://www.caresearchgroup.com';
 
 // Prices live here on the server, so nobody can change them from the browser.
@@ -195,6 +197,47 @@ async function findByLinkCode(code: string): Promise<AirtableRecord | null> {
   return d.records?.[0] ?? null;
 }
 
+const sel = (v: unknown) => str((v as { name?: string } | undefined)?.name ?? v);
+
+// One account per client: the newest record with this email (used when a returning client buys from the website).
+async function findByEmail(email: string): Promise<AirtableRecord | null> {
+  if (!/^[^\s@'"\\]+@[^\s@'"\\]+\.[^\s@'"\\]+$/.test(email)) return null;
+  const formula = encodeURIComponent(`LOWER({Contact Email})='${email.toLowerCase()}'`);
+  const d = await airtable(`${CUSTOMERS_TABLE}?maxRecords=20&filterByFormula=${formula}`);
+  const recs = (d.records ?? []) as (AirtableRecord & { createdTime?: string })[];
+  recs.sort((a, b) => str(b.createdTime).localeCompare(str(a.createdTime)));
+  return recs[0] ?? null;
+}
+
+// Stripe sends the same event again if we were slow; each checkout is applied only once.
+async function alreadyApplied(sessionId: string): Promise<boolean> {
+  if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(sessionId)) return false;
+  const formula = encodeURIComponent(`FIND('${sessionId}', {Notes}&'')`);
+  const d = await airtable(`${CUSTOMERS_TABLE}?maxRecords=1&fields%5B%5D=Company&filterByFormula=${formula}`);
+  return (d.records?.length ?? 0) > 0;
+}
+
+const todayPacific = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+const isOneOffPlan = (plan: string) => plan === SINGLE_PLAN || /trial|pilot|voucher/i.test(plan) || !plan;
+
+// Fields that add one paid report to an existing client (repeat $59, or "Run one more report").
+function oneMoreFields(f: Record<string, unknown>): Record<string, unknown> {
+  const plan = sel(f['Plan']);
+  const extra = Number(f['Extra Reports'] ?? 0) || 0;
+  const total = Number(f['Reports Total'] ?? 0) || 0;
+  if (plan === SINGLE_PLAN) return { 'Extra Reports': extra + 1, 'Subscription Status': 'Active' };
+  // Trial, pilot or voucher: becomes a Single Report account with one report left (same private link).
+  if (isOneOffPlan(plan)) return { Plan: SINGLE_PLAN, 'Extra Reports': total, 'Subscription Status': 'Active' };
+  // Monthly plans: the extra report counts this month.
+  const month = pacificMonth();
+  return { 'Extra Reports': str(f['Extra Reports Month']) === month ? extra + 1 : 1, 'Extra Reports Month': month };
+}
+
+async function patchRecord(id: string, fields: Record<string, unknown>) {
+  await airtable(CUSTOMERS_TABLE, { method: 'PATCH', body: JSON.stringify({ typecast: true, records: [{ id, fields }] }) });
+}
+const addNote = (f: Record<string, unknown>, line: string) => [str(f['Notes']).trim(), line].filter(Boolean).join('\n');
+
 // Stripe's hosted "manage subscription" page needs a saved configuration. Reuse one if it exists, otherwise make it once.
 async function portalConfiguration(): Promise<string> {
   const list = await stripe('billing_portal/configurations?active=true&limit=1');
@@ -334,21 +377,55 @@ ${oneTime ? '<p style="font-size:13px;color:#475569">Your single report can be r
   if (!res.ok) throw new Error(`Resend returned ${res.status}: ${(await res.text()).slice(0, 200)}`);
 }
 
+const box = (inner: string) => `<div style="font-family:-apple-system,Segoe UI,sans-serif;color:#1e293b;line-height:1.6;max-width:560px">${inner}</div>`;
+const button = (href: string, text: string) => `<p><a href="${href}" style="display:inline-block;background:#1e1b4b;color:#ffffff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold">${escapeHtml(text)}</a></p>`;
+
+// To the client: their existing account was updated (one more report, or a new plan). Same private link as before.
+export function accountUpdatedHtml(company: string, what: string, code: string): string {
+  return box(`<h2 style="font-family:Georgia,serif;color:#1e1b4b">Thank you${company ? `, ${escapeHtml(company)}` : ''}</h2>
+<p>${escapeHtml(what)}</p>
+<p>Use the same private link as before. Nothing new to save:</p>
+${button(privateLink(code), 'Request a Report →')}
+<p style="font-size:13px;color:#64748b;word-break:break-all">${privateLink(code)}</p>
+<p>Questions? Just reply to this email.</p>`);
+}
+async function sendAccountUpdated(to: string, company: string, what: string, code: string) {
+  await sendEmail(to, 'Your CA Research Group account is updated', accountUpdatedHtml(company, what, code), true);
+}
+
+// To the client: a move up is scheduled.
+export function moveUpHtml(company: string, nextLabel: string, startText: string, code: string): string {
+  return box(`<h2 style="font-family:Georgia,serif;color:#1e1b4b">Your plan change is set</h2>
+<p>Thank you${company ? `, ${escapeHtml(company)}` : ''}. Starting <strong>${escapeHtml(startText)}</strong>, your plan will be <strong>${escapeHtml(nextLabel)}</strong>. Your card on file will be charged the new price on that date. Nothing changes before then.</p>
+<p>Need a report before then? Your report page has a "Run one more report" button.</p>
+${button(privateLink(code), 'Request a Report →')}
+<p>Questions? Just reply to this email.</p>`);
+}
+
+async function tellBill(subject: string, lines: string[]) {
+  await sendEmail(ALERT_TO(), subject, box(lines.map((l) => `<p>${escapeHtml(l)}</p>`).join(''))).catch((e) => console.error('Bill alert failed', e));
+}
+
 // ---------- Webhook handlers ----------
 
 export async function handleCheckoutCompleted(session: StripeObj): Promise<string> {
+  if (str(((session.metadata ?? {}) as Record<string, string>).kind) === 'extra') return handleExtraPaid(session);
   const sessionPlan = PLANS[str(((session.metadata ?? {}) as Record<string, string>).plan)];
   const isOneTime = session.mode === 'payment' && !!sessionPlan?.oneTime;
   if (session.mode !== 'subscription' && !isOneTime) return 'ignored: not a subscription or single report';
   const customerId = str(session.customer);
   if (!customerId) return 'ignored: no customer';
-  const existing = await findByStripeCustomer(customerId);
-  if (existing) return `already added: ${existing.id}`;
+  if (await alreadyApplied(str(session.id))) return 'already applied';
 
   const meta = (session.metadata ?? {}) as Record<string, string>;
   const details = (session.customer_details ?? {}) as { email?: string; name?: string };
   const plan = PLANS[meta.plan] ?? null;
   const email = clip(details.email || session.customer_email, 200);
+
+  // One account per client: a returning client (their report link, the same Stripe customer, or the same email)
+  // keeps their record and private link.
+  const existing = (meta.code ? await findByLinkCode(meta.code) : null) ?? (await findByStripeCustomer(customerId)) ?? (email ? await findByEmail(email) : null);
+  if (existing && plan) return applyToExisting(existing, session, plan, isOneTime);
   const code = newLinkCode();
   const notes = [`Signed up through Stripe Checkout.`, isOneTime ? 'Single report (one-time payment)' : `Subscription ${str(session.subscription)}`, `Checkout ${str(session.id)}`];
   if (meta.entity || meta.address) notes.push(`First report: ${[meta.entity, meta.address, meta.county].filter(Boolean).join(' / ')}`);
@@ -368,6 +445,7 @@ export async function handleCheckoutCompleted(session: StripeObj): Promise<strin
           'Setup Status': SETUP_WAITING,
           'Link Code': code,
           'Stripe Customer ID': customerId,
+          'Stripe Subscription ID': isOneTime ? undefined : str(session.subscription) || undefined,
           'Signed Up': new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()),
           'Referred By': clip(meta.referredBy, 100) || undefined,
           'Agreed At': meta.agreedAt || undefined,
@@ -420,11 +498,85 @@ export async function handleCheckoutCompleted(session: StripeObj): Promise<strin
   return `added (waiting for data key): ${recId}`;
 }
 
+// A returning client bought a single report or a monthly plan from the website: update their record, same link.
+async function applyToExisting(rec: AirtableRecord, session: StripeObj, plan: { label: string; oneTime?: boolean }, isOneTime: boolean): Promise<string> {
+  const f = rec.fields;
+  const oldPlan = sel(f['Plan']);
+  const customerId = str(session.customer);
+  const code = str(f['Link Code']) || newLinkCode();
+  const fields: Record<string, unknown> = { 'Stripe Customer ID': customerId, 'Link Code': code };
+  const warn: string[] = [];
+  let what: string;
+  if (isOneTime) {
+    Object.assign(fields, oneMoreFields(f));
+    what = 'One more report has been added to your account.';
+  } else {
+    const wasMonthly = !isOneOffPlan(oldPlan);
+    const oldCustomer = str(f['Stripe Customer ID']);
+    if (wasMonthly && sel(f['Subscription Status']) === 'Active' && /^cus_/.test(oldCustomer)) {
+      warn.push('They already had an active monthly plan. Check Stripe: they may now have TWO subscriptions. If so, cancel the old one.');
+    }
+    Object.assign(fields, { Plan: plan.label, 'Subscription Status': 'Active', 'Stripe Subscription ID': str(session.subscription) });
+    // Coming from a trial, pilot or single report: the new plan starts fresh this month.
+    if (!wasMonthly) Object.assign(fields, { 'Extra Reports': Number(f['Reports This Month'] ?? 0) || 0, 'Extra Reports Month': pacificMonth() });
+    what = `Your plan is now ${plan.label}.`;
+  }
+  fields.Notes = addNote(f, `${todayPacific()}: ${isOneTime ? 'Bought one more report' : `Plan changed from ${oldPlan || 'none'} to ${plan.label}`} (checkout ${str(session.id)}).`);
+  await patchRecord(rec.id, fields);
+
+  const company = str(f['Company']);
+  const email = str(f['Contact Email']) || clip(((session.customer_details ?? {}) as { email?: string }).email, 200);
+  const needsSetup = !str(f['Data Key']).trim() && !str(f['Provider Client ID']);
+  if (needsSetup) {
+    const auto = await autoSetup(rec.id, company || email, email);
+    if (!auto.ok) {
+      await patchRecord(rec.id, { 'Setup Status': SETUP_WAITING }).catch(() => undefined);
+      if (email) await sendSetupEmail(email, company, plan.label, isOneTime).catch(() => undefined);
+      await sendNewClientAlert(rec.id, { name: str(f['Contact Name']), company, email, plan: plan.label }, auto.note).catch(() => undefined);
+      return `existing ${rec.id} updated (waiting for data key)`;
+    }
+  }
+  if (email) await sendAccountUpdated(email, company, what, code).catch((e) => warn.push(`Client email NOT sent: ${e instanceof Error ? e.message : 'error'}`));
+  await tellBill(`${isOneTime ? 'Extra report bought' : 'Plan change'}: ${company || email}`, [
+    `${company || email} (${email}) ${isOneTime ? 'bought one more report ($59)' : `moved from ${oldPlan || 'no plan'} to ${plan.label}`}.`,
+    'Their existing account and private link were kept. Nothing to do.',
+    ...warn,
+    `Airtable: ${recordUrl(rec.id)}`,
+  ]);
+  return `existing ${rec.id} updated`;
+}
+
+// "Run one more report" was paid (from the report page or a low-reports email).
+async function handleExtraPaid(session: StripeObj): Promise<string> {
+  if (await alreadyApplied(str(session.id))) return 'already applied';
+  const meta = (session.metadata ?? {}) as Record<string, string>;
+  const rec = meta.code ? await findByLinkCode(meta.code) : null;
+  const paid = `$${(Number(session.amount_total ?? 0) / 100).toFixed(0)}`;
+  if (!rec) {
+    await tellBill('PAID extra report, but no account found', [`Someone paid ${paid} for one more report, but their account could not be found. Checkout ${str(session.id)}. Please check Stripe and add the report by hand (Extra Reports in Airtable).`]);
+    return 'extra: record not found';
+  }
+  const f = rec.fields;
+  const fields: Record<string, unknown> = { ...oneMoreFields(f), Notes: addNote(f, `${todayPacific()}: One more report paid, ${paid} (checkout ${str(session.id)}).`) };
+  if (!/^cus_/.test(str(f['Stripe Customer ID'])) && /^cus_/.test(str(session.customer))) fields['Stripe Customer ID'] = str(session.customer);
+  await patchRecord(rec.id, fields);
+  const company = str(f['Company']);
+  const email = str(f['Contact Email']);
+  const warn: string[] = [];
+  if (email) await sendAccountUpdated(email, company, 'One more report has been added to your account. It is ready to use now.', str(f['Link Code'])).catch((e) => warn.push(`Client email NOT sent: ${e instanceof Error ? e.message : 'error'}`));
+  await tellBill(`Extra report bought: ${company || email} (${paid})`, [`${company || email} paid ${paid} for one more report. It was added to their account automatically. Nothing to do.`, ...warn, `Airtable: ${recordUrl(rec.id)}`]);
+  return `extra added: ${rec.id}`;
+}
+
 export async function handleSubscriptionChange(sub: StripeObj): Promise<string> {
   const status = STATUS_FROM_STRIPE[str(sub.status)];
   const rec = await findByStripeCustomer(str(sub.customer));
   if (!rec || !status) return 'ignored';
+  // Only the client's current subscription changes their account (an old one ending must not cancel them).
+  const currentSub = str(rec.fields['Stripe Subscription ID']);
+  if (currentSub && currentSub !== str(sub.id)) return `ignored: older subscription ${str(sub.id)}`;
   const fields: Record<string, unknown> = { 'Subscription Status': status };
+  if (!currentSub && sub.id && status === 'Active') fields['Stripe Subscription ID'] = str(sub.id);
   const items = ((sub.items as { data?: { price?: { unit_amount?: number } }[] })?.data ?? []);
   const cents = items[0]?.price?.unit_amount;
   const plan = Object.values(PLANS).find((p) => p.cents === cents);
@@ -473,7 +625,21 @@ async function createCheckout(request: Request): Promise<Response> {
   if (b.agreedTerms !== true || b.agreedAccuracy !== true) return json({ error: 'Please go back and check both agreement boxes.' }, 400);
   const ip = clip((request.headers.get('x-forwarded-for') ?? '').split(',')[0].trim(), 60);
 
+  // Coming from a client's own report page ("Choose a monthly plan"): keep their existing account.
+  const linkCode = /^[A-Za-z0-9_-]{12,64}$/.test(str(b.code)) ? str(b.code) : '';
+  let linkRec: AirtableRecord | null = null;
+  try {
+    linkRec = linkCode ? await findByLinkCode(linkCode) : null;
+  } catch {
+    linkRec = null;
+  }
+  if (linkRec && !plan.oneTime && MONTHLY.some((p) => p.label === sel(linkRec?.fields['Plan'])) && sel(linkRec.fields['Subscription Status']) === 'Active') {
+    return json({ error: 'You already have a monthly plan. To move up, use the "Move up" button on your report page, or email william@caresearchgroup.com.' }, 400);
+  }
+  const linkCustomer = linkRec && /^cus_[A-Za-z0-9]+$/.test(str(linkRec.fields['Stripe Customer ID'])) ? str(linkRec.fields['Stripe Customer ID']) : '';
+
   const meta = {
+    code: linkRec ? linkCode : '',
     plan: str(b.plan),
     company,
     role,
@@ -490,10 +656,10 @@ async function createCheckout(request: Request): Promise<Response> {
     const product_data = { name: `CA Research Group - ${plan.name}` };
     const session = await stripe('checkout/sessions', {
       mode: plan.oneTime ? 'payment' : 'subscription',
-      customer_email: email,
+      ...(linkCustomer ? { customer: linkCustomer } : { customer_email: email }),
       line_items: { 0: { quantity: 1, price_data: plan.oneTime ? { currency: 'usd', unit_amount: plan.cents, product_data } : { currency: 'usd', unit_amount: plan.cents, recurring: { interval: 'month' }, product_data } } },
       metadata: meta,
-      ...(plan.oneTime ? { customer_creation: 'always' } : { subscription_data: { metadata: { plan: meta.plan, company } } }),
+      ...(plan.oneTime ? (linkCustomer ? {} : { customer_creation: 'always' }) : { subscription_data: { metadata: { plan: meta.plan, company } } }),
       success_url: `${SITE}/welcome.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${SITE}/?checkout=canceled`,
       billing_address_collection: 'auto',
@@ -502,6 +668,103 @@ async function createCheckout(request: Request): Promise<Response> {
   } catch (err) {
     console.error('Checkout failed', err);
     return json({ error: 'Payment page could not be opened. Please try again in a few minutes.' }, 502);
+  }
+}
+
+// ---------- "Run one more report" and "Move up" (report page and low-reports emails) ----------
+
+async function oneMoreCheckout(code: string): Promise<Response> {
+  try {
+    const rec = await findByLinkCode(code);
+    if (!rec) return htmlMessage('Link not recognized', 'This link is not valid. Please contact william@caresearchgroup.com.', 404);
+    const f = rec.fields;
+    const plan = sel(f['Plan']);
+    if (sel(f['Setup Status']) === SETUP_WAITING) return htmlMessage('Almost ready', 'Your account is still being set up. We will email you as soon as it is ready.', 200);
+    if (sel(f['Subscription Status']) !== 'Active' && !isOneOffPlan(plan)) {
+      return htmlMessage('Plan not active', 'Your plan is not active right now. Please email william@caresearchgroup.com and we will help.', 200);
+    }
+    const customer = /^cus_[A-Za-z0-9]+$/.test(str(f['Stripe Customer ID'])) ? str(f['Stripe Customer ID']) : '';
+    const offer = offerFor(plan, Boolean(customer));
+    const session = await stripe('checkout/sessions', {
+      mode: 'payment',
+      ...(customer ? { customer } : { customer_email: str(f['Contact Email']) || undefined, customer_creation: 'always' }),
+      line_items: { 0: { quantity: 1, price_data: { currency: 'usd', unit_amount: offer.extraCents, product_data: { name: 'CA Research Group - One more report' } } } },
+      metadata: { kind: 'extra', code, company: clip(f['Company']) },
+      success_url: `${SITE}/report.html?c=${code}&added=1`,
+      cancel_url: privateLink(code),
+    });
+    return new Response(null, { status: 303, headers: { Location: str(session.url), 'Cache-Control': 'no-store' } });
+  } catch (err) {
+    console.error('One more report checkout failed', err);
+    return htmlMessage('Temporarily unavailable', 'The payment page could not be opened just now. Please try again shortly or email william@caresearchgroup.com.', 503);
+  }
+}
+
+type MoveUp = { rec: AirtableRecord; sub: StripeObj; next: { label: string; name: string; cents: number }; current: string; startUnix: number; startText: string };
+
+async function moveUpInfo(code: string): Promise<MoveUp | Response> {
+  const rec = await findByLinkCode(code);
+  if (!rec) return htmlMessage('Link not recognized', 'This link is not valid. Please contact william@caresearchgroup.com.', 404);
+  const f = rec.fields;
+  const customer = /^cus_[A-Za-z0-9]+$/.test(str(f['Stripe Customer ID'])) ? str(f['Stripe Customer ID']) : '';
+  const current = sel(f['Plan']);
+  const offer = offerFor(current, Boolean(customer));
+  if (!offer.next || sel(f['Subscription Status']) !== 'Active') {
+    return htmlMessage('Move up', 'Please email william@caresearchgroup.com and we will set up a bigger plan for you, including office plans.', 200);
+  }
+  const subs = ((await stripe(`subscriptions?customer=${customer}&status=active&limit=5`)).data ?? []) as StripeObj[];
+  const sub = subs.find((x) => str(x.id) === str(f['Stripe Subscription ID'])) ?? subs[0];
+  if (!sub) return htmlMessage('Move up', 'We could not find your monthly plan in our billing system. Please email william@caresearchgroup.com and we will help.', 200);
+  if (sub.schedule) return htmlMessage('Already scheduled', 'A plan change is already scheduled for your account. Questions? Email william@caresearchgroup.com.', 200);
+  const item = ((sub.items as { data?: StripeObj[] })?.data ?? [])[0] ?? {};
+  const startUnix = Number(item.current_period_end ?? sub.current_period_end ?? 0);
+  if (!startUnix) return htmlMessage('Move up', 'Please email william@caresearchgroup.com and we will move you up.', 200);
+  const startText = new Date(startUnix * 1000).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Los_Angeles' });
+  return { rec, sub, next: offer.next, current, startUnix, startText };
+}
+
+async function moveUpPage(code: string): Promise<Response> {
+  try {
+    const m = await moveUpInfo(code);
+    if (m instanceof Response) return m;
+    const page = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Move up - CA Research Group</title><style>body{margin:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.k{max-width:520px;margin:60px auto;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:32px;text-align:center}img{height:48px;margin-bottom:16px}h1{font-family:Georgia,serif;color:#1e1b4b;font-size:22px;margin:0 0 12px}p{color:#475569;line-height:1.6}button{width:100%;margin-top:12px;padding:14px;background:#1e1b4b;color:#fff;border:0;border-radius:10px;font-size:16px;font-weight:bold;cursor:pointer}a{color:#1e1b4b}</style></head><body><div class="k"><img src="/logo-tight.png" alt="CA Research Group"><h1>Move up to ${escapeHtml(m.next.label)}</h1>
+<p>You are on <strong>${escapeHtml(m.current)}</strong>. Your new plan and price start on <strong>${escapeHtml(m.startText)}</strong>, your next billing date. Your card on file will be charged $${(m.next.cents / 100).toFixed(0)} on that date and each month after. Nothing changes before then.</p>
+<form method="post" action="/api/stripe"><input type="hidden" name="moveup" value="${escapeHtml(code)}"><button type="submit">Confirm: move up on ${escapeHtml(m.startText)}</button></form>
+<p style="font-size:13px"><a href="${privateLink(code)}">Back to my report page</a></p></div></body></html>`;
+    return new Response(page, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+  } catch (err) {
+    console.error('Move up page failed', err);
+    return htmlMessage('Temporarily unavailable', 'Please try again shortly or email william@caresearchgroup.com.', 503);
+  }
+}
+
+async function confirmMoveUp(code: string): Promise<Response> {
+  try {
+    const m = await moveUpInfo(code);
+    if (m instanceof Response) return m;
+    const price = await stripe('prices', { currency: 'usd', unit_amount: m.next.cents, recurring: { interval: 'month' }, product_data: { name: `CA Research Group - ${m.next.name}` } });
+    const sched = await stripe('subscription_schedules', { from_subscription: str(m.sub.id) });
+    const p0 = ((sched.phases as StripeObj[]) ?? [])[0] ?? {};
+    const p0items = ((p0.items as StripeObj[]) ?? []).map((it, i) => [i, { price: str((it.price as StripeObj)?.id ?? it.price), quantity: Number(it.quantity ?? 1) }]);
+    await stripe(`subscription_schedules/${str(sched.id)}`, {
+      end_behavior: 'release',
+      proration_behavior: 'none',
+      phases: {
+        0: { items: Object.fromEntries(p0items), start_date: Number(p0.start_date), end_date: Number(p0.end_date) },
+        1: { items: { 0: { price: str(price.id), quantity: 1 } }, iterations: 1 },
+      },
+    });
+    const f = m.rec.fields;
+    await patchRecord(m.rec.id, { Notes: addNote(f, `${todayPacific()}: Move up to ${m.next.label} scheduled for ${m.startText} (schedule ${str(sched.id)}).`) }).catch(() => undefined);
+    const company = str(f['Company']);
+    const email = str(f['Contact Email']);
+    if (email) await sendEmail(email, 'Your CA Research Group plan change', moveUpHtml(company, m.next.label, m.startText, code), true).catch(() => undefined);
+    await tellBill(`Move up: ${company || email} to ${m.next.label}`, [`${company || email} moved up from ${m.current} to ${m.next.label}, starting ${m.startText}. Stripe will charge the new price on that date and Airtable updates itself. Nothing to do.`, `Airtable: ${recordUrl(m.rec.id)}`]);
+    return htmlMessage('All set', `Your plan will be ${m.next.label} starting ${m.startText}. We emailed you a confirmation.`, 200);
+  } catch (err) {
+    console.error('Move up failed', err);
+    await tellBill('Move up FAILED', [`A client (link code ending ${code.slice(-4)}) tried to move up and it failed: ${err instanceof Error ? err.message : String(err)}`, 'Please check Stripe. Their plan was not changed.']);
+    return htmlMessage('Not changed', 'Your plan could not be changed just now, and nothing was charged. We have been notified and will contact you.', 502);
   }
 }
 
@@ -540,6 +803,12 @@ export async function releaseLinkFor(recId: string): Promise<{ status: string; m
 export async function POST(request: Request) {
   const signature = request.headers.get('stripe-signature');
   if (signature) return handleWebhook(request, signature);
+  if ((request.headers.get('content-type') ?? '').includes('application/x-www-form-urlencoded')) {
+    const form = await request.formData().catch(() => null);
+    const code = str(form?.get('moveup'));
+    if (/^[A-Za-z0-9_-]{12,64}$/.test(code)) return confirmMoveUp(code);
+    return htmlMessage('Something went wrong', 'Please go back and try again.', 400);
+  }
   return createCheckout(request);
 }
 
@@ -547,6 +816,10 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   const portalCode = new URL(request.url).searchParams.get('portal');
   if (portalCode !== null) return openPortal(portalCode);
+  const extraCode = new URL(request.url).searchParams.get('extra');
+  if (extraCode !== null) return /^[A-Za-z0-9_-]{12,64}$/.test(extraCode) ? oneMoreCheckout(extraCode) : htmlMessage('Link not recognized', 'This link is not valid.', 404);
+  const moveCode = new URL(request.url).searchParams.get('moveup');
+  if (moveCode !== null) return /^[A-Za-z0-9_-]{12,64}$/.test(moveCode) ? moveUpPage(moveCode) : htmlMessage('Link not recognized', 'This link is not valid.', 404);
   const release = new URL(request.url).searchParams.get('release');
   if (release !== null) {
     try {
