@@ -121,7 +121,7 @@
             : d.pilot ? (isTrial ? 'Free trial' : 'Free pilot') + ' · good through ' + d.expiresText : (d.plan || '');
           if (!d.voucher && d.limit !== null) {
             var left = Math.max(0, d.limit - d.used);
-            $('left').innerHTML = '<b>' + left + '</b><span>' + (left === 1 ? 'report' : 'reports') + (d.pilot ? (isTrial ? ' left in your free trial' : ' left in your pilot') : ' left this month') + '</span><small>' + d.used + ' of ' + d.limit + ' used</small>';
+            $('left').innerHTML = '<b>' + left + '</b><span>' + (left === 1 ? 'report' : 'reports') + (d.pilot ? (isTrial ? ' left in your free trial' : ' left in your pilot') : (d.offer && !d.offer.resets ? ' left' : ' left this month')) + '</span><small>' + d.used + ' of ' + d.limit + ' used</small>';
             $('left').classList.remove('hidden');
           }
           if (!d.voucher && !d.pilot) { $('manage').href = '/api/stripe?portal=' + encodeURIComponent(code); $('manageRow').classList.remove('hidden'); }
