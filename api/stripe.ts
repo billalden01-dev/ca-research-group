@@ -425,7 +425,7 @@ async function sendAccountUpdated(to: string, company: string, what: string, cod
 // To the client: a move up is scheduled.
 export function moveUpHtml(company: string, nextLabel: string, startText: string, code: string, name = ''): string {
   const first = firstNameOf(name);
-  return box(`<h2 style="font-family:Georgia,serif;color:#1e1b4b">Your plan change is set</h2>
+  return box(`<h2 style="font-family:Georgia,serif;color:#1e1b4b">Your plan change is confirmed</h2>
 <p>Thank you${first ? `, ${escapeHtml(first)}` : company ? `, ${escapeHtml(company)}` : ''}. Starting <strong>${escapeHtml(startText)}</strong>, your plan will be <strong>${escapeHtml(nextLabel)}</strong>. Your card on file will be charged the new price on that date. Nothing changes before then.</p>
 <p>Need a report before then? Your report page has a "Run one more report" button.</p>
 ${button(privateLink(code), 'Request a Report →')}
