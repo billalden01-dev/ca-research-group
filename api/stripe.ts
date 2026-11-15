@@ -319,11 +319,26 @@ async function sendEmail(to: string, subject: string, html: string, bccNotify = 
   if (!res.ok) throw new Error(`Resend returned ${res.status}: ${(await res.text()).slice(0, 200)}`);
 }
 
+// First name for a personal greeting ("Hi Bill,"). Empty if we don't have a clean one.
+export const firstNameOf = (full: string) => {
+  const w = str(full).trim().split(/\s+/)[0] ?? '';
+  return /^[A-Za-z][A-Za-z'.-]{0,30}$/.test(w) ? w : '';
+};
+// "Hi Bill, thank you for subscribing. Your plan for Acme Realty: ..." (falls back to the company when there is no name).
+function thankLine(name: string, company: string, plan: string, oneTime: boolean): string {
+  const first = firstNameOf(name);
+  const what = oneTime ? 'your order' : 'subscribing';
+  const kind = oneTime ? 'purchase' : 'plan';
+  return first
+    ? `<p>Hi ${escapeHtml(first)}, thank you for ${what}. Your ${kind}${company ? ` for ${escapeHtml(company)}` : ''}: <strong>${escapeHtml(plan)}</strong>.</p>`
+    : `<p>Thank you for ${what}${company ? `, ${escapeHtml(company)}` : ''}. Your ${kind}: <strong>${escapeHtml(plan)}</strong>.</p>`;
+}
+
 // Right after payment: thank-you note to the client (no link yet).
-async function sendSetupEmail(to: string, company: string, plan: string, oneTime: boolean) {
+async function sendSetupEmail(to: string, company: string, plan: string, oneTime: boolean, name = '') {
   const html = `<div style="font-family:-apple-system,Segoe UI,sans-serif;color:#1e293b;line-height:1.6;max-width:560px">
 <h2 style="font-family:Georgia,serif;color:#1e1b4b">Thank you for your order</h2>
-<p>Thank you for ${oneTime ? 'your order' : 'subscribing'}${company ? `, ${escapeHtml(company)}` : ''}. Your ${oneTime ? 'purchase' : 'plan'}: <strong>${escapeHtml(plan)}</strong>.</p>
+${thankLine(name, company, plan, oneTime)}
 <p><strong>${escapeHtml(SETUP_TEXT)}</strong></p>
 <p>Questions? Just reply to this email.</p>
 <p style="font-size:12px;color:#64748b">See our <a href="${SITE}/terms.html">Terms of Service</a> and <a href="${SITE}/privacy.html">Privacy Policy</a>. CA Research Group is not a law firm and does not provide legal advice.</p>
@@ -359,13 +374,13 @@ async function sendNewClientFyi(f: { name: string; company: string; email: strin
   await sendEmail(ALERT_TO(), `New client: ${f.company || f.email} (${f.plan}), all set`, html);
 }
 
-async function sendWelcomeEmail(to: string, company: string, plan: string, code: string, oneTime = false) {
+async function sendWelcomeEmail(to: string, company: string, plan: string, code: string, oneTime = false, name = '') {
   const key = process.env.RESEND_API_KEY;
   if (!key) throw new Error('RESEND_API_KEY is missing in Vercel.');
   const link = privateLink(code);
   const html = `<div style="font-family:-apple-system,Segoe UI,sans-serif;color:#1e293b;line-height:1.6;max-width:560px">
 <h2 style="font-family:Georgia,serif;color:#1e1b4b">Welcome to CA Research Group</h2>
-<p>Thank you for ${oneTime ? 'your order' : 'subscribing'}${company ? `, ${escapeHtml(company)}` : ''}. Your ${oneTime ? 'purchase' : 'plan'}: <strong>${escapeHtml(plan)}</strong>.</p>
+${thankLine(name, company, plan, oneTime)}
 <p>This is your company's private report link. No login is needed. Bookmark it and keep it private:</p>
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:12px 0"><tr><td bgcolor="#1e1b4b" style="background-color:#1e1b4b;border-radius:8px"><a href="${link}" style="display:inline-block;padding:12px 20px;color:#ffffff;text-decoration:none;font-weight:bold"><font color="#ffffff">Request a Report &rarr;</font></a></td></tr></table>
 <p style="font-size:13px;color:#64748b;word-break:break-all">${link}</p>
@@ -394,22 +409,24 @@ const box = (inner: string) => `<div style="font-family:-apple-system,Segoe UI,s
 const button = (href: string, text: string) => `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:12px 0"><tr><td bgcolor="#1e1b4b" style="background-color:#1e1b4b;border-radius:8px"><a href="${href}" style="display:inline-block;padding:12px 20px;color:#ffffff;text-decoration:none;font-weight:bold"><font color="#ffffff">${escapeHtml(text)}</font></a></td></tr></table>`;
 
 // To the client: their existing account was updated (one more report, or a new plan). Same private link as before.
-export function accountUpdatedHtml(company: string, what: string, code: string): string {
-  return box(`<h2 style="font-family:Georgia,serif;color:#1e1b4b">Thank you${company ? `, ${escapeHtml(company)}` : ''}</h2>
+export function accountUpdatedHtml(company: string, what: string, code: string, name = ''): string {
+  const first = firstNameOf(name);
+  return box(`<h2 style="font-family:Georgia,serif;color:#1e1b4b">Thank you${first ? `, ${escapeHtml(first)}` : company ? `, ${escapeHtml(company)}` : ''}</h2>
 <p>${escapeHtml(what)}</p>
 <p>Use the same private link as before. Nothing new to save:</p>
 ${button(privateLink(code), 'Request a Report →')}
 <p style="font-size:13px;color:#64748b;word-break:break-all">${privateLink(code)}</p>
 <p>Questions? Just reply to this email.</p>`);
 }
-async function sendAccountUpdated(to: string, company: string, what: string, code: string) {
-  await sendEmail(to, 'Your CA Research Group account is updated', accountUpdatedHtml(company, what, code), true);
+async function sendAccountUpdated(to: string, company: string, what: string, code: string, name = '') {
+  await sendEmail(to, 'Your CA Research Group account is updated', accountUpdatedHtml(company, what, code, name), true);
 }
 
 // To the client: a move up is scheduled.
-export function moveUpHtml(company: string, nextLabel: string, startText: string, code: string): string {
+export function moveUpHtml(company: string, nextLabel: string, startText: string, code: string, name = ''): string {
+  const first = firstNameOf(name);
   return box(`<h2 style="font-family:Georgia,serif;color:#1e1b4b">Your plan change is set</h2>
-<p>Thank you${company ? `, ${escapeHtml(company)}` : ''}. Starting <strong>${escapeHtml(startText)}</strong>, your plan will be <strong>${escapeHtml(nextLabel)}</strong>. Your card on file will be charged the new price on that date. Nothing changes before then.</p>
+<p>Thank you${first ? `, ${escapeHtml(first)}` : company ? `, ${escapeHtml(company)}` : ''}. Starting <strong>${escapeHtml(startText)}</strong>, your plan will be <strong>${escapeHtml(nextLabel)}</strong>. Your card on file will be charged the new price on that date. Nothing changes before then.</p>
 <p>Need a report before then? Your report page has a "Run one more report" button.</p>
 ${button(privateLink(code), 'Request a Report →')}
 <p>Questions? Just reply to this email.</p>`);
@@ -478,7 +495,7 @@ export async function handleCheckoutCompleted(session: StripeObj): Promise<strin
     const done: string[] = [auto.note];
     try {
       await airtable(CUSTOMERS_TABLE, { method: 'PATCH', body: JSON.stringify({ typecast: true, records: [{ id: recId, fields: { 'Setup Status': SETUP_SENT } }] }) });
-      if (email) await sendWelcomeEmail(email, clip(meta.company), plan?.label ?? 'your plan', code, isOneTime);
+      if (email) await sendWelcomeEmail(email, clip(meta.company), plan?.label ?? 'your plan', code, isOneTime, clip(details.name));
     } catch (err) {
       console.error('Welcome email failed', err);
       done.push(`Welcome email NOT sent: ${err instanceof Error ? err.message : 'error'}`);
@@ -491,7 +508,7 @@ export async function handleCheckoutCompleted(session: StripeObj): Promise<strin
   // Otherwise the private link waits for setup (see ?release=). Tell the client, alert Bill.
   const problems: string[] = auto.note ? [auto.note] : [];
   try {
-    if (email) await sendSetupEmail(email, clip(meta.company), plan?.label ?? 'your plan', isOneTime);
+    if (email) await sendSetupEmail(email, clip(meta.company), plan?.label ?? 'your plan', isOneTime, clip(details.name));
   } catch (err) {
     console.error('Setup email failed', err);
     problems.push(`Thank-you email NOT sent: ${err instanceof Error ? err.message : 'error'}`);
@@ -553,12 +570,12 @@ async function applyToExisting(rec: AirtableRecord, session: StripeObj, plan: { 
     const auto = await autoSetup(rec.id, company || email, email);
     if (!auto.ok) {
       await patchRecord(rec.id, { 'Setup Status': SETUP_WAITING }).catch(() => undefined);
-      if (email) await sendSetupEmail(email, company, plan.label, isOneTime).catch(() => undefined);
+      if (email) await sendSetupEmail(email, company, plan.label, isOneTime, str(f['Contact Name'])).catch(() => undefined);
       await sendNewClientAlert(rec.id, { name: str(f['Contact Name']), company, email, plan: plan.label }, auto.note).catch(() => undefined);
       return `existing ${rec.id} updated (waiting for data key)`;
     }
   }
-  if (email) await sendAccountUpdated(email, company, what, code).catch((e) => warn.push(`Client email NOT sent: ${e instanceof Error ? e.message : 'error'}`));
+  if (email) await sendAccountUpdated(email, company, what, code, str(f['Contact Name']) || clip(((session.customer_details ?? {}) as { name?: string }).name)).catch((e) => warn.push(`Client email NOT sent: ${e instanceof Error ? e.message : 'error'}`));
   await tellBill(`${isOneTime ? 'Extra report bought' : 'Plan change'}: ${company || email}`, [
     `${company || email} (${email}) ${isOneTime ? 'bought one more report ($59)' : `moved from ${oldPlan || 'no plan'} to ${plan.label}`}.`,
     'Their existing account and private link were kept. Nothing to do.',
@@ -585,7 +602,7 @@ async function handleExtraPaid(session: StripeObj): Promise<string> {
   const company = str(f['Company']);
   const email = str(f['Contact Email']);
   const warn: string[] = [];
-  if (email) await sendAccountUpdated(email, company, 'One more report has been added to your account. It is ready to use now.', str(f['Link Code'])).catch((e) => warn.push(`Client email NOT sent: ${e instanceof Error ? e.message : 'error'}`));
+  if (email) await sendAccountUpdated(email, company, 'One more report has been added to your account. It is ready to use now.', str(f['Link Code']), str(f['Contact Name'])).catch((e) => warn.push(`Client email NOT sent: ${e instanceof Error ? e.message : 'error'}`));
   await tellBill(`Extra report bought: ${company || email} (${paid})`, [`${company || email} paid ${paid} for one more report. It was added to their account automatically. Nothing to do.`, ...warn, `Airtable: ${recordUrl(rec.id)}`]);
   return `extra added: ${rec.id}`;
 }
@@ -837,7 +854,7 @@ async function confirmMoveUp(code: string): Promise<Response> {
     await patchRecord(m.rec.id, { Notes: addNote(f, `${todayPacific()}: Move up to ${m.next.label} scheduled for ${m.startText} (schedule ${str(sched.id)}).`) }).catch(() => undefined);
     const company = str(f['Company']);
     const email = str(f['Contact Email']);
-    if (email) await sendEmail(email, 'Your CA Research Group plan change', moveUpHtml(company, m.next.label, m.startText, code), true).catch(() => undefined);
+    if (email) await sendEmail(email, 'Your CA Research Group plan change', moveUpHtml(company, m.next.label, m.startText, code, str(f['Contact Name'])), true).catch(() => undefined);
     await tellBill(`Move up: ${company || email} to ${m.next.label}`, [`${company || email} moved up from ${m.current} to ${m.next.label}, starting ${m.startText}. Stripe will charge the new price on that date and Airtable updates itself. Nothing to do.`, `Airtable: ${recordUrl(m.rec.id)}`]);
     return htmlMessage('All set', `Your plan will be ${m.next.label} starting ${m.startText}. We emailed you a confirmation.`, 200);
   } catch (err) {
@@ -869,7 +886,7 @@ export async function releaseLinkFor(recId: string): Promise<{ status: string; m
   await airtable(CUSTOMERS_TABLE, { method: 'PATCH', body: JSON.stringify({ typecast: true, records: [{ id: recId, fields: { 'Setup Status': SETUP_SENT } }] }) });
   const planName = str((f['Plan'] as { name?: string } | undefined)?.name ?? f['Plan']);
   try {
-    await sendWelcomeEmail(email, company, planName || 'your plan', code, /Single Report/i.test(planName));
+    await sendWelcomeEmail(email, company, planName || 'your plan', code, /Single Report/i.test(planName), str(f['Contact Name']));
   } catch (err) {
     await airtable(CUSTOMERS_TABLE, { method: 'PATCH', body: JSON.stringify({ typecast: true, records: [{ id: recId, fields: { 'Setup Status': SETUP_WAITING } }] }) }).catch(() => undefined);
     throw err;
