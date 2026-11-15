@@ -44,7 +44,7 @@
   </div>
 
   <div id="ready" class="hidden">
-    <h1>Welcome aboard</h1>
+    <h1 id="welcomeH">Welcome aboard</h1>
     <p id="who"></p>
     <div class="steps">
       <b>Run your first report</b>
@@ -78,7 +78,7 @@
   </div>
 
   <div id="setup" class="hidden">
-    <h1>Thank you!</h1>
+    <h1 id="thanksH">Thank you!</h1>
     <p id="setupWho"></p>
     <div class="steps" style="font-size:15px;color:#334155;line-height:1.6"><b>One-time setup:</b> after you sign up, we'll email your private report link, usually within an hour during business hours. From then on, just use your link to get reports in under a minute.</div>
     <p class="small" id="setupEmail"></p>
@@ -105,10 +105,12 @@
         .then(function (r) { return r.json(); })
         .then(function (d) {
           if (d.ready && d.setup) {
+            if (d.firstName) $('thanksH').textContent = 'Thank you, ' + d.firstName + '!';
             $('setupWho').textContent = d.single ? 'Your payment for a single report' + (d.company ? ' for ' + d.company : '') + ' was received.' : 'Your subscription' + (d.company ? ' for ' + d.company : '') + ' is active.';
             $('setupEmail').textContent = d.email ? 'We will send it to ' + d.email + '.' : '';
             show('setup');
           } else if (d.ready) {
+            if (d.firstName) $('welcomeH').textContent = 'Welcome aboard, ' + d.firstName + '!';
             var co = d.company ? ' for ' + d.company : '';
             $('who').textContent = d.single ? 'Your report' + co + ' is paid and ready to run.' : 'Your subscription' + co + ' is active.';
             $('link').textContent = d.link;

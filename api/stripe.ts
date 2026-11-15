@@ -918,14 +918,18 @@ export async function GET(request: Request) {
     const rec = await findByStripeCustomer(str(session.customer));
     if (!rec) return json({ ready: false, paid: true });
     const meta = (session.metadata ?? {}) as Record<string, string>;
+    // First name for "Welcome aboard, Bill!": the name on file, or the name they typed at payment.
+    const fullName = str(rec.fields['Contact Name']) || str(((session.customer_details ?? {}) as { name?: string }).name);
+    const firstName = /^[A-Za-z][A-Za-z'.-]{0,30}$/.test(fullName.trim().split(/\s+/)[0] ?? '') ? fullName.trim().split(/\s+/)[0] : '';
     const setup = str((rec.fields['Setup Status'] as { name?: string } | undefined)?.name ?? rec.fields['Setup Status']);
     // New clients wait for their Data Key: no link on the thank-you page.
     if (setup === SETUP_WAITING) {
-      return json({ ready: true, setup: true, company: str(rec.fields['Company']), email: str(rec.fields['Contact Email']), single: Boolean(PLANS[str(meta.plan)]?.oneTime), message: SETUP_TEXT });
+      return json({ ready: true, setup: true, firstName, company: str(rec.fields['Company']), email: str(rec.fields['Contact Email']), single: Boolean(PLANS[str(meta.plan)]?.oneTime), message: SETUP_TEXT });
     }
     const code = str(rec.fields['Link Code']);
     return json({
       ready: true,
+      firstName,
       company: str(rec.fields['Company']),
       email: str(rec.fields['Contact Email']),
       single: Boolean(PLANS[str(meta.plan)]?.oneTime),
