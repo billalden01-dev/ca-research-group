@@ -101,7 +101,8 @@
         $('loading').classList.add('hidden');
         $('ready').classList.remove('hidden');
         $('company').textContent = d.company;
-        if (o.kind === 'oneoff') $('singleRow').classList.remove('hidden');
+        // "Just one report" only once their free or paid reports are used up (or the trial ended).
+        if (o.kind === 'oneoff' && !d.canRun) $('singleRow').classList.remove('hidden');
         var pre = new URLSearchParams(location.search).get('plan');
         if (pre) { var r = document.querySelector('input[name=plan][value="' + pre + '"]'); if (r) r.checked = true; }
         refresh();

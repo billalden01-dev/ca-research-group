@@ -139,7 +139,8 @@
             $('choosePlan').classList.toggle('hidden', o.kind !== 'oneoff'); $('choosePlan').href = '/upgrade.html?c=' + encodeURIComponent(code);
             $('waitText').classList.toggle('hidden', !o.resets); $('waitText').textContent = 'Or wait: your reports reset on ' + o.resets + '.';
           }
-          var showBuy = d.canRun && o.extraText && !d.voucher;
+          // "Buy one more" only shows once they are out (in the gold box above), never while reports are left.
+          var showBuy = false;
           $('buyRow').classList.toggle('hidden', !showBuy);
           if (showBuy) { $('buyMore').textContent = 'Need more reports? Buy one more report (' + o.extraText + ')'; $('buyMore').href = extraUrl; }
           if (d.pilot) $('manageRow').classList.add('hidden');
