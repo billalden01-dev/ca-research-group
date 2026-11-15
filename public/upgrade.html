@@ -30,6 +30,8 @@
   .step i { display: inline-block; width: 24px; height: 24px; line-height: 24px; border-radius: 50%; background: #1e1b4b; color: #fff; text-align: center; font-style: normal; font-size: 13px; margin-right: 8px; }
   #boxes { border: 2px solid transparent; border-radius: 12px; padding: 4px 12px 12px; transition: all .2s; }
   #boxes.glow { border-color: #b8963f; background: #fbf7ea; }
+  @keyframes ready { 0% { box-shadow: 0 0 0 0 rgba(184,150,63,0.7); } 70% { box-shadow: 0 0 0 12px rgba(184,150,63,0); } 100% { box-shadow: 0 0 0 0 rgba(184,150,63,0); } }
+  #go.ready { animation: ready 1.4s ease-out 3; outline: 2px solid #b8963f; outline-offset: 2px; }
   .hidden { display: none; }
   a { color: #1e1b4b; }
 </style>
@@ -79,7 +81,9 @@
       if (glowNow && !$('boxes').classList.contains('glow') && $('boxes').scrollIntoView) $('boxes').scrollIntoView({ behavior: 'smooth', block: 'center' });
       $('boxes').classList.toggle('glow', glowNow);
       $('go').disabled = !ok;
-      $('go').textContent = !chosen() ? 'Choose a plan above' : ok ? 'Continue to secure payment' : 'Check both boxes to continue';
+      $('go').textContent = !chosen() ? 'Choose a plan above' : ok ? 'Continue to secure payment \u2192' : 'Check both boxes to continue';
+      if (ok && !$('go').classList.contains('ready')) { $('go').classList.add('ready'); if ($('go').scrollIntoView) $('go').scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+      if (!ok) $('go').classList.remove('ready');
     }
     document.querySelectorAll('input').forEach(function (i) { i.addEventListener('change', refresh); });
     if (!/^[A-Za-z0-9_-]{12,64}$/.test(code)) return problem('This page needs your private report link. Please use the link CA Research Group sent you.');
