@@ -26,6 +26,10 @@
   .note { font-size: 13px; color: #64748b; text-align: center; margin-top: 14px; line-height: 1.5; }
   .msg { text-align: center; color: #475569; line-height: 1.6; }
   .err { color: #b91c1c; font-size: 14px; text-align: center; margin-top: 12px; }
+  .step { font-weight: bold; color: #1e1b4b; font-size: 15px; margin: 20px 0 6px; }
+  .step i { display: inline-block; width: 24px; height: 24px; line-height: 24px; border-radius: 50%; background: #1e1b4b; color: #fff; text-align: center; font-style: normal; font-size: 13px; margin-right: 8px; }
+  #boxes { border: 2px solid transparent; border-radius: 12px; padding: 4px 12px 12px; transition: all .2s; }
+  #boxes.glow { border-color: #b8963f; background: #fbf7ea; }
   .hidden { display: none; }
   a { color: #1e1b4b; }
 </style>
@@ -42,15 +46,20 @@
       <p id="company" class="company"></p>
       <p class="sub">Same private link as now. Nothing new to set up.</p>
 
+      <p class="step"><i>1</i>Pick one</p>
       <label class="plan" data-plan="five"><input type="radio" name="plan" value="five"><div><b>5 Reports</b><span>$40 per report</span></div><div class="price">$199/mo</div></label>
       <label class="plan" data-plan="ten"><input type="radio" name="plan" value="ten"><div><b>10 Reports</b><span>$30 per report</span></div><div class="price">$299/mo</div></label>
       <label class="plan" data-plan="twentyfive"><input type="radio" name="plan" value="twentyfive"><div><b>25 Reports</b><span>$20 per report</span></div><div class="price">$499/mo</div></label>
       <label class="plan hidden" id="singleRow" data-plan="single"><input type="radio" name="plan" value="single"><div><b>Just one report</b><span>Pay once, no plan</span></div><div class="price">$59</div></label>
 
+      <p class="step"><i>2</i>Check both boxes</p>
+      <div id="boxes">
       <label class="cert"><input type="checkbox" id="a1"><span>I agree to the <a href="/terms.html" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
       <label class="cert"><input type="checkbox" id="a2"><span>I understand reports are based on official public records, which may occasionally be incomplete or outdated, and that CA Research Group recommends doing my own due diligence before making any decision.</span></label>
+      </div>
+      <p class="step"><i>3</i>Pay securely with Stripe</p>
 
-      <button id="go" type="button" disabled>Choose a plan above</button>
+      <button id="go" type="button" disabled style="margin-top:6px">Choose a plan above</button>
       <p id="err" class="err hidden"></p>
       <p class="note">Monthly plans renew each month. Cancel anytime from your report page.<br>Launch pricing is locked in if you sign up by January 31, 2027.</p>
       <p class="note"><a id="back" href="#">Back to my report page</a></p>
@@ -66,6 +75,9 @@
     function refresh() {
       document.querySelectorAll('.plan').forEach(function (l) { l.classList.toggle('on', l.querySelector('input').checked); });
       var ok = chosen() && $('a1').checked && $('a2').checked;
+      var glowNow = Boolean(chosen()) && !($('a1').checked && $('a2').checked);
+      if (glowNow && !$('boxes').classList.contains('glow') && $('boxes').scrollIntoView) $('boxes').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      $('boxes').classList.toggle('glow', glowNow);
       $('go').disabled = !ok;
       $('go').textContent = !chosen() ? 'Choose a plan above' : ok ? 'Continue to secure payment' : 'Check both boxes to continue';
     }
