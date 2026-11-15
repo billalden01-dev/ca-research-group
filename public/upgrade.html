@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Choose your plan - CA Research Group</title>
+<style>
+  body { margin: 0; background: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1e293b; }
+  .wrap { max-width: 560px; margin: 36px auto; padding: 0 16px; }
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 28px; box-shadow: 0 10px 28px rgba(30,27,75,0.08); }
+  .logo { height: 52px; display: block; margin: 0 auto 18px; }
+  h1 { font-family: Georgia, serif; color: #1e1b4b; font-size: 26px; margin: 0 0 4px; text-align: center; }
+  .company { text-align: center; color: #b8963f; font-weight: bold; font-size: 18px; margin: 0 0 6px; }
+  .sub { text-align: center; color: #64748b; font-size: 14px; margin: 0 0 18px; }
+  .plan { display: flex; align-items: center; gap: 12px; border: 2px solid #e2e8f0; border-radius: 12px; padding: 14px; margin: 10px 0; cursor: pointer; }
+  .plan input { transform: scale(1.3); }
+  .plan.on { border-color: #b8963f; background: #fbf7ea; }
+  .plan b { display: block; color: #1e1b4b; font-size: 16px; }
+  .plan span { display: block; color: #64748b; font-size: 13px; margin-top: 2px; }
+  .plan .price { margin-left: auto; text-align: right; font-weight: bold; color: #1e1b4b; white-space: nowrap; }
+  .cert { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #475569; line-height: 1.5; margin-top: 16px; }
+  .cert input { margin-top: 3px; transform: scale(1.15); }
+  button { width: 100%; margin-top: 22px; padding: 14px; background: #1e1b4b; color: #fff; border: 0; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; }
+  button:disabled { background: #94a3b8; cursor: not-allowed; }
+  .note { font-size: 13px; color: #64748b; text-align: center; margin-top: 14px; line-height: 1.5; }
+  .msg { text-align: center; color: #475569; line-height: 1.6; }
+  .err { color: #b91c1c; font-size: 14px; text-align: center; margin-top: 12px; }
+  .hidden { display: none; }
+  a { color: #1e1b4b; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <img class="logo" src="/logo-tight.png" alt="CA Research Group">
+    <h1>Choose your plan</h1>
+    <p id="loading" class="msg">Checking your link...</p>
+    <p id="problem" class="msg hidden"></p>
+
+    <div id="ready" class="hidden">
+      <p id="company" class="company"></p>
+      <p class="sub">Same private link as now. Nothing new to set up.</p>
+
+      <label class="plan" data-plan="five"><input type="radio" name="plan" value="five"><div><b>5 Reports</b><span>$40 per report</span></div><div class="price">$199/mo</div></label>
+      <label class="plan" data-plan="ten"><input type="radio" name="plan" value="ten"><div><b>10 Reports</b><span>$30 per report</span></div><div class="price">$299/mo</div></label>
+      <label class="plan" data-plan="twentyfive"><input type="radio" name="plan" value="twentyfive"><div><b>25 Reports</b><span>$20 per report</span></div><div class="price">$499/mo</div></label>
+      <label class="plan hidden" id="singleRow" data-plan="single"><input type="radio" name="plan" value="single"><div><b>Just one report</b><span>Pay once, no plan</span></div><div class="price">$59</div></label>
+
+      <label class="cert"><input type="checkbox" id="a1"><span>I agree to the <a href="/terms.html" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
+      <label class="cert"><input type="checkbox" id="a2"><span>I understand reports are based on official public records, which may occasionally be incomplete or outdated, and that CA Research Group recommends doing my own due diligence before making any decision.</span></label>
+
+      <button id="go" type="button" disabled>Continue to secure payment</button>
+      <p id="err" class="err hidden"></p>
+      <p class="note">Monthly plans renew each month. Cancel anytime from your report page.<br>Launch pricing is locked in if you sign up by January 31, 2027.</p>
+      <p class="note"><a id="back" href="#">Back to my report page</a></p>
+    </div>
+  </div>
+</div>
+<script>
+  (function () {
+    var code = new URLSearchParams(location.search).get('c') || '';
+    var $ = function (id) { return document.getElementById(id); };
+    function problem(html) { $('loading').classList.add('hidden'); $('problem').innerHTML = html; $('problem').classList.remove('hidden'); }
+    function chosen() { var r = document.querySelector('input[name=plan]:checked'); return r ? r.value : ''; }
+    function refresh() {
+      document.querySelectorAll('.plan').forEach(function (l) { l.classList.toggle('on', l.querySelector('input').checked); });
+      $('go').disabled = !(chosen() && $('a1').checked && $('a2').checked);
+    }
+    document.querySelectorAll('input').forEach(function (i) { i.addEventListener('change', refresh); });
+    if (!/^[A-Za-z0-9_-]{12,64}$/.test(code)) return problem('This page needs your private report link. Please use the link CA Research Group sent you.');
+    $('back').href = '/report.html?c=' + encodeURIComponent(code);
+    fetch('/api/report-pdf?client=' + encodeURIComponent(code), { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.ok) return problem('This link is not valid. Please contact william@caresearchgroup.com.');
+        var o = d.offer || {};
+        if (o.kind === 'monthly' && d.active) return problem('You are already on ' + d.plan + '. To move up, use the "Move up" button on <a href="/report.html?c=' + encodeURIComponent(code) + '">your report page</a>.');
+        $('loading').classList.add('hidden');
+        $('ready').classList.remove('hidden');
+        $('company').textContent = d.company;
+        if (o.kind === 'oneoff') $('singleRow').classList.remove('hidden');
+        var pre = new URLSearchParams(location.search).get('plan');
+        if (pre) { var r = document.querySelector('input[name=plan][value="' + pre + '"]'); if (r) r.checked = true; }
+        refresh();
+      })
+      .catch(function () { problem('We could not check your link just now. Please try again in a few minutes.'); });
+    $('go').addEventListener('click', function () {
+      $('go').disabled = true; $('go').textContent = 'Opening secure payment...'; $('err').classList.add('hidden');
+      fetch('/api/stripe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quick: true, code: code, plan: chosen(), agreedTerms: $('a1').checked, agreedAccuracy: $('a2').checked }) })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d.url) { location.href = d.url; return; }
+          $('err').textContent = d.error || 'The payment page could not be opened. Please try again.'; $('err').classList.remove('hidden');
+          $('go').textContent = 'Continue to secure payment'; refresh();
+        })
+        .catch(function () { $('err').textContent = 'The payment page could not be opened. Please try again.'; $('err').classList.remove('hidden'); $('go').textContent = 'Continue to secure payment'; refresh(); });
+    });
+  })();
+</script>
+</body>
+</html>

@@ -538,7 +538,12 @@ async function applyToExisting(rec: AirtableRecord, session: StripeObj, plan: { 
     }
     what = `Your plan is now ${plan.label}.`;
   }
-  fields.Notes = addNote(f, `${todayPacific()}: ${isOneTime ? 'Bought one more report' : `Plan changed from ${oldPlan || 'none'} to ${plan.label}`} (checkout ${str(session.id)}).`);
+  const m = (session.metadata ?? {}) as Record<string, string>;
+  if (m.agreedAt) {
+    fields['Agreed At'] = m.agreedAt;
+    fields['Agreement Record'] = [`Checked both boxes on ${m.agreedAt} (UTC)`, `By: ${str(f['Contact Email'])}${str(f['Company']) ? ` for ${str(f['Company'])}` : ''}${m.agreedIp ? ` from IP ${m.agreedIp}` : ''}`, `Version: ${TERMS_VERSION}`, ...AGREEMENT_TEXT.map((t, i) => `[x] ${i + 1}. ${t}`)].join('\n');
+  }
+  fields.Notes = addNote(f, `${todayPacific()}: ${isOneTime ? 'Bought one more report' : `Plan changed from ${oldPlan || 'none'} to ${plan.label}`}${m.quick ? ' (shortcut page)' : ''} (checkout ${str(session.id)}).`);
   await patchRecord(rec.id, fields);
 
   const company = str(f['Company']);
@@ -629,6 +634,7 @@ async function createCheckout(request: Request): Promise<Response> {
   } catch {
     return json({ error: 'The form could not be read. Please try again.' }, 400);
   }
+  if (b.quick === true) return quickCheckout(b, request);
   const plan = PLANS[str(b.plan)];
   const email = clip(b.email, 200);
   const company = clip(b.company, 150);
@@ -684,6 +690,50 @@ async function createCheckout(request: Request): Promise<Response> {
     return json({ url: session.url });
   } catch (err) {
     console.error('Checkout failed', err);
+    return json({ error: 'Payment page could not be opened. Please try again in a few minutes.' }, 502);
+  }
+}
+
+// Shortcut for existing clients (public/upgrade.html): pick a plan, tick the two boxes, pay. We already have their details.
+async function quickCheckout(b: Record<string, unknown>, request: Request): Promise<Response> {
+  const code = str(b.code);
+  const plan = PLANS[str(b.plan)];
+  if (!/^[A-Za-z0-9_-]{12,64}$/.test(code)) return json({ error: 'This link is not valid.' }, 400);
+  if (!plan) return json({ error: 'Please choose a plan.' }, 400);
+  if (b.agreedTerms !== true || b.agreedAccuracy !== true) return json({ error: 'Please check both boxes.' }, 400);
+  try {
+    const rec = await findByLinkCode(code);
+    if (!rec) return json({ error: 'This link is not valid. Please contact william@caresearchgroup.com.' }, 404);
+    const f = rec.fields;
+    if (!plan.oneTime && MONTHLY.some((p) => p.label === sel(f['Plan'])) && sel(f['Subscription Status']) === 'Active') {
+      return json({ error: 'You already have a monthly plan. To move up, use the "Move up" button on your report page.' }, 400);
+    }
+    const email = str(f['Contact Email']);
+    const company = clip(f['Company'], 150);
+    const customer = /^cus_[A-Za-z0-9]+$/.test(str(f['Stripe Customer ID'])) ? str(f['Stripe Customer ID']) : '';
+    if (!customer && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: 'Please email william@caresearchgroup.com and we will set this up for you.' }, 400);
+    const meta = {
+      code,
+      plan: str(b.plan),
+      company,
+      role: ROLES.includes(sel(f['Role'])) ? sel(f['Role']) : '',
+      quick: 'yes',
+      agreedAt: new Date().toISOString(),
+      agreedIp: clip((request.headers.get('x-forwarded-for') ?? '').split(',')[0].trim(), 60),
+    };
+    const product_data = { name: `CA Research Group - ${plan.name}` };
+    const session = await stripe('checkout/sessions', {
+      mode: plan.oneTime ? 'payment' : 'subscription',
+      ...(customer ? { customer } : { customer_email: email }),
+      line_items: { 0: { quantity: 1, price_data: plan.oneTime ? { currency: 'usd', unit_amount: plan.cents, product_data } : { currency: 'usd', unit_amount: plan.cents, recurring: { interval: 'month' }, product_data } } },
+      metadata: meta,
+      ...(plan.oneTime ? (customer ? {} : { customer_creation: 'always' }) : { subscription_data: { metadata: { plan: meta.plan, company } } }),
+      success_url: `${SITE}/welcome.html?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${SITE}/upgrade.html?c=${code}`,
+    });
+    return json({ url: session.url });
+  } catch (err) {
+    console.error('Quick checkout failed', err);
     return json({ error: 'Payment page could not be opened. Please try again in a few minutes.' }, 502);
   }
 }

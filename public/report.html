@@ -97,7 +97,7 @@
     var $ = function (id) { return document.getElementById(id); };
     function problem(text, plans) {
       $('loading').classList.add('hidden'); $('problem').textContent = text; $('problem').classList.remove('hidden');
-      if (plans) { var a = document.createElement('a'); a.href = '/?c=' + encodeURIComponent(code) + '#pricing'; a.textContent = 'See plans'; a.style.cssText = 'display:block;margin-top:18px;padding:14px;background:#1e1b4b;color:#fff;border-radius:10px;font-weight:bold;text-decoration:none'; $('problem').appendChild(a); }
+      if (plans) { var a = document.createElement('a'); a.href = '/upgrade.html?c=' + encodeURIComponent(code); a.textContent = 'See plans'; a.style.cssText = 'display:block;margin-top:18px;padding:14px;background:#1e1b4b;color:#fff;border-radius:10px;font-weight:bold;text-decoration:none'; $('problem').appendChild(a); }
     }
     function load() {
       fetch('/api/report-pdf?client=' + encodeURIComponent(code), { cache: 'no-store' })
@@ -136,7 +136,7 @@
             $('oneMore').textContent = 'Run one more report: ' + o.extraText; $('oneMore').href = extraUrl;
             $('moveUp').classList.toggle('hidden', !o.next);
             if (o.next) { $('moveUp').textContent = 'Move up to ' + o.next; $('moveUp').href = '/api/stripe?moveup=' + encodeURIComponent(code); }
-            $('choosePlan').classList.toggle('hidden', o.kind !== 'oneoff'); $('choosePlan').href = '/?c=' + encodeURIComponent(code) + '#pricing';
+            $('choosePlan').classList.toggle('hidden', o.kind !== 'oneoff'); $('choosePlan').href = '/upgrade.html?c=' + encodeURIComponent(code);
             $('waitText').classList.toggle('hidden', !o.resets); $('waitText').textContent = 'Or wait: your reports reset on ' + o.resets + '.';
           }
           var showBuy = d.canRun && o.extraText && !d.voucher;

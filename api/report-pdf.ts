@@ -2609,7 +2609,7 @@ export function limitEmail(c: { company: string; plan: string; limit: number; pi
   const choices = [
     btn(`${SITE_URL}/api/stripe?extra=${code}`, `Run one more report: ${o.extraText}`),
     o.next ? btn(`${SITE_URL}/api/stripe?moveup=${code}`, `Move up to ${o.next.label}`, false) : '',
-    o.kind === 'oneoff' ? btn(`${SITE_URL}/?c=${code}#pricing`, 'Choose a monthly plan', false) : '',
+    o.kind === 'oneoff' ? btn(`${SITE_URL}/upgrade.html?c=${code}`, 'Choose a monthly plan', false) : '',
   ].join('');
   const html = `<div style="font-family:-apple-system,Segoe UI,sans-serif;color:#1e293b;line-height:1.6;max-width:560px">
 <p>Hello,</p>
