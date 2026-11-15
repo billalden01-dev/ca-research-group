@@ -226,8 +226,14 @@ function oneMoreFields(f: Record<string, unknown>): Record<string, unknown> {
   const extra = Number(f['Extra Reports'] ?? 0) || 0;
   const total = Number(f['Reports Total'] ?? 0) || 0;
   if (plan === SINGLE_PLAN) return { 'Extra Reports': extra + 1, 'Subscription Status': 'Active' };
-  // Trial, pilot or voucher: becomes a Single Report account with one report left (same private link).
-  if (isOneOffPlan(plan)) return { Plan: SINGLE_PLAN, 'Extra Reports': total, 'Subscription Status': 'Active' };
+  // Trial, pilot or voucher: becomes a Single Report account (same private link) with any unused free reports
+  // kept (unless the trial has ended), plus the one just bought. Single limit = 1 + Extra Reports, counted against all reports ever.
+  if (isOneOffPlan(plan)) {
+    const free = /trial/i.test(plan) ? 2 : /pilot/i.test(plan) ? 5 : /voucher/i.test(plan) ? 1 : 0;
+    const expires = str(f['Voucher Expires']).slice(0, 10);
+    const ended = !expires || expires < todayPacific();
+    return { Plan: SINGLE_PLAN, 'Extra Reports': ended ? total : Math.max(total, free), 'Subscription Status': 'Active' };
+  }
   // Monthly plans: the extra report counts this month.
   const month = pacificMonth();
   return { 'Extra Reports': str(f['Extra Reports Month']) === month ? extra + 1 : 1, 'Extra Reports Month': month };
