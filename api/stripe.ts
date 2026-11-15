@@ -43,6 +43,13 @@ const AGREEMENT_TEXT = [
 const TERMS_VERSION = 'Terms of Service effective November 4, 2026';
 
 const ROLES = [
+  // Current choices on the order form (Nov 14, 2026)
+  'Commercial real estate agent or broker',
+  'Commercial real estate brokerage (office)',
+  'Commercial property manager or landlord',
+  'Commercial lender (bank, credit union, private or hard money)',
+  'Title or escrow (rep, officer or company)',
+  // Earlier choices (kept so older links still save)
   'Hard money lender or lending institution',
   'Attorney or legal counsel',
   'Commercial real estate broker',

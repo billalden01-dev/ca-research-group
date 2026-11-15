@@ -523,12 +523,14 @@ export default function App() {
                     <label style={labelStyle}>Your Role</label>
                     <select value={roleType} onChange={(e) => setRoleType(e.target.value)} style={inputStyle} required>
                       <option value="">Select one</option>
-                      <option value="Hard money lender or lending institution">Private or hard money lender (business-purpose loans)</option>
-                      <option value="Attorney or legal counsel">Attorney or legal counsel</option>
-                      <option value="Commercial real estate brokerage">Commercial real estate brokerage</option>
+                      <option value="Commercial real estate agent or broker">Commercial real estate agent or broker</option>
+                      <option value="Commercial real estate brokerage (office)">Commercial real estate brokerage (office)</option>
+                      <option value="Commercial property manager or landlord">Commercial property manager or landlord</option>
+                      <option value="Commercial lender (bank, credit union, private or hard money)">Commercial lender (bank, credit union, private or hard money)</option>
+                      <option value="Title or escrow (rep, officer or company)">Title or escrow (rep, officer or company)</option>
                       <option value="Business broker">Business broker</option>
                       <option value="Real estate investor">Real estate investor</option>
-                      <option value="Title or escrow company">Title or escrow company</option>
+                      <option value="Attorney or legal counsel">Attorney or legal counsel</option>
                       <option value="Other">Other</option>
                     </select>
                   </div>
