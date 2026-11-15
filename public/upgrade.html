@@ -16,6 +16,9 @@
   .plan { display: flex; align-items: center; gap: 12px; border: 2px solid #e2e8f0; border-radius: 12px; padding: 14px; margin: 10px 0; cursor: pointer; }
   .plan input { transform: scale(1.3); }
   .plan.on { border-color: #b8963f; background: #fbf7ea; }
+  .plan.on.done { background: #fff; border-width: 1px; padding: 15px; }
+  .plan .tick { display: none; color: #b8963f; font-weight: bold; margin-left: 8px; }
+  .plan.on.done .tick { display: inline; }
   .plan b { display: block; color: #1e1b4b; font-size: 16px; }
   .plan span { display: block; color: #64748b; font-size: 13px; margin-top: 2px; }
   .plan .price { margin-left: auto; text-align: right; font-weight: bold; color: #1e1b4b; white-space: nowrap; }
@@ -49,10 +52,10 @@
       <p class="sub">Same private link as now. Nothing new to set up.</p>
 
       <p class="step"><i>1</i>Pick one</p>
-      <label class="plan" data-plan="five"><input type="radio" name="plan" value="five"><div><b>5 Reports</b><span>$40 per report</span></div><div class="price">$199/mo</div></label>
-      <label class="plan" data-plan="ten"><input type="radio" name="plan" value="ten"><div><b>10 Reports</b><span>$30 per report</span></div><div class="price">$299/mo</div></label>
-      <label class="plan" data-plan="twentyfive"><input type="radio" name="plan" value="twentyfive"><div><b>25 Reports</b><span>$20 per report</span></div><div class="price">$499/mo</div></label>
-      <label class="plan hidden" id="singleRow" data-plan="single"><input type="radio" name="plan" value="single"><div><b>Just one report</b><span>Pay once, no plan</span></div><div class="price">$59</div></label>
+      <label class="plan" data-plan="five"><input type="radio" name="plan" value="five"><div><b>5 Reports<span class="tick">✓</span></b><span>$40 per report</span></div><div class="price">$199/mo</div></label>
+      <label class="plan" data-plan="ten"><input type="radio" name="plan" value="ten"><div><b>10 Reports<span class="tick">✓</span></b><span>$30 per report</span></div><div class="price">$299/mo</div></label>
+      <label class="plan" data-plan="twentyfive"><input type="radio" name="plan" value="twentyfive"><div><b>25 Reports<span class="tick">✓</span></b><span>$20 per report</span></div><div class="price">$499/mo</div></label>
+      <label class="plan hidden" id="singleRow" data-plan="single"><input type="radio" name="plan" value="single"><div><b>Just one report<span class="tick">✓</span></b><span>Pay once, no plan</span></div><div class="price">$59</div></label>
 
       <p class="step"><i>2</i>Check both boxes</p>
       <div id="boxes">
@@ -75,7 +78,8 @@
     function problem(html) { $('loading').classList.add('hidden'); $('problem').innerHTML = html; $('problem').classList.remove('hidden'); }
     function chosen() { var r = document.querySelector('input[name=plan]:checked'); return r ? r.value : ''; }
     function refresh() {
-      document.querySelectorAll('.plan').forEach(function (l) { l.classList.toggle('on', l.querySelector('input').checked); });
+      // One gold spot at a time: the plan while choosing, then the boxes, then the button. Finished steps keep a thin gold border and a check.
+      document.querySelectorAll('.plan').forEach(function (l) { l.classList.toggle('on', l.querySelector('input').checked); l.classList.toggle('done', Boolean(chosen())); });
       var ok = chosen() && $('a1').checked && $('a2').checked;
       var glowNow = Boolean(chosen()) && !($('a1').checked && $('a2').checked);
       if (glowNow && !$('boxes').classList.contains('glow') && $('boxes').scrollIntoView) $('boxes').scrollIntoView({ behavior: 'smooth', block: 'center' });
