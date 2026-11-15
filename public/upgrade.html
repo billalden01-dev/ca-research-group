@@ -50,7 +50,7 @@
       <label class="cert"><input type="checkbox" id="a1"><span>I agree to the <a href="/terms.html" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
       <label class="cert"><input type="checkbox" id="a2"><span>I understand reports are based on official public records, which may occasionally be incomplete or outdated, and that CA Research Group recommends doing my own due diligence before making any decision.</span></label>
 
-      <button id="go" type="button" disabled>Continue to secure payment</button>
+      <button id="go" type="button" disabled>Choose a plan above</button>
       <p id="err" class="err hidden"></p>
       <p class="note">Monthly plans renew each month. Cancel anytime from your report page.<br>Launch pricing is locked in if you sign up by January 31, 2027.</p>
       <p class="note"><a id="back" href="#">Back to my report page</a></p>
@@ -65,7 +65,9 @@
     function chosen() { var r = document.querySelector('input[name=plan]:checked'); return r ? r.value : ''; }
     function refresh() {
       document.querySelectorAll('.plan').forEach(function (l) { l.classList.toggle('on', l.querySelector('input').checked); });
-      $('go').disabled = !(chosen() && $('a1').checked && $('a2').checked);
+      var ok = chosen() && $('a1').checked && $('a2').checked;
+      $('go').disabled = !ok;
+      $('go').textContent = !chosen() ? 'Choose a plan above' : ok ? 'Continue to secure payment' : 'Check both boxes to continue';
     }
     document.querySelectorAll('input').forEach(function (i) { i.addEventListener('change', refresh); });
     if (!/^[A-Za-z0-9_-]{12,64}$/.test(code)) return problem('This page needs your private report link. Please use the link CA Research Group sent you.');
@@ -92,9 +94,9 @@
         .then(function (d) {
           if (d.url) { location.href = d.url; return; }
           $('err').textContent = d.error || 'The payment page could not be opened. Please try again.'; $('err').classList.remove('hidden');
-          $('go').textContent = 'Continue to secure payment'; refresh();
+          refresh();
         })
-        .catch(function () { $('err').textContent = 'The payment page could not be opened. Please try again.'; $('err').classList.remove('hidden'); $('go').textContent = 'Continue to secure payment'; refresh(); });
+        .catch(function () { $('err').textContent = 'The payment page could not be opened. Please try again.'; $('err').classList.remove('hidden'); refresh(); });
     });
   })();
 </script>
