@@ -31,6 +31,9 @@
   .tour h2 { font-family: Georgia, serif; color: #1e1b4b; font-size: 24px; margin: 0 0 8px; }
   .tour p { color: #475569; line-height: 1.6; margin: 0; font-size: 16px; max-width: 560px; }
   .card video { width: 100%; border-radius: 12px; border: 3px solid #d6b968; background: #1e1b4b; display: block; margin: 0 0 18px; }
+  .vwrap { position: relative; flex: 0 0 auto; }
+  .vwrap .play { position: absolute; left: 50%; top: 80%; transform: translate(-50%, -50%); width: 68px; height: 68px; border-radius: 50%; border: 3px solid #fff; background: #d6b968; box-shadow: 0 6px 18px rgba(0,0,0,0.3); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0 0 0 4px; }
+  .vwrap.playing .play { display: none; }
   @media (max-width: 700px) {
     .frame, .note, .tour, .bar .dl, .bar .back span.long { display: none; }
     .mobile { display: block; }
@@ -52,7 +55,7 @@
 </div>
 
 <div class="tour">
-  <video controls playsinline preload="metadata" poster="/report-tour-poster-v1.jpg"><source src="/report-tour-v1.mp4" type="video/mp4"></video>
+  <div class="vwrap"><video playsinline preload="metadata" poster="/report-tour-poster-v1.jpg"><source src="/report-tour-v2.mp4" type="video/mp4"></video><button type="button" class="play" aria-label="Play the 50-second report tour"><svg width="26" height="26" viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 1.5 L10.5 6 L3.5 10.5 Z" fill="#1e1b4b"/></svg></button></div>
   <div>
     <h2>See what's inside a report</h2>
     <p>A 50-second tour of the sample report below: business status, owners and managers, liens, sanctions, state and federal lawsuits, bankruptcy, and environmental and historic checks. Several official sources, one easy-to-read PDF.</p>
@@ -66,12 +69,20 @@
 <div class="mobile">
   <div class="card">
     <h1>Sample Report</h1>
-    <video controls playsinline preload="metadata" poster="/report-tour-poster-v1.jpg"><source src="/report-tour-v1.mp4" type="video/mp4"></video>
+    <div class="vwrap"><video playsinline preload="metadata" poster="/report-tour-poster-v1.jpg"><source src="/report-tour-v2.mp4" type="video/mp4"></video><button type="button" class="play" aria-label="Play the 50-second report tour"><svg width="26" height="26" viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 1.5 L10.5 6 L3.5 10.5 Z" fill="#1e1b4b"/></svg></button></div>
     <p>See exactly what you'd get: one clean, organized PDF with business status, owners on file, UCC, tax, and judgment liens, state and federal lawsuits, bankruptcy records, and environmental and historic checks. Made-up names and data.</p>
     <p><strong>Environmental and historic checks appear when you enter a property address with your report.</strong></p>
     <a class="btn dl" href="/api/report-pdf?sample=1">Open the sample report</a>
     <a class="btn back" href="/">&larr; Back to CA Research Group</a>
   </div>
 </div>
+<script>
+document.querySelectorAll('.vwrap').forEach(function (w) {
+  var v = w.querySelector('video'), b = w.querySelector('.play');
+  b.addEventListener('click', function () { w.classList.add('playing'); v.play(); });
+  v.addEventListener('click', function () { if (v.paused) { w.classList.add('playing'); v.play(); } v.controls = true; });
+  v.addEventListener('ended', function () { v.controls = true; });
+});
+</script>
 </body>
 </html>

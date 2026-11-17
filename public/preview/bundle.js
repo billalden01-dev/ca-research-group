@@ -13339,7 +13339,11 @@
       ] }),
       showVideo && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { onClick: () => setShowVideo(""), style: { position: "fixed", inset: 0, backgroundColor: "rgba(15,14,40,0.82)", zIndex: 1e3, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { onClick: (e) => e.stopPropagation(), style: { position: "relative", width: "100%", maxWidth: showVideo === "tour" ? "min(440px, calc((100vh - 110px) * 0.8))" : "860px" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "button", "aria-label": "Close video", onClick: () => setShowVideo(""), style: { position: "absolute", top: "-44px", right: 0, background: "none", border: "none", color: "#ffffff", fontSize: "30px", cursor: "pointer", lineHeight: 1 }, children: "\xD7" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("video", { controls: true, autoPlay: true, playsInline: true, poster: showVideo === "tour" ? "/report-tour-poster-v1.jpg" : "/intro-video-poster-v12.jpg", style: { width: "100%", display: "block", borderRadius: "14px", border: "3px solid #d6b968", backgroundColor: "#1e1b4b" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("source", { src: showVideo === "tour" ? "/report-tour-v1.mp4" : "/intro-video-v12.mp4", type: "video/mp4" }) }, showVideo)
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("video", { autoPlay: true, playsInline: true, onClick: (e) => {
+          const v = e.currentTarget;
+          if (v.paused) v.play();
+          v.controls = true;
+        }, poster: showVideo === "tour" ? "/report-tour-poster-v1.jpg" : "/intro-video-poster-v12.jpg", style: { width: "100%", display: "block", borderRadius: "14px", border: "3px solid #d6b968", backgroundColor: "#1e1b4b" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("source", { src: showVideo === "tour" ? "/report-tour-v2.mp4" : "/intro-video-v12.mp4", type: "video/mp4" }) }, showVideo)
       ] }) }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("footer", { style: { backgroundColor: "#1e1b4b", padding: "40px 20px", fontSize: "12px", color: "#ffffff", lineHeight: "1.7", borderTop: "1px solid #334155" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { maxWidth: "1100px", margin: "0 auto" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "LEGAL, DISCLAIMER & COMPLIANCE NOTICE" }),
