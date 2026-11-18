@@ -174,7 +174,7 @@ export default function App() {
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState('');
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
-  const [showVideo, setShowVideo] = useState(false);
+  const [showVideo, setShowVideo] = useState<'' | 'intro' | 'tour'>('');
   const [isMobile, setIsMobile] = useState<boolean>(typeof window !== 'undefined' && window.innerWidth < 700);
   const [isShort, setIsShort] = useState<boolean>(typeof window !== 'undefined' && window.innerHeight < 800);
 
@@ -324,8 +324,8 @@ export default function App() {
             <p style={{ fontSize: isMobile ? '14px' : '15px', color: '#64748b', margin: isMobile ? '-14px auto 22px auto' : '-16px auto 26px auto', lineHeight: '1.5', textWrap: 'balance' } as React.CSSProperties}>Also a great fit for hard money lenders, investors, title professionals,{isMobile ? <br /> : ' '}commercial landlords and commercial property managers.</p>
             <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>One run searches several official sources and delivers one clear PDF report in about a minute: business status and who manages it, liens, lawsuits and bankruptcy, and sanctions screening. Add a property address for environmental and historic checks.</p>
             <button type="button" onClick={() => handleNavigate('pricing')} style={{ background: 'linear-gradient(180deg, #e8d28e 0%, #d6b968 100%)', boxShadow: '0 4px 14px rgba(214,185,104,0.35)', color: '#1e1b4b', fontSize: isMobile ? '15px' : '17px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: isMobile ? '14px 22px' : '15px 34px', cursor: 'pointer', margin: '0 0 14px 0' }}>Get Started: See Plans & Pricing →</button>
-            <div style={{ margin: isMobile ? '0 0 26px 0' : '0 0 30px 0' }}>
-              <button type="button" onClick={() => setShowVideo(true)} aria-label="Play the 1-minute video" style={{ display: 'inline-flex', alignItems: 'center', gap: '14px', background: '#ffffff', border: '1px solid #e6d6a3', borderRadius: '14px', padding: '8px 18px 8px 8px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(30,27,75,0.08)', textAlign: 'left', fontFamily: 'inherit' }}>
+            <div style={{ margin: isMobile ? '0 0 26px 0' : '0 0 30px 0', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: isMobile ? '12px' : '16px' }}>
+              <button type="button" onClick={() => setShowVideo('intro')} aria-label="Play the 1-minute video" style={{ display: 'inline-flex', alignItems: 'center', gap: '14px', background: '#ffffff', border: '1px solid #e6d6a3', borderRadius: '14px', padding: '8px 18px 8px 8px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(30,27,75,0.08)', textAlign: 'left', fontFamily: 'inherit' }}>
                 <span style={{ position: 'relative', width: isMobile ? '60px' : '68px', height: isMobile ? '60px' : '68px', flex: '0 0 auto', borderRadius: '10px', overflow: 'hidden', display: 'block' }}>
                   <img src="/founder-thumb-v11.jpg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                   <span style={{ position: 'absolute', right: '4px', bottom: '4px', width: '24px', height: '24px', borderRadius: '50%', background: '#d6b968', border: '2px solid #ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>
@@ -335,6 +335,18 @@ export default function App() {
                 <span style={{ display: 'block' }}>
                   <span style={{ display: 'block', color: '#1e1b4b', fontSize: isMobile ? '15px' : '16px', fontWeight: 'bold' }}>Watch the 1-minute video</span>
                   <span style={{ display: 'block', color: '#64748b', fontSize: isMobile ? '13px' : '14px', marginTop: '2px' }}>How it works, from founder Bill Alden</span>
+                </span>
+              </button>
+              <button type="button" onClick={() => setShowVideo('tour')} aria-label="Play the 50-second report tour" style={{ display: 'inline-flex', alignItems: 'center', gap: '14px', background: '#ffffff', border: '1px solid #e6d6a3', borderRadius: '14px', padding: '8px 18px 8px 8px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(30,27,75,0.08)', textAlign: 'left', fontFamily: 'inherit' }}>
+                <span style={{ position: 'relative', width: isMobile ? '60px' : '68px', height: isMobile ? '60px' : '68px', flex: '0 0 auto', borderRadius: '10px', overflow: 'hidden', display: 'block', border: '1px solid #e2e8f0' }}>
+                  <img src="/report-tour-thumb-v1.jpg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  <span style={{ position: 'absolute', right: '4px', bottom: '4px', width: '24px', height: '24px', borderRadius: '50%', background: '#d6b968', border: '2px solid #ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>
+                    <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 1.5 L10.5 6 L3.5 10.5 Z" fill="#1e1b4b" /></svg>
+                  </span>
+                </span>
+                <span style={{ display: 'block' }}>
+                  <span style={{ display: 'block', color: '#1e1b4b', fontSize: isMobile ? '15px' : '16px', fontWeight: 'bold' }}>See what's inside a report</span>
+                  <span style={{ display: 'block', color: '#64748b', fontSize: isMobile ? '13px' : '14px', marginTop: '2px' }}>A 50-second tour of a sample report</span>
                 </span>
               </button>
             </div>
@@ -653,11 +665,11 @@ export default function App() {
       </main>
 
       {showVideo && (
-        <div onClick={() => setShowVideo(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,14,40,0.82)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', width: '100%', maxWidth: '860px' }}>
-            <button type="button" aria-label="Close video" onClick={() => setShowVideo(false)} style={{ position: 'absolute', top: '-44px', right: 0, background: 'none', border: 'none', color: '#ffffff', fontSize: '30px', cursor: 'pointer', lineHeight: 1 }}>×</button>
-            <video controls autoPlay playsInline poster="/intro-video-poster-v12.jpg" style={{ width: '100%', display: 'block', borderRadius: '14px', border: '3px solid #d6b968', backgroundColor: '#1e1b4b' }}>
-              <source src="/intro-video-v12.mp4" type="video/mp4" />
+        <div onClick={() => setShowVideo('')} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,14,40,0.82)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', width: '100%', maxWidth: showVideo === 'tour' ? 'min(440px, calc((100vh - 110px) * 0.8))' : '860px' }}>
+            <button type="button" aria-label="Close video" onClick={() => setShowVideo('')} style={{ position: 'absolute', top: '-44px', right: 0, background: 'none', border: 'none', color: '#ffffff', fontSize: '30px', cursor: 'pointer', lineHeight: 1 }}>×</button>
+            <video key={showVideo} autoPlay playsInline onClick={(e) => { const v = e.currentTarget; if (v.paused) v.play(); v.controls = true; }} poster={showVideo === 'tour' ? '/report-tour-poster-v1.jpg' : '/intro-video-poster-v12.jpg'} style={{ width: '100%', display: 'block', borderRadius: '14px', border: '3px solid #d6b968', backgroundColor: '#1e1b4b' }}>
+              <source src={showVideo === 'tour' ? '/report-tour-v2.mp4' : '/intro-video-v12.mp4'} type="video/mp4" />
             </video>
           </div>
         </div>
