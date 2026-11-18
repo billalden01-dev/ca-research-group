@@ -174,7 +174,7 @@ export default function App() {
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState('');
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
-  const [showVideo, setShowVideo] = useState<'' | 'intro' | 'tour'>('');
+  const [showVideo, setShowVideo] = useState<'' | 'intro' | 'tour' | 'howto'>('');
   const [isMobile, setIsMobile] = useState<boolean>(typeof window !== 'undefined' && window.innerWidth < 700);
   const [isShort, setIsShort] = useState<boolean>(typeof window !== 'undefined' && window.innerHeight < 800);
 
@@ -395,6 +395,22 @@ export default function App() {
                 <span style={{ color: '#64748b' }}>➔</span>
                 <span style={stepStyle(3)}>3. Your Details</span>
               </div>
+              {wizardStep === 1 && (
+                <div style={{ marginTop: isMobile ? '22px' : '28px' }}>
+                  <button type="button" onClick={() => setShowVideo('howto')} aria-label="Play the how to run a report video" style={{ width: '340px', maxWidth: '100%', boxSizing: 'border-box', display: 'inline-flex', alignItems: 'center', gap: '14px', background: '#ffffff', border: '1px solid #e6d6a3', borderRadius: '14px', padding: '8px 18px 8px 8px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,0,0,0.25)', textAlign: 'left', fontFamily: 'inherit' }}>
+                    <span style={{ position: 'relative', width: isMobile ? '60px' : '68px', height: isMobile ? '60px' : '68px', flex: '0 0 auto', borderRadius: '10px', overflow: 'hidden', display: 'block' }}>
+                      <img src="/how-to-thumb-v1.jpg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      <span style={{ position: 'absolute', right: '4px', bottom: '4px', width: '24px', height: '24px', borderRadius: '50%', background: '#d6b968', border: '2px solid #ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>
+                        <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 1.5 L10.5 6 L3.5 10.5 Z" fill="#1e1b4b" /></svg>
+                      </span>
+                    </span>
+                    <span style={{ display: 'block' }}>
+                      <span style={{ display: 'block', color: '#1e1b4b', fontSize: isMobile ? '15px' : '16px', fontWeight: 'bold' }}>How to run a report</span>
+                      <span style={{ display: 'block', color: '#64748b', fontSize: isMobile ? '13px' : '14px', marginTop: '2px' }}>Start to finish in under a minute</span>
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
 
             <div style={{ position: 'relative', maxWidth: '1140px', margin: '0 auto', padding: isMobile ? '28px 12px 56px 12px' : '56px 20px 80px 20px' }}>
@@ -666,10 +682,10 @@ export default function App() {
 
       {showVideo && (
         <div onClick={() => setShowVideo('')} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,14,40,0.82)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', width: '100%', maxWidth: showVideo === 'tour' ? 'min(440px, calc((100vh - 110px) * 0.8))' : '860px' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', width: '100%', maxWidth: showVideo === 'intro' ? '860px' : 'min(440px, calc((100vh - 110px) * 0.8))' }}>
             <button type="button" aria-label="Close video" onClick={() => setShowVideo('')} style={{ position: 'absolute', top: '-44px', right: 0, background: 'none', border: 'none', color: '#ffffff', fontSize: '30px', cursor: 'pointer', lineHeight: 1 }}>×</button>
-            <video key={showVideo} autoPlay playsInline onClick={(e) => { const v = e.currentTarget; if (v.paused) v.play(); v.controls = true; }} poster={showVideo === 'tour' ? '/report-tour-poster-v1.jpg' : '/intro-video-poster-v12.jpg'} style={{ width: '100%', display: 'block', borderRadius: '14px', border: '3px solid #d6b968', backgroundColor: '#1e1b4b' }}>
-              <source src={showVideo === 'tour' ? '/report-tour-v2.mp4' : '/intro-video-v12.mp4'} type="video/mp4" />
+            <video key={showVideo} autoPlay playsInline onClick={(e) => { const v = e.currentTarget; if (v.paused) v.play(); v.controls = true; }} poster={showVideo === 'tour' ? '/report-tour-poster-v1.jpg' : showVideo === 'howto' ? '/how-to-poster-v1.jpg' : '/intro-video-poster-v12.jpg'} style={{ width: '100%', display: 'block', borderRadius: '14px', border: '3px solid #d6b968', backgroundColor: '#1e1b4b' }}>
+              <source src={showVideo === 'tour' ? '/report-tour-v2.mp4' : showVideo === 'howto' ? '/how-to-run-report-v1.mp4' : '/intro-video-v13.mp4'} type="video/mp4" />
             </video>
           </div>
         </div>
