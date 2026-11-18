@@ -685,7 +685,7 @@ export default function App() {
           <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', width: '100%', maxWidth: showVideo === 'intro' ? '860px' : 'min(440px, calc((100vh - 110px) * 0.8))' }}>
             <button type="button" aria-label="Close video" onClick={() => setShowVideo('')} style={{ position: 'absolute', top: '-44px', right: 0, background: 'none', border: 'none', color: '#ffffff', fontSize: '30px', cursor: 'pointer', lineHeight: 1 }}>×</button>
             <video key={showVideo} autoPlay playsInline onClick={(e) => { const v = e.currentTarget; if (v.paused) v.play(); v.controls = true; }} poster={showVideo === 'tour' ? '/report-tour-poster-v1.jpg' : showVideo === 'howto' ? '/how-to-poster-v1.jpg' : '/intro-video-poster-v14.jpg'} style={{ width: '100%', display: 'block', borderRadius: '14px', border: '3px solid #d6b968', backgroundColor: '#1e1b4b' }}>
-              <source src={showVideo === 'tour' ? '/report-tour-v2.mp4' : showVideo === 'howto' ? '/how-to-run-report-v1.mp4' : '/intro-video-v15.mp4'} type="video/mp4" />
+              <source src={showVideo === 'tour' ? '/report-tour-v2.mp4' : showVideo === 'howto' ? '/how-to-run-report-v2.mp4' : '/intro-video-v15.mp4'} type="video/mp4" />
             </video>
           </div>
         </div>
