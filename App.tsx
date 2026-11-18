@@ -684,8 +684,8 @@ export default function App() {
         <div onClick={() => setShowVideo('')} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,14,40,0.82)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', width: '100%', maxWidth: showVideo === 'intro' ? '860px' : 'min(440px, calc((100vh - 110px) * 0.8))' }}>
             <button type="button" aria-label="Close video" onClick={() => setShowVideo('')} style={{ position: 'absolute', top: '-44px', right: 0, background: 'none', border: 'none', color: '#ffffff', fontSize: '30px', cursor: 'pointer', lineHeight: 1 }}>×</button>
-            <video key={showVideo} autoPlay playsInline onClick={(e) => { const v = e.currentTarget; if (v.paused) v.play(); v.controls = true; }} poster={showVideo === 'tour' ? '/report-tour-poster-v1.jpg' : showVideo === 'howto' ? '/how-to-poster-v1.jpg' : '/intro-video-poster-v12.jpg'} style={{ width: '100%', display: 'block', borderRadius: '14px', border: '3px solid #d6b968', backgroundColor: '#1e1b4b' }}>
-              <source src={showVideo === 'tour' ? '/report-tour-v2.mp4' : showVideo === 'howto' ? '/how-to-run-report-v1.mp4' : '/intro-video-v13.mp4'} type="video/mp4" />
+            <video key={showVideo} autoPlay playsInline onClick={(e) => { const v = e.currentTarget; if (v.paused) v.play(); v.controls = true; }} poster={showVideo === 'tour' ? '/report-tour-poster-v1.jpg' : showVideo === 'howto' ? '/how-to-poster-v1.jpg' : '/intro-video-poster-v14.jpg'} style={{ width: '100%', display: 'block', borderRadius: '14px', border: '3px solid #d6b968', backgroundColor: '#1e1b4b' }}>
+              <source src={showVideo === 'tour' ? '/report-tour-v2.mp4' : showVideo === 'howto' ? '/how-to-run-report-v1.mp4' : '/intro-video-v14.mp4'} type="video/mp4" />
             </video>
           </div>
         </div>
