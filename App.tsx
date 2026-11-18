@@ -337,7 +337,7 @@ export default function App() {
                   <span style={{ display: 'block', color: '#64748b', fontSize: isMobile ? '13px' : '14px', marginTop: '2px' }}>How it works, from founder Bill Alden</span>
                 </span>
               </button>
-              <button type="button" onClick={() => setShowVideo('tour')} aria-label="Play the 50-second report tour" style={{ width: '340px', maxWidth: '100%', boxSizing: 'border-box', display: 'inline-flex', alignItems: 'center', gap: '14px', background: '#ffffff', border: '1px solid #e6d6a3', borderRadius: '14px', padding: '8px 18px 8px 8px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(30,27,75,0.08)', textAlign: 'left', fontFamily: 'inherit' }}>
+              <button type="button" onClick={() => setShowVideo('tour')} aria-label="Play the report tour" style={{ width: '340px', maxWidth: '100%', boxSizing: 'border-box', display: 'inline-flex', alignItems: 'center', gap: '14px', background: '#ffffff', border: '1px solid #e6d6a3', borderRadius: '14px', padding: '8px 18px 8px 8px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(30,27,75,0.08)', textAlign: 'left', fontFamily: 'inherit' }}>
                 <span style={{ position: 'relative', width: isMobile ? '60px' : '68px', height: isMobile ? '60px' : '68px', flex: '0 0 auto', borderRadius: '10px', overflow: 'hidden', display: 'block', boxShadow: 'inset 0 0 0 1px #e2e8f0' }}>
                   <img src="/report-tour-thumb-v2.jpg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                   <span style={{ position: 'absolute', right: '4px', bottom: '4px', width: '24px', height: '24px', borderRadius: '50%', background: '#d6b968', border: '2px solid #ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>
@@ -346,7 +346,7 @@ export default function App() {
                 </span>
                 <span style={{ display: 'block' }}>
                   <span style={{ display: 'block', color: '#1e1b4b', fontSize: isMobile ? '15px' : '16px', fontWeight: 'bold' }}>See what's inside a report</span>
-                  <span style={{ display: 'block', color: '#64748b', fontSize: isMobile ? '13px' : '14px', marginTop: '2px' }}>A 50-second tour of a sample report</span>
+                  <span style={{ display: 'block', color: '#64748b', fontSize: isMobile ? '13px' : '14px', marginTop: '2px' }}>A 1-minute tour of a sample report</span>
                 </span>
               </button>
             </div>
@@ -685,7 +685,7 @@ export default function App() {
           <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', width: '100%', maxWidth: showVideo === 'intro' ? '860px' : 'min(440px, calc((100vh - 110px) * 0.8))' }}>
             <button type="button" aria-label="Close video" onClick={() => setShowVideo('')} style={{ position: 'absolute', top: '-44px', right: 0, background: 'none', border: 'none', color: '#ffffff', fontSize: '30px', cursor: 'pointer', lineHeight: 1 }}>×</button>
             <video key={showVideo} autoPlay playsInline onClick={(e) => { const v = e.currentTarget; if (v.paused) v.play(); v.controls = true; }} poster={showVideo === 'tour' ? '/report-tour-poster-v1.jpg' : showVideo === 'howto' ? '/how-to-poster-v1.jpg' : '/intro-video-poster-v14.jpg'} style={{ width: '100%', display: 'block', borderRadius: '14px', border: '3px solid #d6b968', backgroundColor: '#1e1b4b' }}>
-              <source src={showVideo === 'tour' ? '/report-tour-v2.mp4' : showVideo === 'howto' ? '/how-to-run-report-v2.mp4' : '/intro-video-v15.mp4'} type="video/mp4" />
+              <source src={showVideo === 'tour' ? '/report-tour-v3.mp4' : showVideo === 'howto' ? '/how-to-run-report-v2.mp4' : '/intro-video-v15.mp4'} type="video/mp4" />
             </video>
           </div>
         </div>
