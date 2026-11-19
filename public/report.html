@@ -72,9 +72,9 @@
         <p class="addr-tip" style="font-size:14px;color:#1e1b4b;background:#fef9e7;border:1px solid #e9d8a6;border-radius:8px;padding:10px 12px;margin:8px 0 0;line-height:1.5">Include the property address so your report also covers state contamination and cleanup lists, and the National Register of Historic Places, for the property and the area around it.</p>
 
 
-        <label for="use" class="use-old">How will you use this report? (optional)</label><label for="use" class="use-new" style="display:none">How will you use this report?</label>
+        <label for="use">How will you use this report?</label>
         <select id="use" name="use">
-          <option value="" id="useDefault">Select one</option>
+          <option value="">Select one (optional)</option>
           <option>Leasing to a business tenant (new or existing)</option>
           <option>Business loan (new or existing borrower)</option>
           <option>Commercial property purchase or sale</option>
@@ -92,8 +92,7 @@
         <button id="again" type="button" class="hidden" style="background:#fff;color:#1e1b4b;border:1px solid #cbd5e1;margin-top:10px">Run another report</button>
         <p id="doneNote" class="hidden" style="text-align:center;color:#475569;font-size:14px;margin:12px 0 0">Your report is in your email. You can close this page.</p>
       </form>
-      <p class="note note-old">Your PDF report opens in a new tab and can take up to a minute.<br>Reports are public-record search results. Please verify important findings with the original source before relying on them.<br>This link is private to your company. Please do not share it.</p>
-      <div class="note note-new" style="display:none"><p>Your PDF report opens in a new tab, usually in under a minute.</p><p>Reports are public-record search results. Please verify important findings with the original source before relying on them.</p><p>This link is private to your company. Please do not share it.</p></div>
+      <div class="note note-new"><p>Your PDF report opens in a new tab, usually in under a minute.</p><p>Reports are public-record search results. Please verify important findings with the original source before relying on them.</p><p>This link is private to your company. Please do not share it.</p></div>
       <p class="note hidden" id="buyRow"><a id="buyMore" href="#" style="color:#1e1b4b;font-weight:bold"></a></p>
       <p class="note hidden" id="manageRow"><a id="manage" href="#" style="color:#1e1b4b;font-weight:bold">Manage or cancel your subscription</a></p>
     </div>
@@ -235,6 +234,5 @@
   })();
     document.getElementById('use').addEventListener('change', function () { var o = document.getElementById('useOther'); var on = this.value === 'Other'; o.classList.toggle('hidden', !on); if (!on) o.value = ''; });
 </script>
-<script>if(new URLSearchParams(location.search).get('preview')==='use'){var o=document.querySelector('.use-old'),n=document.querySelector('.use-new'),d=document.getElementById('useDefault');if(o)o.style.display='none';if(n)n.style.display='';if(d)d.textContent='Select one (optional)';var no=document.querySelector('.note-old'),nn=document.querySelector('.note-new');if(no)no.style.display='none';if(nn)nn.style.display='';}</script>
 </body>
 </html>
