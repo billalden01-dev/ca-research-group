@@ -110,12 +110,6 @@ const STEPS = [
   },
 ];
 
-const AFTER_SUBSCRIBE = [
-  'Choose a plan and accept our Terms of Service, then fill in your details and the first business you want researched, and pay securely by card.',
-  "Right after you sign up, we'll email your private report link. From then on, just use your link to get reports in under a minute. Bookmark it. There is no password to remember.",
-  'Use that link any time to request another report. Each request counts toward your monthly plan (or uses your single report).',
-  'Your PDF report is sent to your work email.',
-];
 
 const SAMPLE_URL = '/sample.html';
 
@@ -287,8 +281,6 @@ export default function App() {
     borderBottom: currentPage === page ? '2px solid #d6b968' : '2px solid transparent',
   });
 
-  // Preview (Nov 19): caresearchgroup.com/?preview=start#pricing
-  const previewStart = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('preview') === 'start';
   const GETTING_STARTED = [
     { title: 'Pick a plan and pay by card', body: 'A short form and secure checkout.' },
     { title: 'Get your private link by email', body: 'Bookmark it. No password to remember.' },
@@ -312,16 +304,6 @@ export default function App() {
     </div>
   );
 
-  const afterSubscribeBox = (
-    <div style={{ maxWidth: '640px', margin: '0 auto', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '14px', padding: isMobile ? '20px' : '24px 28px', textAlign: 'left' }}>
-      <h2 style={{ fontFamily: SERIF, fontSize: '22px', color: '#1e1b4b', margin: '0 0 14px 0' }}>What happens after you subscribe</h2>
-      <ol style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {AFTER_SUBSCRIBE.map((item) => (
-          <li key={item} style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6' }}>{item}</li>
-        ))}
-      </ol>
-    </div>
-  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%', overflowX: 'hidden', backgroundColor: '#ffffff', fontFamily: 'sans-serif', color: '#1e293b' }}>
@@ -446,7 +428,7 @@ export default function App() {
                   <div style={{ maxWidth: '760px', margin: isMobile ? '0 auto 28px auto' : '0 auto 36px auto', backgroundColor: '#fbf7ea', border: '1px solid #e6d6a3', borderRadius: '12px', padding: isMobile ? '12px 14px' : '14px 20px', textAlign: 'center', fontSize: isMobile ? '14px' : '15px', fontWeight: 'bold', color: '#6e561c', lineHeight: '1.5', textWrap: 'balance' } as React.CSSProperties}>
                     🎉 {LAUNCH_BANNER}
                   </div>
-                  {previewStart && <div style={{ margin: isMobile ? '0 auto 28px auto' : '0 auto 36px auto' }}>{gettingStartedBox}</div>}
+                  <div style={{ margin: isMobile ? '0 auto 28px auto' : '0 auto 36px auto' }}>{gettingStartedBox}</div>
                   <div style={{ backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '28px', padding: isMobile ? '44px 14px 28px 14px' : '56px 28px 40px 28px' }}>
                   <div style={{ display: 'flex', gap: isMobile ? '36px' : '28px', justifyContent: 'center', flexWrap: isMobile ? 'wrap' : 'nowrap', alignItems: 'stretch' }}>
                     {PLANS.map((plan) => {
@@ -506,8 +488,7 @@ export default function App() {
                   </div>
                   </div>
                   <p style={{ textAlign: 'center', margin: '26px 0 0 0' }}><a href={SAMPLE_URL} style={{ display: 'inline-block', color: '#1e1b4b', border: '2px solid #d6b968', backgroundColor: '#fbf7ea', borderRadius: '10px', padding: '10px 20px', fontSize: '15px', fontWeight: 'bold', textDecoration: 'none' }}>See a sample report (PDF) &rarr;</a></p>
-                  {!previewStart && <div style={{ marginTop: '40px' }}>{afterSubscribeBox}</div>}
-                  <div style={{ maxWidth: '640px', margin: '48px auto 0 auto' }}>
+                                    <div style={{ maxWidth: '640px', margin: '48px auto 0 auto' }}>
                     <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '22px' : '26px', color: '#1e1b4b', margin: '0 0 12px 0' }}>Questions</h2>
                     {FAQS.map((faq) => (
                       <div key={faq.q} style={{ borderTop: '1px solid #e2e8f0', padding: '16px 0' }}>
@@ -667,7 +648,7 @@ export default function App() {
                 ))}
               </div>
 
-              <div style={{ margin: '64px auto 0 auto' }}>{previewStart ? gettingStartedBox : afterSubscribeBox}</div>
+              <div style={{ margin: '64px auto 0 auto' }}>{gettingStartedBox}</div>
 
               <div style={{ maxWidth: '640px', margin: '56px auto 0 auto' }}>
                 <h2 style={{ fontFamily: SERIF, fontSize: '26px', color: '#1e1b4b', margin: '0 0 16px 0' }}>What is in a report</h2>
