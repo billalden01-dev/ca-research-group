@@ -23,6 +23,8 @@
   .cert { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #475569; line-height: 1.5; margin-top: 20px; }
   .cert input { margin-top: 3px; transform: scale(1.15); }
   .cert span { text-wrap: pretty; }
+  /* Preview (Nov 19): add &preview=align to see both edges even */
+  .align-even .cert span, .align-even .addr-tip { text-align: justify; hyphens: auto; -webkit-hyphens: auto; }
   button { width: 100%; margin-top: 22px; padding: 14px; background: #1e1b4b; color: #fff; border: 0; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; }
   button:disabled { background: #94a3b8; cursor: not-allowed; }
   .note { font-size: 13px; color: #64748b; text-align: center; margin-top: 14px; line-height: 1.5; }
@@ -64,7 +66,7 @@
         <label for="address">Property address</label>
         <input id="address" name="address" type="text" placeholder="e.g. 123 Main St, San Jose, CA 95125">
         <p id="addrErr" class="hidden" style="color:#b91c1c;font-size:13px;margin:6px 0 0"></p>
-        <p style="font-size:14px;color:#1e1b4b;background:#fef9e7;border:1px solid #e9d8a6;border-radius:8px;padding:10px 12px;margin:8px 0 0;line-height:1.5">Include the property address so your report also covers state contamination and cleanup lists, and the National Register of Historic Places, for the property and the area around it.</p>
+        <p class="addr-tip" style="font-size:14px;color:#1e1b4b;background:#fef9e7;border:1px solid #e9d8a6;border-radius:8px;padding:10px 12px;margin:8px 0 0;line-height:1.5">Include the property address so your report also covers state contamination and cleanup lists, and the National Register of Historic Places, for the property and the area around it.</p>
 
 
         <label for="use">How will you use this report? (optional)</label>
@@ -229,5 +231,6 @@
   })();
     document.getElementById('use').addEventListener('change', function () { var o = document.getElementById('useOther'); var on = this.value === 'Other'; o.classList.toggle('hidden', !on); if (!on) o.value = ''; });
 </script>
+<script>if(new URLSearchParams(location.search).get('preview')==='align')document.body.classList.add('align-even');</script>
 </body>
 </html>
