@@ -2922,6 +2922,38 @@ const pdfResponse = (pdf: Uint8Array, filename: string) =>
     },
   });
 
+// A report that came from a form (POST) is shown on a small page with a "Download PDF" button.
+// The button saves the copy the browser already has. Saving straight from Chrome's PDF viewer
+// re-sends the form, which the 10-minute repeat check blocks, so the save failed (Nov 18).
+const reportViewerPage = (pdf: Uint8Array, filename: string) => {
+  const safeName = filename.replace(/[^A-Za-z0-9._-]/g, '');
+  return new Response(
+    `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Your report - CA Research Group</title>
+<style>
+body{margin:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1e293b;display:flex;flex-direction:column;height:100vh}
+.bar{background:#fff;border-bottom:1px solid #e2e8f0;padding:12px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;justify-content:center}
+.bar img{height:34px}
+.bar p{margin:0;font-size:14px;color:#475569;text-align:center}
+.bar p b{color:#166534}
+.dl{display:inline-block;padding:12px 22px;background:#1e1b4b;color:#fff;border-radius:10px;font-size:16px;font-weight:bold;text-decoration:none;white-space:nowrap}
+iframe{flex:1;width:100%;border:0;background:#525659}
+</style></head><body>
+<div class="bar"><img src="/logo-tight.png" alt="CA Research Group"><p><b>&#10003; Your report is ready.</b> It is also in your email. When you're done, you can close this page.</p><a id="dl" class="dl" href="#" download="${safeName}">Download PDF</a></div>
+<iframe id="v" title="Your report"></iframe>
+<script>
+(function(){
+  var b64 = "${toBase64(pdf)}";
+  var bin = atob(b64), bytes = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  var url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+  document.getElementById('dl').href = url;
+  document.getElementById('v').src = url + '#view=FitH';
+})();
+</script></body></html>`,
+    { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } },
+  );
+};
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const q = (k: string) => (url.searchParams.get(k) ?? '').trim();
@@ -2934,7 +2966,10 @@ export async function GET(request: Request) {
       // Sample link opens a demo page that explains the real download (no real business's document).
       people: SAMPLE_INPUT.people && { ...SAMPLE_INPUT.people, statementUrl: `${url.origin}/soi.html?d=sample` },
     };
-    return pdfResponse(await buildReportPdf(input, await loadLogo(url.origin)), 'CA-Research-Group-Sample-Report.pdf');
+    const samplePdf = await buildReportPdf(input, await loadLogo(url.origin));
+    // ?viewer=1 shows the sample the way a real report now opens (used by the preview page).
+    if (q('viewer') === '1') return reportViewerPage(samplePdf, 'CA-Research-Group-Sample-Report.pdf');
+    return pdfResponse(samplePdf, 'CA-Research-Group-Sample-Report.pdf');
   }
 
   // Personal trial link: what the start page shows (never starts anything; the button POSTs).
