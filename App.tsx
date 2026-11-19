@@ -281,8 +281,6 @@ export default function App() {
     borderBottom: currentPage === page ? '2px solid #d6b968' : '2px solid transparent',
   });
 
-  // Preview (Nov 19): caresearchgroup.com/?preview=hero
-  const previewHero = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('preview') === 'hero';
   const GETTING_STARTED = [
     { title: 'Pick a plan and pay by card', body: 'A short form and secure checkout.' },
     { title: 'Get your private link by email', body: 'Bookmark it. No password to remember.' },
@@ -329,13 +327,8 @@ export default function App() {
         {currentPage === 'home' && (
           <div style={{ maxWidth: '980px', margin: '0 auto', padding: isMobile ? '20px 16px 56px 16px' : isShort ? '14px 20px 56px 20px' : '24px 20px 80px 20px', textAlign: 'center' }}>
             <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '30px' : isShort ? '43px' : '50px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.12', marginBottom: '6px', textWrap: 'balance' } as React.CSSProperties}>Protect your deal by vetting the business behind it.</h1>
-            {previewHero ? (<>
             <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '21px' : '27px', fontWeight: 500, color: '#9f7f2b', margin: '10px auto 22px auto', maxWidth: '760px', lineHeight: '1.35', textWrap: 'balance' } as React.CSSProperties}>California business records for commercial brokers, lenders, title &amp; escrow, and litigation attorneys</h2>
             <p style={{ fontSize: isMobile ? '16px' : '18px', color: '#475569', maxWidth: '640px', margin: '0 auto 28px auto', lineHeight: '1.6', textWrap: 'balance' } as React.CSSProperties}>Type a business name and property address. One run searches several official sources and delivers one clear PDF report in under a minute.</p>
-            </>) : (<>            <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '22px' : isShort ? '30px' : '34px', fontWeight: 500, color: '#9f7f2b', marginTop: '6px', marginBottom: isMobile ? '24px' : '28px', textWrap: 'balance' } as React.CSSProperties}>California public-record research for Commercial Real Estate{isMobile ? ' ' : <br />}& Business Brokers, Lenders, Title & Escrow, and Litigation Attorneys</h2>
-            <p style={{ fontSize: isMobile ? '14px' : '15px', color: '#64748b', margin: isMobile ? '-14px auto 22px auto' : '-16px auto 26px auto', lineHeight: '1.5', textWrap: 'balance' } as React.CSSProperties}>Also a great fit for hard money lenders, investors,{isMobile ? <br /> : ' '}commercial landlords and commercial property managers.</p>
-            <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>One run searches several official sources and delivers one clear PDF report in under a minute: business status and who manages it, liens, lawsuits and bankruptcy, and sanctions screening. Include the property address and the report also checks environmental and historic records.</p>
-            </>)}
             <button type="button" onClick={() => handleNavigate('pricing')} style={{ background: 'linear-gradient(180deg, #e8d28e 0%, #d6b968 100%)', boxShadow: '0 4px 14px rgba(214,185,104,0.35)', color: '#1e1b4b', fontSize: isMobile ? '15px' : '17px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: isMobile ? '14px 22px' : '15px 34px', cursor: 'pointer', margin: '0 0 14px 0' }}>Get Started: See Plans & Pricing →</button>
             <div style={{ margin: isMobile ? '0 0 26px 0' : '0 0 30px 0', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: isMobile ? '12px' : '16px' }}>
               <button type="button" onClick={() => setShowVideo('intro')} aria-label="Play the 1-minute video" style={{ width: '340px', maxWidth: '100%', boxSizing: 'border-box', display: 'inline-flex', alignItems: 'center', gap: '14px', background: '#ffffff', border: '1px solid #e6d6a3', borderRadius: '14px', padding: '8px 18px 8px 8px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(30,27,75,0.08)', textAlign: 'left', fontFamily: 'inherit' }}>
@@ -375,7 +368,7 @@ export default function App() {
               </div>
             </div>
 
-            {previewHero && <p style={{ fontSize: isMobile ? '14px' : '15px', color: '#64748b', margin: '0 auto 28px auto', maxWidth: '640px', lineHeight: '1.5', textWrap: 'balance' } as React.CSSProperties}>Also a great fit for hard money lenders, investors, commercial landlords and commercial property managers.</p>}
+            <p style={{ fontSize: isMobile ? '14px' : '15px', color: '#64748b', margin: '0 auto 28px auto', maxWidth: '640px', lineHeight: '1.5', textWrap: 'balance' } as React.CSSProperties}>Also a great fit for hard money lenders, investors, commercial landlords and commercial property managers.</p>
             <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '24px' : '30px', color: '#1e1b4b', margin: isMobile ? '8px 0 18px 0' : '12px 0 22px 0' }}>How it works</h2>
             <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '14px' : '20px', textAlign: 'left' }}>
               {STEPS.map((step, index) => (
@@ -398,7 +391,7 @@ export default function App() {
 
             {/* HERO BAND */}
             <div style={{ backgroundColor: '#1e1b4b', padding: isMobile ? '36px 16px 30px 16px' : '56px 20px 48px 20px', textAlign: 'center' }}>
-              <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '28px' : '40px', fontWeight: 'bold', color: '#ffffff', margin: '0 0 14px 0', lineHeight: '1.15' }}>{previewHero ? 'Simple, Clear Pricing' : <>Transparent Pricing{isMobile ? <br /> : ' '}for Every Practice</>}</h1>
+              <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '28px' : '40px', fontWeight: 'bold', color: '#ffffff', margin: '0 0 14px 0', lineHeight: '1.15' }}>Simple, Clear Pricing</h1>
               <p style={{ fontSize: isMobile ? '15px' : '17px', color: '#cbd5e1', maxWidth: isMobile ? '620px' : '900px', margin: '0 auto', lineHeight: '1.6', textWrap: 'balance' } as React.CSSProperties}>Simple monthly plans or a single report. No hidden fees. Upgrade or cancel anytime.</p>
 
               {/* STEP STATUS INDICATOR */}
