@@ -1739,13 +1739,21 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
         : `${plural(cv.cases.length, 'civil lawsuit')} found${caCases ? ` (${caCases} in California)` : ''}${openCases ? `, ${openCases} still open` : ''}.`;
   const env = input.environment;
   const envOpen = env ? [...env.onSite, ...env.nearby].filter((x) => x.category === 'Open').length : 0;
+  // Nearby sites the state passed to another agency (e.g. "Refer: RWQCB"). Shown in the summary; they don't change CLEAR/REVIEW.
+  const envReferred = env ? env.nearby.filter((x) => x.category === 'Referred').length : 0;
   const envSummary = !input.request.propertyAddress
     ? 'Not searched (no property address provided).'
     : !env || env.status === 'unavailable'
       ? 'The state environmental lists could not be reached at the time of the search.'
       : env.status === 'not_found'
         ? 'The property address could not be located. Check the street number, city, and ZIP code.'
-        : `${env.onSite.length ? `${plural(env.onSite.length, 'listing')} at this address` : 'No listings at this address'}. ${plural(env.nearbyTotal, 'listed site')} within 1/4 mile${envOpen ? ` (${envOpen} open case${envOpen === 1 ? '' : 's'})` : ''}.`;
+        : `${env.onSite.length ? `${plural(env.onSite.length, 'listing')} at this address` : 'No listings at this address'}. ${plural(env.nearbyTotal, 'listed site')} within 1/4 mile${(() => {
+          const parts = [
+            envOpen ? `${envOpen} open case${envOpen === 1 ? '' : 's'}` : '',
+            envReferred ? `${envReferred} referred to another agency` : '',
+          ].filter(Boolean);
+          return parts.length ? ` (${parts.join(', ')})` : '';
+        })()}.`;
   const hs = input.historic;
   const histSummary = !input.request.propertyAddress
     ? 'Not searched (no property address provided).'
