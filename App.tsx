@@ -106,7 +106,7 @@ const STEPS = [
   },
   {
     title: 'Get your PDF report',
-    body: 'In under a minute, pulled from official public records: who manages the company (from the official state filing), UCC, tax, and judgment liens, lawsuits in state and federal courts, bankruptcy cases, government watch-list screening, and property environmental and historic listing checks from the property address.',
+    body: 'In under a minute: business status and who manages it, liens, lawsuits, bankruptcy, sanctions, and environmental and historic checks.',
   },
 ];
 
