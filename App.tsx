@@ -156,6 +156,8 @@ const planLabel = (plan: Plan) => (plan.id === 'single' ? `${plan.name} ($${plan
 
 export default function App() {
   // A client's own report page links here as /?c=CODE#pricing ("Choose a monthly plan") so the purchase keeps their account.
+  // Preview of the Nov 19 "who it's for" wording: caresearchgroup.com/?preview=builtfor
+  const previewBuiltFor = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('preview') === 'builtfor';
   const clientCode = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('c') || '' : '';
   const [currentPage, setCurrentPage] = useState<Page>(typeof window !== 'undefined' && (clientCode || window.location.hash === '#pricing') ? 'pricing' : 'home');
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
@@ -320,8 +322,8 @@ export default function App() {
         {currentPage === 'home' && (
           <div style={{ maxWidth: '980px', margin: '0 auto', padding: isMobile ? '20px 16px 56px 16px' : isShort ? '14px 20px 56px 20px' : '24px 20px 80px 20px', textAlign: 'center' }}>
             <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '30px' : isShort ? '43px' : '50px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.12', marginBottom: '6px', textWrap: 'balance' } as React.CSSProperties}>Protect your deal by vetting the business behind it.</h1>
-            <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '22px' : isShort ? '30px' : '34px', fontWeight: 500, color: '#9f7f2b', marginTop: '6px', marginBottom: isMobile ? '24px' : '28px', textWrap: 'balance' } as React.CSSProperties}>California public-record research for Commercial Real Estate{isMobile ? ' ' : <br />}& Business Brokers, Lenders & Litigation Attorneys</h2>
-            <p style={{ fontSize: isMobile ? '14px' : '15px', color: '#64748b', margin: isMobile ? '-14px auto 22px auto' : '-16px auto 26px auto', lineHeight: '1.5', textWrap: 'balance' } as React.CSSProperties}>Also a great fit for hard money lenders, investors, title professionals,{isMobile ? <br /> : ' '}commercial landlords and commercial property managers.</p>
+            <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '22px' : isShort ? '30px' : '34px', fontWeight: 500, color: '#9f7f2b', marginTop: '6px', marginBottom: isMobile ? '24px' : '28px', textWrap: 'balance' } as React.CSSProperties}>{previewBuiltFor ? <>California public-record research for Commercial Real Estate{isMobile ? ' ' : <br />}& Business Brokers, Lenders, Title & Escrow, and Litigation Attorneys</> : <>California public-record research for Commercial Real Estate{isMobile ? ' ' : <br />}& Business Brokers, Lenders & Litigation Attorneys</>}</h2>
+            <p style={{ fontSize: isMobile ? '14px' : '15px', color: '#64748b', margin: isMobile ? '-14px auto 22px auto' : '-16px auto 26px auto', lineHeight: '1.5', textWrap: 'balance' } as React.CSSProperties}>{previewBuiltFor ? <>Also a great fit for hard money lenders, investors,{isMobile ? <br /> : ' '}commercial landlords and commercial property managers.</> : <>Also a great fit for hard money lenders, investors, title professionals,{isMobile ? <br /> : ' '}commercial landlords and commercial property managers.</>}</p>
             <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>One run searches several official sources and delivers one clear PDF report in about a minute: business status and who manages it, liens, lawsuits and bankruptcy, and sanctions screening. Add a property address for environmental and historic checks.</p>
             <button type="button" onClick={() => handleNavigate('pricing')} style={{ background: 'linear-gradient(180deg, #e8d28e 0%, #d6b968 100%)', boxShadow: '0 4px 14px rgba(214,185,104,0.35)', color: '#1e1b4b', fontSize: isMobile ? '15px' : '17px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: isMobile ? '14px 22px' : '15px 34px', cursor: 'pointer', margin: '0 0 14px 0' }}>Get Started: See Plans & Pricing →</button>
             <div style={{ margin: isMobile ? '0 0 26px 0' : '0 0 30px 0', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: isMobile ? '12px' : '16px' }}>
@@ -369,7 +371,7 @@ export default function App() {
                   <div style={{ flexShrink: 0, width: '36px', height: '36px', borderRadius: '999px', backgroundColor: '#1e1b4b', color: '#d6b968', fontWeight: 'bold', fontSize: '17px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{index + 1}</div>
                   <div>
                     <strong style={{ fontFamily: SERIF, fontSize: isMobile ? '17px' : '18px', color: '#1e1b4b', display: 'block', marginBottom: '4px' }}>{step.title}</strong>
-                    <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: '#475569' }}>{step.body}</p>
+                    <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: '#475569' }}>{previewBuiltFor ? step.body.replace(/^In minutes,/, 'In about a minute,') : step.body}</p>
                   </div>
                 </div>
               ))}
@@ -636,7 +638,7 @@ export default function App() {
                   <div key={step.title} style={{ flex: '1 1 260px', maxWidth: '300px', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '28px', backgroundColor: '#ffffff', boxShadow: '0 10px 28px rgba(30,27,75,0.08)' }}>
                     <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#b8963f', lineHeight: '1' }}>{index + 1}</div>
                     <h3 style={{ fontFamily: SERIF, fontSize: '20px', color: '#1e1b4b', margin: '14px 0 10px 0' }}>{step.title}</h3>
-                    <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6', margin: 0 }}>{step.body}</p>
+                    <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6', margin: 0 }}>{previewBuiltFor ? step.body.replace(/^In minutes,/, 'In about a minute,') : step.body}</p>
                   </div>
                 ))}
               </div>
