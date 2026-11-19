@@ -36,7 +36,7 @@ const PLANS: Plan[] = [
       'Lawsuits in state & federal courts, plus bankruptcy search',
       'Sanctions screening (U.S. Treasury OFAC list)',
       'Property environmental and historic listing checks (add a property address)',
-      'PDF report in about a minute, emailed to you',
+      'PDF report in under a minute, emailed to you',
       'Private company link: no login or password',
     ],
   },
@@ -54,7 +54,7 @@ const PLANS: Plan[] = [
       'Lawsuits in state & federal courts, plus bankruptcy search',
       'Sanctions screening (U.S. Treasury OFAC list)',
       'Property environmental and historic listing checks (add a property address)',
-      'PDF report in about a minute, emailed to you',
+      'PDF report in under a minute, emailed to you',
       'Private company link: no login or password',
     ],
   },
@@ -72,7 +72,7 @@ const PLANS: Plan[] = [
       'Lawsuits in state & federal courts, plus bankruptcy search',
       'Sanctions screening (U.S. Treasury OFAC list)',
       'Property environmental and historic listing checks (add a property address)',
-      'PDF report in about a minute, emailed to you',
+      'PDF report in under a minute, emailed to you',
       'Private company link: no login or password',
     ],
   },
@@ -101,12 +101,12 @@ const STEPS = [
     body: 'Choose a monthly plan, or buy a single report for $59.',
   },
   {
-    title: 'Enter the business name',
-    body: 'Type the LLC or company on the other side of your deal. Business names only, never individuals.',
+    title: 'Enter the business name and property address',
+    body: 'Type the LLC or company on the other side of your deal, plus the property address. Business names only, never individuals.',
   },
   {
     title: 'Get your PDF report',
-    body: 'In minutes, pulled from official public records: who manages the company (from the official state filing), UCC, tax, and judgment liens, lawsuits in state and federal courts, bankruptcy cases, government watch-list screening, and property environmental and historic listing checks when you add an address.',
+    body: 'In under a minute, pulled from official public records: who manages the company (from the official state filing), UCC, tax, and judgment liens, lawsuits in state and federal courts, bankruptcy cases, government watch-list screening, and property environmental and historic listing checks from the property address.',
   },
 ];
 
@@ -156,8 +156,6 @@ const planLabel = (plan: Plan) => (plan.id === 'single' ? `${plan.name} ($${plan
 
 export default function App() {
   // A client's own report page links here as /?c=CODE#pricing ("Choose a monthly plan") so the purchase keeps their account.
-  // Preview of the Nov 19 "who it's for" wording: caresearchgroup.com/?preview=builtfor
-  const previewBuiltFor = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('preview') === 'builtfor';
   const clientCode = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('c') || '' : '';
   const [currentPage, setCurrentPage] = useState<Page>(typeof window !== 'undefined' && (clientCode || window.location.hash === '#pricing') ? 'pricing' : 'home');
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
@@ -322,9 +320,9 @@ export default function App() {
         {currentPage === 'home' && (
           <div style={{ maxWidth: '980px', margin: '0 auto', padding: isMobile ? '20px 16px 56px 16px' : isShort ? '14px 20px 56px 20px' : '24px 20px 80px 20px', textAlign: 'center' }}>
             <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '30px' : isShort ? '43px' : '50px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.12', marginBottom: '6px', textWrap: 'balance' } as React.CSSProperties}>Protect your deal by vetting the business behind it.</h1>
-            <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '22px' : isShort ? '30px' : '34px', fontWeight: 500, color: '#9f7f2b', marginTop: '6px', marginBottom: isMobile ? '24px' : '28px', textWrap: 'balance' } as React.CSSProperties}>{previewBuiltFor ? <>California public-record research for Commercial Real Estate{isMobile ? ' ' : <br />}& Business Brokers, Lenders, Title & Escrow, and Litigation Attorneys</> : <>California public-record research for Commercial Real Estate{isMobile ? ' ' : <br />}& Business Brokers, Lenders & Litigation Attorneys</>}</h2>
-            <p style={{ fontSize: isMobile ? '14px' : '15px', color: '#64748b', margin: isMobile ? '-14px auto 22px auto' : '-16px auto 26px auto', lineHeight: '1.5', textWrap: 'balance' } as React.CSSProperties}>{previewBuiltFor ? <>Also a great fit for hard money lenders, investors,{isMobile ? <br /> : ' '}commercial landlords and commercial property managers.</> : <>Also a great fit for hard money lenders, investors, title professionals,{isMobile ? <br /> : ' '}commercial landlords and commercial property managers.</>}</p>
-            <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>One run searches several official sources and delivers one clear PDF report {previewBuiltFor ? 'in under a minute' : 'in about a minute'}: business status and who manages it, liens, lawsuits and bankruptcy, and sanctions screening. Add a property address for environmental and historic checks.</p>
+            <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '22px' : isShort ? '30px' : '34px', fontWeight: 500, color: '#9f7f2b', marginTop: '6px', marginBottom: isMobile ? '24px' : '28px', textWrap: 'balance' } as React.CSSProperties}>California public-record research for Commercial Real Estate{isMobile ? ' ' : <br />}& Business Brokers, Lenders, Title & Escrow, and Litigation Attorneys</h2>
+            <p style={{ fontSize: isMobile ? '14px' : '15px', color: '#64748b', margin: isMobile ? '-14px auto 22px auto' : '-16px auto 26px auto', lineHeight: '1.5', textWrap: 'balance' } as React.CSSProperties}>Also a great fit for hard money lenders, investors,{isMobile ? <br /> : ' '}commercial landlords and commercial property managers.</p>
+            <p style={{ fontSize: isMobile ? '16px' : isShort ? '17px' : '18px', color: '#475569', maxWidth: '760px', margin: '0 auto 28px auto', lineHeight: '1.65', textWrap: 'balance' } as React.CSSProperties}>One run searches several official sources and delivers one clear PDF report in under a minute: business status and who manages it, liens, lawsuits and bankruptcy, and sanctions screening. Include the property address and the report also checks environmental and historic records.</p>
             <button type="button" onClick={() => handleNavigate('pricing')} style={{ background: 'linear-gradient(180deg, #e8d28e 0%, #d6b968 100%)', boxShadow: '0 4px 14px rgba(214,185,104,0.35)', color: '#1e1b4b', fontSize: isMobile ? '15px' : '17px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: isMobile ? '14px 22px' : '15px 34px', cursor: 'pointer', margin: '0 0 14px 0' }}>Get Started: See Plans & Pricing →</button>
             <div style={{ margin: isMobile ? '0 0 26px 0' : '0 0 30px 0', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: isMobile ? '12px' : '16px' }}>
               <button type="button" onClick={() => setShowVideo('intro')} aria-label="Play the 1-minute video" style={{ width: '340px', maxWidth: '100%', boxSizing: 'border-box', display: 'inline-flex', alignItems: 'center', gap: '14px', background: '#ffffff', border: '1px solid #e6d6a3', borderRadius: '14px', padding: '8px 18px 8px 8px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(30,27,75,0.08)', textAlign: 'left', fontFamily: 'inherit' }}>
@@ -371,7 +369,7 @@ export default function App() {
                   <div style={{ flexShrink: 0, width: '36px', height: '36px', borderRadius: '999px', backgroundColor: '#1e1b4b', color: '#d6b968', fontWeight: 'bold', fontSize: '17px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{index + 1}</div>
                   <div>
                     <strong style={{ fontFamily: SERIF, fontSize: isMobile ? '17px' : '18px', color: '#1e1b4b', display: 'block', marginBottom: '4px' }}>{step.title}</strong>
-                    <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: '#475569' }}>{previewBuiltFor ? step.body.replace(/^In minutes,/, 'In under a minute,') : step.body}</p>
+                    <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: '#475569' }}>{step.body}</p>
                   </div>
                 </div>
               ))}
@@ -461,7 +459,7 @@ export default function App() {
                             {plan.features.map((feature) => (
                               <li key={feature} style={{ display: 'flex', gap: '10px', fontSize: '14px', lineHeight: '1.4', color: dark ? '#e2e8f0' : '#475569' }}>
                                 <span style={{ color: dark ? '#d6b968' : '#b8963f', fontWeight: 'bold' }}>✓</span>
-                                <span>{previewBuiltFor ? feature.replace('in about a minute', 'in under a minute') : feature}</span>
+                                <span>{feature}</span>
                               </li>
                             ))}
                           </ul>
@@ -638,7 +636,7 @@ export default function App() {
                   <div key={step.title} style={{ flex: '1 1 260px', maxWidth: '300px', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '28px', backgroundColor: '#ffffff', boxShadow: '0 10px 28px rgba(30,27,75,0.08)' }}>
                     <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#b8963f', lineHeight: '1' }}>{index + 1}</div>
                     <h3 style={{ fontFamily: SERIF, fontSize: '20px', color: '#1e1b4b', margin: '14px 0 10px 0' }}>{step.title}</h3>
-                    <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6', margin: 0 }}>{previewBuiltFor ? step.body.replace(/^In minutes,/, 'In under a minute,') : step.body}</p>
+                    <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6', margin: 0 }}>{step.body}</p>
                   </div>
                 ))}
               </div>
