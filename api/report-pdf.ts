@@ -2729,7 +2729,10 @@ const jsonError = (error: string, status: number) =>
   new Response(JSON.stringify({ ok: false, error }, null, 2), { status, headers: { 'Content-Type': 'application/json' } });
 
 const newReportId = (d: Date) => {
-  const ymd = d.toISOString().slice(0, 10).replace(/-/g, '');
+  // Use the Pacific date (not UTC), so a report run on Nov 18 after 4 PM isn't numbered Nov 19.
+  const ymd = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' })
+    .format(d)
+    .replace(/-/g, '');
   const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
   return `CARG-${ymd}-${rand}`;
 };
