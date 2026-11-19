@@ -2947,7 +2947,7 @@ iframe{flex:1;width:100%;border:0;background:#525659}
   for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   var url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
   document.getElementById('dl').href = url;
-  document.getElementById('v').src = url + '#view=FitH';
+  document.getElementById('v').src = url + '#toolbar=0&navpanes=0&view=FitH'; // hide Chrome's own download arrow (it saves with a random name); our button names the file
 })();
 </script></body></html>`,
     { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } },
