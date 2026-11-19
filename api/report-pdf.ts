@@ -3265,7 +3265,7 @@ export async function POST(request: Request) {
       };
       const pdf = await buildReportPdf(input, await loadLogo(url.origin));
       await emailReport(pc.customer.email, input, pdf).catch(() => undefined);
-      return pdfResponse(pdf, `CA-Research-Group-Property-Check-${pc.reportId}.pdf`);
+      return reportViewerPage(pdf, `CA-Research-Group-Property-Check-${pc.reportId}.pdf`);
     } catch {
       await updateRequest(pc.id, { 'Property Check Used': false }).catch(() => undefined);
       return htmlPage('Property check could not be completed', 'Something went wrong. Your free property check has not been used. Please try again shortly.', 502);
@@ -3378,7 +3378,7 @@ export async function POST(request: Request) {
       const left = customer.limit - customer.used - 1;
       if (left === 1 || left === 0) await sendLimitEmail(customer, g('c'), left).catch((e) => console.error('Limit email failed', e));
     }
-    return pdfResponse(pdf, `CA-Research-Group-${input.reportId}.pdf`);
+    return reportViewerPage(pdf, `CA-Research-Group-${input.reportId}.pdf`);
   } catch (err) {
     await updateRequest(requestId, { Status: 'Failed', Notes: err instanceof Error ? err.message : 'Report failed.' }).catch(() => undefined);
     return htmlPage('Report could not be completed', 'Something went wrong while building your report. It has not been counted against your plan. Please try again shortly.', 502);
