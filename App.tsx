@@ -290,7 +290,7 @@ export default function App() {
   // Preview (Nov 19): caresearchgroup.com/?preview=start#pricing
   const previewStart = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('preview') === 'start';
   const GETTING_STARTED = [
-    { title: 'Pick a plan and pay by card', body: 'Takes about 2 minutes.' },
+    { title: 'Pick a plan and pay by card', body: 'A short form and secure checkout.' },
     { title: 'Get your private link by email', body: 'Bookmark it. No password to remember.' },
     { title: 'Type a business name and property address', body: 'Your PDF report arrives in under a minute.' },
   ];
