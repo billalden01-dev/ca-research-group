@@ -593,7 +593,7 @@ export default function App() {
                   <div style={fieldStyle}>
                     <label style={labelStyle}>Property address (on your deal)</label>
                     <input type="text" placeholder="e.g. 123 Main St, San Jose, CA 95125" value={propertyAddress} onChange={(e) => setPropertyAddress(e.target.value)} style={inputStyle} />
-                    <p style={{ fontSize: '13px', color: '#64748b', margin: '6px 0 0', lineHeight: 1.5 }}>The building being leased, bought, sold or financed (not the company&apos;s office). It adds environmental and historic checks: state contamination and cleanup lists, and the National Register of Historic Places, for the property and the area around it.</p>
+                    <p style={{ fontSize: '13px', color: '#64748b', margin: '6px 0 0', lineHeight: 1.5 }}>The building being leased, bought, sold or financed (not the company&apos;s office). For a lawsuit, use the property in dispute, or leave it blank. It adds environmental and historic checks: state contamination and cleanup lists, and the National Register of Historic Places, for the property and the area around it.</p>
                   </div>
 
 
