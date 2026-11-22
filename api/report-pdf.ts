@@ -2527,7 +2527,7 @@ async function emailPilotLink(to: string, name: string, code: string): Promise<b
 <p style="font-size:20px;color:#1e1b4b;font-weight:bold;margin:0 0 12px">Welcome to your CA Research Group trial</p>
 <p>Hi ${escapeHtml(name.split(' ')[0] || 'there')}, thanks for joining. You have <strong>${TRIAL_REPORTS} reports at no charge</strong> to use through <strong>${escapeHtml(friendlyDate(trialEnd()))}</strong>. No credit card needed.</p>
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:12px 0"><tr><td bgcolor="#1e1b4b" style="background-color:#1e1b4b;border-radius:8px"><a href="${link}" style="display:inline-block;padding:12px 20px;color:#ffffff;text-decoration:none;font-weight:bold"><font color="#ffffff">Request a Report &rarr;</font></a></td></tr></table>
-<p>Use this button anytime you need a report. Enter the business name and property address, and your PDF report opens right away and is emailed to you. Save this email so you can always find your link.</p>
+<p>Use this button anytime you need a report. Enter the business name and the address of the property on your deal, and your PDF report opens right away and is emailed to you. Save this email so you can always find your link.</p>
 <p>This link is just for you, so please don't share it. We'd love your feedback: just reply to this email.</p>
 <p style="font-size:12px;color:#64748b">CA Research Group is not a law firm and does not provide legal advice. See our <a href="https://www.caresearchgroup.com/terms.html">Terms of Service</a> and <a href="https://www.caresearchgroup.com/privacy.html">Privacy Policy</a>.</p>
 </div>`;
