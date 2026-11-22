@@ -2689,14 +2689,14 @@ export async function emailReport(to: string, input: ReportInput, pdf: Uint8Arra
   const html = `<div style="font-family:Arial,sans-serif;color:#1e293b;max-width:560px">
 <p style="font-size:18px;color:#1e1b4b;font-weight:bold;margin:0 0 12px">${input.propertyCheckFor ? 'Your property check is ready' : 'Your public records report is ready'}</p>
 <p style="margin:0 0 12px">Attached is report <strong>${escapeHtml(input.reportId)}</strong> for <strong>${escapeHtml(what)}</strong>.</p>
-${input.people?.statementUrl ? `<p style="margin:0 0 6px">The business's managers and members are listed on its official Statement of Information${input.people.statementDate ? `, filed ${escapeHtml(input.people.statementDate)}` : ''}:</p>
+${input.people?.statementUrl ? `<p style="margin:0 0 6px">The people who run this business are listed on its official Statement of Information${input.people.statementDate ? `, filed ${escapeHtml(input.people.statementDate)}` : ''}:</p>
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:12px 0"><tr><td bgcolor="#1e1b4b" style="background-color:#1e1b4b;border-radius:8px"><a href="${escapeHtml(input.people.statementUrl)}" style="display:inline-block;padding:12px 20px;color:#ffffff;text-decoration:none;font-weight:bold"><font color="#ffffff">Download the official Statement of Information</font></a></td></tr></table>` : ''}
-${!input.request.propertyAddress && input.propertyCheckUrl ? `<p style="margin:0 0 6px">No property address was entered. You can add one address to this report for the environmental and historic checks, free and one time only:</p>
+${!input.request.propertyAddress && input.propertyCheckUrl ? `<p style="margin:0 0 6px">No property address was entered. You can add one address to this report for the environmental and historic checks, complimentary, one time only:</p>
 <p style="margin:0 0 16px"><a href="${escapeHtml(input.propertyCheckUrl)}" style="display:inline-block;background:#b8963f;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 18px;border-radius:8px">Check a property address</a></p>` : ''}
 <p style="margin:0 0 12px">Please review any flagged items and verify findings against the original sources before relying on them.</p>
 ${opts.voucher ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px;margin:16px 0">
 <p style="margin:0 0 8px;font-weight:bold;color:#1e1b4b">Thanks for trying CA Research Group</p>
-<p style="margin:0 0 10px">This was your complimentary report. To run reports on every deal, choose a monthly plan. Your private link and reports arrive in about a minute.</p>
+<p style="margin:0 0 10px">This was your complimentary report. To run reports on every deal, choose a monthly plan. Your private link and reports arrive in under a minute.</p>
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:12px 0"><tr><td bgcolor="#1e1b4b" style="background-color:#1e1b4b;border-radius:8px"><a href="https://www.caresearchgroup.com/" style="display:inline-block;padding:12px 20px;color:#ffffff;text-decoration:none;font-weight:bold"><font color="#ffffff">See plans</font></a></td></tr></table>
 <p style="margin:10px 0 0;font-size:13px">Questions? Just reply to this email.</p>
 </div>` : ''}
