@@ -35,7 +35,7 @@ const PLANS: Plan[] = [
       'UCC, tax, and judgment liens on the business',
       'Lawsuits in state & federal courts, plus bankruptcy search',
       'Sanctions screening (U.S. Treasury OFAC list)',
-      'Property environmental and historic listing checks (add a property address)',
+      'Property environmental and historic listing checks for the property on your deal',
       'PDF report in under a minute, emailed to you',
       'Private company link: no login or password',
     ],
@@ -53,7 +53,7 @@ const PLANS: Plan[] = [
       'UCC, tax, and judgment liens on the business',
       'Lawsuits in state & federal courts, plus bankruptcy search',
       'Sanctions screening (U.S. Treasury OFAC list)',
-      'Property environmental and historic listing checks (add a property address)',
+      'Property environmental and historic listing checks for the property on your deal',
       'PDF report in under a minute, emailed to you',
       'Private company link: no login or password',
     ],
@@ -71,7 +71,7 @@ const PLANS: Plan[] = [
       'UCC, tax, and judgment liens on the business',
       'Lawsuits in state & federal courts, plus bankruptcy search',
       'Sanctions screening (U.S. Treasury OFAC list)',
-      'Property environmental and historic listing checks (add a property address)',
+      'Property environmental and historic listing checks for the property on your deal',
       'PDF report in under a minute, emailed to you',
       'Private company link: no login or password',
     ],
@@ -101,8 +101,8 @@ const STEPS = [
     body: 'Choose a monthly plan, or buy a single report for $59.',
   },
   {
-    title: 'Enter the business name and property address',
-    body: 'Type the LLC or company on the other side of your deal, plus the property address. Business names only, never individuals.',
+    title: 'Enter the business name and the address of the property on your deal',
+    body: 'Type the LLC or company on the other side of your deal, plus the address of the property. Business names only, never individuals.',
   },
   {
     title: 'Get your PDF report',
@@ -120,7 +120,7 @@ const REPORT_ITEMS = [
   'Sanctions screening against the U.S. Treasury OFAC list',
   'Lawsuits in state and federal courts, including California superior courts',
   'Bankruptcy case search',
-  'Property environmental check: add a property address to see state contamination and cleanup cases on or near the property',
+  'Property environmental check: enter the address of the property on your deal to see state contamination and cleanup cases on or near the property',
   'Historic listing check: see if the property or anything nearby is on the National Register of Historic Places',
   'A summary of findings, with the sources searched and their limits',
   'A clear PDF report, emailed to you',
@@ -284,7 +284,7 @@ export default function App() {
   const GETTING_STARTED = [
     { title: 'Pick a plan and pay by card', body: 'A short form and secure checkout.' },
     { title: 'Get your private link by email', body: 'Bookmark it. No password to remember.' },
-    { title: 'Type a business name and property address', body: 'Your PDF report arrives in under a minute.' },
+    { title: 'Type a business name and the address of the property on your deal', body: 'Your PDF report arrives in under a minute.' },
   ];
   const gettingStartedBox = (
     <div style={{ maxWidth: '900px', margin: '0 auto', backgroundColor: '#fbf7ea', border: '1px solid #e6d6a3', borderRadius: '16px', padding: isMobile ? '22px 18px' : '28px 32px', textAlign: 'center' }}>
@@ -328,7 +328,7 @@ export default function App() {
           <div style={{ maxWidth: '980px', margin: '0 auto', padding: isMobile ? '20px 16px 56px 16px' : isShort ? '14px 20px 56px 20px' : '24px 20px 80px 20px', textAlign: 'center' }}>
             <h1 style={{ fontFamily: SERIF, fontSize: isMobile ? '30px' : isShort ? '43px' : '50px', fontWeight: 'bold', color: '#1e1b4b', lineHeight: '1.12', marginBottom: '6px', textWrap: 'balance' } as React.CSSProperties}>Protect your deal by vetting the business behind it.</h1>
             <h2 style={{ fontFamily: SERIF, fontSize: isMobile ? '21px' : '27px', fontWeight: 500, color: '#9f7f2b', margin: '10px auto 22px auto', maxWidth: '760px', lineHeight: '1.35', textWrap: 'balance' } as React.CSSProperties}>California business records for commercial brokers, lenders, title &amp; escrow, and litigation attorneys</h2>
-            <p style={{ fontSize: isMobile ? '16px' : '18px', color: '#475569', maxWidth: '640px', margin: '0 auto 28px auto', lineHeight: '1.6', textWrap: 'balance' } as React.CSSProperties}>Type a business name and property address. One run searches several official sources and delivers one clear PDF report in under a minute.</p>
+            <p style={{ fontSize: isMobile ? '16px' : '18px', color: '#475569', maxWidth: '640px', margin: '0 auto 28px auto', lineHeight: '1.6', textWrap: 'balance' } as React.CSSProperties}>Type a business name and the address of the property on your deal. One run searches several official sources and delivers one clear PDF report in under a minute.</p>
             <button type="button" onClick={() => handleNavigate('pricing')} style={{ background: 'linear-gradient(180deg, #e8d28e 0%, #d6b968 100%)', boxShadow: '0 4px 14px rgba(214,185,104,0.35)', color: '#1e1b4b', fontSize: isMobile ? '15px' : '17px', fontWeight: 'bold', border: 'none', borderRadius: '8px', padding: isMobile ? '14px 22px' : '15px 34px', cursor: 'pointer', margin: '0 0 14px 0' }}>Get Started: See Plans & Pricing →</button>
             <div style={{ margin: isMobile ? '0 0 26px 0' : '0 0 30px 0', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: isMobile ? '12px' : '16px' }}>
               <button type="button" onClick={() => setShowVideo('intro')} aria-label="Play the 1-minute video" style={{ width: '340px', maxWidth: '100%', boxSizing: 'border-box', display: 'inline-flex', alignItems: 'center', gap: '14px', background: '#ffffff', border: '1px solid #e6d6a3', borderRadius: '14px', padding: '8px 18px 8px 8px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(30,27,75,0.08)', textAlign: 'left', fontFamily: 'inherit' }}>
@@ -591,9 +591,9 @@ export default function App() {
                   </div>
 
                   <div style={fieldStyle}>
-                    <label style={labelStyle}>Property address (optional)</label>
+                    <label style={labelStyle}>Property address (on your deal)</label>
                     <input type="text" placeholder="e.g. 123 Main St, San Jose, CA 95125" value={propertyAddress} onChange={(e) => setPropertyAddress(e.target.value)} style={inputStyle} />
-                    <p style={{ fontSize: '13px', color: '#64748b', margin: '6px 0 0', lineHeight: 1.5 }}>Add an address to include environmental and historic checks: state contamination and cleanup lists, and the National Register of Historic Places, for the property and the area around it.</p>
+                    <p style={{ fontSize: '13px', color: '#64748b', margin: '6px 0 0', lineHeight: 1.5 }}>The building being leased, bought, sold or financed (not the company&apos;s office). It adds environmental and historic checks: state contamination and cleanup lists, and the National Register of Historic Places, for the property and the area around it.</p>
                   </div>
 
 

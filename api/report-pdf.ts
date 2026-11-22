@@ -2493,7 +2493,7 @@ const youreInPage = (r: { kind: 'started' | 'existing'; email: string; sent: boo
 <body><div class="c"><div class="k"><img src="/logo-tight.png" alt="CA Research Group"><h1>${r.kind === 'started' ? "You're in!" : 'Welcome back'}</h1>
 ${r.kind === 'started' ? `<p>Your free trial is ready: <strong>${TRIAL_REPORTS} free reports</strong> to use through <strong>${escapeHtml(friendlyDate(trialEnd()))}</strong>. No credit card needed.</p>` : '<p>You already have an account with us.</p>'}
 <p>${r.sent ? `We just emailed your private report link to <strong>${escapeHtml(r.email)}</strong>. Open that email and click <strong>Request a Report</strong>.` : 'We could not send the email just now. Bill will send your private link shortly.'}</p>
-<p class="tip">Each time, enter the business name and property address. The report covers the business plus environmental and historic checks on the site.</p>
+<p class="tip">Each time, enter the business name and the address of the property on your deal. The report covers the business plus environmental and historic checks on the site.</p>
 </div></div></body></html>`,
     { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } },
   );

@@ -50,9 +50,9 @@
     <div class="steps">
       <b>Run your first report</b>
       <ol>
-        <li>Enter the business name, and the property address if you have one.</li>
+        <li>Enter the business name and the address of the property on your deal.</li>
         <li>Click <b>Run report</b>.</li>
-        <li>Your PDF report opens in about a minute, and a copy is emailed to you.</li>
+        <li>Your PDF report opens in under a minute, and a copy is emailed to you.</li>
       </ol>
     </div>
     <form id="f" method="post" action="/api/report-pdf" target="_blank">
@@ -60,9 +60,9 @@
       <label class="f" for="name">Business name (businesses only, not individuals)</label>
       <input id="name" name="name" type="text" required placeholder="e.g. Acme Holdings LLC">
       <p id="nameErr" class="err hidden"></p>
-      <label class="f" for="address">Property address (optional)</label>
+      <label class="f" for="address">Property address (on your deal)</label>
       <input id="address" name="address" type="text" placeholder="e.g. 123 Main St, San Jose, CA 95125">
-      <p class="hint">Add an address to include environmental and historic checks for the property.</p>
+      <p class="hint">The building being leased, bought, sold or financed (not the company's office). It adds environmental and historic checks for the property.</p>
       <input type="hidden" name="use" id="use">
       <label class="cert">
         <input type="checkbox" name="certify" value="yes" required>
