@@ -1725,7 +1725,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
     : lr.status === 'unavailable'
       ? 'Lien records could not be reached at the time of the search.'
       : lr.filings.length === 0
-        ? 'No tax or judgment liens found against this business in California.'
+        ? 'No tax or judgment liens on file with the California Secretary of State.'
         : `${plural(lr.filings.length, 'tax or judgment lien')} found${activeLiens ? `, ${activeLiens} still active` : ''}.`;
   const cv = input.civil;
   const openCases = cv ? cv.cases.filter((c) => c.open).length : 0;
@@ -1928,7 +1928,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
     if (lr.status === 'unavailable') {
       w.paragraph(`Lien records could not be reached at the time of this search. Search county recorder and state records directly before relying on this report.${input.notCounted ? ' Because this part could not be searched, this report was not counted against your plan.' : ''}`);
     } else if (lr.filings.length === 0) {
-      w.paragraph(`No federal tax liens, state tax liens, or judgment liens naming "${lr.searchedFor}" were found in California.`);
+      w.paragraph(`No federal tax liens, state tax liens, or judgment liens naming "${lr.searchedFor}" are on file with the California Secretary of State.`);
     } else {
       w.paragraph('A tax lien means a government agency has filed a claim for unpaid taxes. A judgment lien means someone won a court judgment against the business and filed it as a claim on its property. A released lien has been paid or removed.', { size: 9, color: MUTED, gap: 6 });
       w.table(
@@ -1937,7 +1937,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
         lr.filings.map((f) => [f.type, f.securedParty, f.status, f.filed || '-', f.amount || '-', f.fileNumber || '-']),
       );
     }
-    w.paragraph(`Source: official record sources for California tax and judgment liens. Searched for "${lr.searchedFor}" on ${fmtDate(lr.searchedAt)}. The same name can belong to an unrelated business, so confirm details with the filing office.${otherNameNote(lr.otherName, 'lien')}${leftOutNote(lr.leftOut, lr.formed, 'lien')}`, { size: 8.5, color: MUTED });
+    w.paragraph(`Source: California Secretary of State tax and judgment lien filings. Searched for "${lr.searchedFor}" on ${fmtDate(lr.searchedAt)}. Liens recorded only with a county recorder, such as abstracts of judgment, are not included; a title report on the property covers those. The same name can belong to an unrelated business, so confirm details with the filing office.${otherNameNote(lr.otherName, 'lien')}${leftOutNote(lr.leftOut, lr.formed, 'lien')}`, { size: 8.5, color: MUTED });
   }
 
   // Sanctions
