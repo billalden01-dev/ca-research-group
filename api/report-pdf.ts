@@ -2958,10 +2958,12 @@ body{margin:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,"S
 .bar p{margin:0;font-size:14px;color:#475569;text-align:center}
 .bar p b{color:#166534}
 .dl{display:inline-block;padding:12px 22px;background:#1e1b4b;color:#fff;border-radius:10px;font-size:16px;font-weight:bold;text-decoration:none;white-space:nowrap}
-iframe{flex:1;width:100%;border:0;background:#525659}
+/* report shown at a normal page width, so it doesn't look blown up on big screens (Nov 24) */
+.wrap{flex:1;display:flex;justify-content:center;background:#525659}
+iframe{flex:1;width:100%;max-width:900px;border:0;background:#525659}
 </style></head><body>
 <div class="bar"><img src="/logo-tight.png" alt="CA Research Group"><p><b>&#10003; ${ready}</b> It is also in your email. When you're done, you can close this page.</p><a id="dl" class="dl" href="#" download="${safeName}">Download PDF</a></div>
-<iframe id="v" title="Your report"></iframe>
+<div class="wrap"><iframe id="v" title="Your report"></iframe></div>
 <script>
 (function(){
   var b64 = "${toBase64(pdf)}";
