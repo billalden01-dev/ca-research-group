@@ -78,11 +78,11 @@ export type Officer = { name: string; title: string; address?: string };
 export type PeopleResult = { searchedAt: Date; statementDate?: string; statementUrl?: string; officers: Officer[]; note?: string };
 
 // UCC liens (financing statements) filed against the business
-export type UccFiling = { fileNumber: string; type: string; filed: string; lapse: string; status: string; securedParty: string; collateral?: string; debtors?: string[] };
+export type UccFiling = { fileNumber: string; type: string; filed: string; lapse: string; status: string; securedParty: string; collateral?: string; debtors?: string[]; matchLevel?: string; filedUnder?: string; filedUnderKind?: 'suffix' | 'related' };
 export type UccResult = { searchedAt: Date; searchedFor: string; status: 'searched' | 'unavailable'; filings: UccFiling[]; leftOut?: number; formed?: string; otherName?: number };
 
 // Tax and judgment liens, and civil lawsuits (state and federal courts)
-export type LienFiling = { fileNumber: string; type: string; filed: string; lapse: string; status: string; securedParty: string; amount?: string; collateral?: string; debtors?: string[] };
+export type LienFiling = { fileNumber: string; type: string; filed: string; lapse: string; status: string; securedParty: string; amount?: string; collateral?: string; debtors?: string[]; matchLevel?: string; filedUnder?: string; filedUnderKind?: 'suffix' | 'related' };
 export type LienResult = { searchedAt: Date; searchedFor: string; status: 'searched' | 'unavailable'; filings: LienFiling[]; leftOut?: number; formed?: string; otherName?: number };
 export type CivilCase = { title: string; court: string; state: string; caseType: string; status: string; filed: string; closed: string; docketNumber: string; open: boolean };
 export type CivilResult = { searchedAt: Date; searchedFor: string; status: 'searched' | 'unavailable'; cases: CivilCase[]; leftOut?: number; formed?: string };
@@ -399,6 +399,16 @@ function looseDate(s: string): number | null {
 const otherNameNote = (n?: number, what = 'filing') => (n ? ` ${n} ${what}${n === 1 ? '' : 's'} for a different business with a similar name ${n === 1 ? 'was' : 'were'} left out.` : '');
 const leftOutNote = (n?: number, formed?: string, what = 'filing') => (n && formed ? ` ${n} ${what}${n === 1 ? '' : 's'} under this name dated before this business was formed (${formed}) ${n === 1 ? 'was' : 'were'} left out, because ${n === 1 ? 'it belongs' : 'they belong'} to a different business with the same or a similar name.` : '');
 
+// Same business name with the legal ending removed (Inc, LLC, Corp, P.C., etc.).
+const LEGAL_ENDING = / (llc|inc|corp|co|company|ltd|limited|lp|llp|pc|a professional corp|professional corp|pllc|lllp)$/;
+const baseKey = (n: string) => { let k = bizKey(n); for (let i = 0; i < 2; i++) k = k.replace(LEGAL_ENDING, '').trim(); return k; };
+// Filings kept because they were filed under a related name (Lien Matching settings: alternative names and legal endings).
+const filedUnderLine = (f: { filedUnder?: string; filedUnderKind?: string }) => !f.filedUnder ? '' : f.filedUnderKind === 'suffix'
+  ? `\nFiled under a different legal ending: ${f.filedUnder}`
+  : `\nFiled under a trade name or former name: ${f.filedUnder}. Confirm it belongs to this business.`;
+const relatedCount = (fs: { filedUnder?: string }[]) => fs.filter((f) => f.filedUnder).length;
+const relatedNote = (n: number, what: string) => (n ? ` ${n} ${what}${n === 1 ? ' was' : 's were'} filed under a trade name, former name or different legal ending and ${n === 1 ? 'is' : 'are'} marked in the table; confirm ${n === 1 ? 'it belongs' : 'they belong'} to this business.` : '');
+
 const blOk = (r: Raw) => Number(r.httpStatus) >= 200 && Number(r.httpStatus) < 300 && str(r.state).toUpperCase() === 'COMPLETED';
 const normNum = (x: string) => x.toUpperCase().replace(/[^A-Z0-9]/g, '');
 const isUccType = (t: string) => /ucc/i.test(t);
@@ -433,6 +443,7 @@ export function parseLiens(name: string, raw: Raw | null, searchedAt: Date): Lie
       amount: fmtMoney(f.lien_amount) || undefined,
       collateral: coll ? coll.slice(0, 160) + (coll.length > 160 ? '...' : '') : undefined,
       debtors: parties.filter((p) => /debtor/i.test(str(p.role) || str(p.type))).map((p) => str(p.name)).filter(Boolean),
+      matchLevel: str(f.match_level).toUpperCase() || undefined,
     } as LienFiling;
   });
   return { searchedAt, searchedFor: name, status: 'searched', filings };
@@ -1726,7 +1737,7 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       ? 'Lien records could not be reached at the time of the search.'
       : lr.filings.length === 0
         ? 'No tax or judgment liens on file with the California Secretary of State.'
-        : `${plural(lr.filings.length, 'tax or judgment lien')} found${activeLiens ? `, ${activeLiens} still active` : ''}.`;
+        : `${plural(lr.filings.length, 'tax or judgment lien')} found${activeLiens ? `, ${activeLiens} still active` : ''}${relatedCount(lr.filings) ? ` (${relatedCount(lr.filings)} under a related name)` : ''}.`;
   const cv = input.civil;
   const openCases = cv ? cv.cases.filter((c) => c.open).length : 0;
   const caCases = cv ? cv.cases.filter((c) => c.state === 'CA').length : 0;
@@ -1916,10 +1927,10 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       w.table(
         ['Secured party', 'Status', 'Filed', 'Lapses', 'File number'],
         [170, 62, 66, 66, CONTENT_W - 364],
-        uc.filings.map((f) => [`${f.securedParty}${f.collateral ? `\nCollateral: ${f.collateral}` : ''}`, f.status, f.filed || '-', f.lapse || '-', f.fileNumber || '-']),
+        uc.filings.map((f) => [`${f.securedParty}${f.collateral ? `\nCollateral: ${f.collateral}` : ''}${filedUnderLine(f)}`, f.status, f.filed || '-', f.lapse || '-', f.fileNumber || '-']),
       );
     }
-    w.paragraph(`Source: official California state business records (Secretary of State UCC filings). Searched for debtor name "${uc.searchedFor}" on ${fmtDate(uc.searchedAt)}.${otherNameNote(uc.otherName)}${leftOutNote(uc.leftOut, uc.formed)}`, { size: 8.5, color: MUTED });
+    w.paragraph(`Source: official California state business records (Secretary of State UCC filings). Searched for debtor name "${uc.searchedFor}" on ${fmtDate(uc.searchedAt)}.${relatedNote(relatedCount(uc.filings), 'filing')}${otherNameNote(uc.otherName)}${leftOutNote(uc.leftOut, uc.formed)}`, { size: 8.5, color: MUTED });
   }
 
   // Tax and judgment liens
@@ -1934,10 +1945,10 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       w.table(
         ['Type', 'Filed by', 'Status', 'Filed', 'Amount', 'File number'],
         [92, 132, 56, 60, 60, CONTENT_W - 400],
-        lr.filings.map((f) => [f.type, f.securedParty, f.status, f.filed || '-', f.amount || '-', f.fileNumber || '-']),
+        lr.filings.map((f) => [f.type, `${f.securedParty}${filedUnderLine(f)}`, f.status, f.filed || '-', f.amount || '-', f.fileNumber || '-']),
       );
     }
-    w.paragraph(`Source: California Secretary of State tax and judgment lien filings. Searched for "${lr.searchedFor}" on ${fmtDate(lr.searchedAt)}. Liens recorded only with a county recorder, such as abstracts of judgment, are not included; a title report on the property covers those. The same name can belong to an unrelated business, so confirm details with the filing office.${otherNameNote(lr.otherName, 'lien')}${leftOutNote(lr.leftOut, lr.formed, 'lien')}`, { size: 8.5, color: MUTED });
+    w.paragraph(`Source: California Secretary of State tax and judgment lien filings. Searched for "${lr.searchedFor}" on ${fmtDate(lr.searchedAt)}. Liens recorded only with a county recorder, such as abstracts of judgment, are not included; a title report on the property covers those. The same name can belong to an unrelated business, so confirm details with the filing office.${relatedNote(relatedCount(lr.filings), 'lien')}${otherNameNote(lr.otherName, 'lien')}${leftOutNote(lr.leftOut, lr.formed, 'lien')}`, { size: 8.5, color: MUTED });
   }
 
   // Sanctions
@@ -2828,7 +2839,7 @@ export async function runReport(
     const all = parseLiens(blName, bl[0], blAt);
     liens = { ...all, filings: all.filings.filter((f) => !isUccType(f.type)) };
     // UCC: add any filings the state business record search missed, or use these if it could not run.
-    const extraUcc: UccFiling[] = all.filings.filter((f) => isUccType(f.type)).map((f) => ({ fileNumber: f.fileNumber, type: 'UCC-1 Financing Statement', filed: f.filed, lapse: f.lapse, status: f.status, securedParty: f.securedParty, collateral: f.collateral, debtors: f.debtors }));
+    const extraUcc: UccFiling[] = all.filings.filter((f) => isUccType(f.type)).map((f) => ({ fileNumber: f.fileNumber, type: 'UCC-1 Financing Statement', filed: f.filed, lapse: f.lapse, status: f.status, securedParty: f.securedParty, collateral: f.collateral, debtors: f.debtors, matchLevel: f.matchLevel }));
     if (all.status === 'searched') {
       if (!ucc || (ucc as UccResult).status !== 'searched') ucc = { searchedAt: blAt, searchedFor: blName, status: 'searched', filings: extraUcc };
       else {
@@ -2859,10 +2870,20 @@ export async function runReport(
   }
   // 2) When a filing lists its debtor, the debtor must be this exact business.
   const official = bizKey(topName || name);
-  const sameDebtor = (d?: string[]) => !d || !d.length || d.some((x) => bizKey(x) === official);
+  const officialBase = baseKey(topName || name);
+  // Keep: exact name; same name with a different legal ending (Inc vs. LLC); or a filing the lien source matched
+  // to this business under a trade name or former name (match level SIMILAR, from the Lien Matching settings). Those two are marked.
+  const keepDebtor = (f: UccFiling | LienFiling): boolean => {
+    const d = f.debtors;
+    if (!d || !d.length || d.some((x) => bizKey(x) === official)) return true;
+    const suffix = officialBase ? d.find((x) => baseKey(x) === officialBase) : undefined;
+    if (suffix) { f.filedUnder = suffix; f.filedUnderKind = 'suffix'; return true; }
+    if (f.matchLevel === 'SIMILAR') { f.filedUnder = d[0]; f.filedUnderKind = 'related'; return true; }
+    return false;
+  };
   if (official) {
-    if (ucc) { const u = ucc as UccResult; const n = u.filings.length; u.filings = u.filings.filter((f) => sameDebtor(f.debtors)); if (n - u.filings.length) u.otherName = n - u.filings.length; }
-    if (liens) { const n = liens.filings.length; liens.filings = liens.filings.filter((f) => sameDebtor(f.debtors)); if (n - liens.filings.length) liens.otherName = n - liens.filings.length; }
+    if (ucc) { const u = ucc as UccResult; const n = u.filings.length; u.filings = u.filings.filter(keepDebtor); if (n - u.filings.length) u.otherName = n - u.filings.length; }
+    if (liens) { const n = liens.filings.length; liens.filings = liens.filings.filter(keepDebtor); if (n - liens.filings.length) liens.otherName = n - liens.filings.length; }
   }
   // 3) Anything filed before the business was formed cannot be about this business.
   const formedRaw = (entitySearch as ReportInput['entitySearch'])?.records[0]?.filingDate ?? '';
@@ -2924,7 +2945,9 @@ const pdfResponse = (pdf: Uint8Array, filename: string) =>
 // A report that came from a form (POST) is shown on a small page with a "Download PDF" button.
 // The button saves the copy the browser already has. Saving straight from Chrome's PDF viewer
 // re-sends the form, which the 10-minute repeat check blocks, so the save failed (Nov 18).
-const reportViewerPage = (pdf: Uint8Array, filename: string) => {
+const reportViewerPage = (pdf: Uint8Array, filename: string, seconds?: number) => {
+  // Shown only for runs under a minute, so it always backs up "under a minute".
+  const ready = seconds && seconds > 0 && seconds < 60 ? `Your report was ready in ${seconds} second${seconds === 1 ? '' : 's'}.` : 'Your report is ready.';
   const safeName = filename.replace(/[^A-Za-z0-9._-]/g, '');
   return new Response(
     `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Your report - CA Research Group</title>
@@ -2937,7 +2960,7 @@ body{margin:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,"S
 .dl{display:inline-block;padding:12px 22px;background:#1e1b4b;color:#fff;border-radius:10px;font-size:16px;font-weight:bold;text-decoration:none;white-space:nowrap}
 iframe{flex:1;width:100%;border:0;background:#525659}
 </style></head><body>
-<div class="bar"><img src="/logo-tight.png" alt="CA Research Group"><p><b>&#10003; Your report is ready.</b> It is also in your email. When you're done, you can close this page.</p><a id="dl" class="dl" href="#" download="${safeName}">Download PDF</a></div>
+<div class="bar"><img src="/logo-tight.png" alt="CA Research Group"><p><b>&#10003; ${ready}</b> It is also in your email. When you're done, you can close this page.</p><a id="dl" class="dl" href="#" download="${safeName}">Download PDF</a></div>
 <iframe id="v" title="Your report"></iframe>
 <script>
 (function(){
@@ -3127,6 +3150,7 @@ async function staffPost(g: (k: string) => string, origin: string): Promise<Resp
 
 // Client reports: posted from each customer's private page (public/report.html).
 export async function POST(request: Request) {
+  const startedAt = Date.now(); // for "Your report was ready in X seconds"
   const url = new URL(request.url);
   if (url.searchParams.get('test') === '1' && process.env.VERCEL_ENV === 'preview') {
     try {
@@ -3377,7 +3401,7 @@ export async function POST(request: Request) {
       const left = customer.limit - customer.used - 1;
       if (left === 1 || left === 0) await sendLimitEmail(customer, g('c'), left).catch((e) => console.error('Limit email failed', e));
     }
-    return reportViewerPage(pdf, `CA-Research-Group-${input.reportId}.pdf`);
+    return reportViewerPage(pdf, `CA-Research-Group-${input.reportId}.pdf`, Math.round((Date.now() - startedAt) / 1000));
   } catch (err) {
     await updateRequest(requestId, { Status: 'Failed', Notes: err instanceof Error ? err.message : 'Report failed.' }).catch(() => undefined);
     return htmlPage('Report could not be completed', 'Something went wrong while building your report. It has not been counted against your plan. Please try again shortly.', 502);

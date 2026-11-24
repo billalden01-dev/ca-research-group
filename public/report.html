@@ -196,9 +196,15 @@
           + '<style>body{margin:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1e1b4b;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center}'
           + '.k{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:32px 28px;max-width:420px;margin:16px}img{height:44px;margin-bottom:18px}'
           + '.s{width:38px;height:38px;border:4px solid #e2e8f0;border-top-color:#b8963f;border-radius:50%;margin:0 auto 18px;animation:r 0.9s linear infinite}@keyframes r{to{transform:rotate(360deg)}}'
-          + 'h1{font-family:Georgia,serif;font-size:21px;margin:0 0 8px}p{color:#475569;margin:0;line-height:1.5}</style></head>'
+          + 'h1{font-family:Georgia,serif;font-size:21px;margin:0 0 8px}.c{font-family:Georgia,serif;font-size:34px;font-weight:bold;color:#1e1b4b;margin:0 0 10px;font-variant-numeric:tabular-nums}p{color:#475569;margin:0;line-height:1.5}</style></head>'
           + '<body><div class="k"><img src="/logo-tight.png" alt="CA Research Group"><div class="s"></div><h1>Building your report</h1>'
-          + '<p>Searching several official sources. This usually takes under a minute.</p></div></body></html>');
+          + '<div class="c" id="clk">0:00</div>'
+          + '<p id="msg">Searching several official sources. This usually takes under a minute.</p></div>'
+          // A running clock shows how quick it is. After 50 seconds it steps aside, so it never ticks past a minute.
+          + '<script>(function(){var t0=Date.now(),c=document.getElementById("clk"),m=document.getElementById("msg");'
+          + 'var i=setInterval(function(){var s=Math.floor((Date.now()-t0)/1000);'
+          + 'if(s>=50){clearInterval(i);c.style.display="none";m.textContent="Almost done, finishing the last few checks...";return;}'
+          + 'c.textContent="0:"+(s<10?"0":"")+s;},250);})();<\/script></body></html>');
         w.document.close();
       } catch (err) { /* the report still loads */ }
     }
