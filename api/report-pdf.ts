@@ -1297,6 +1297,7 @@ const SAMPLE_INPUT: ReportInput = {
     status: 'searched',
     filings: [
       { fileNumber: 'SAMPLE-2021-0045512', type: 'State tax lien', filed: '2021-06-14', lapse: '', status: 'Released', securedParty: 'Sample State Tax Agency', amount: '$4,210' },
+      { fileNumber: 'SAMPLE-2019-0018837', type: 'Federal tax lien', filed: '2019-03-08', lapse: '', status: 'Released', securedParty: 'Internal Revenue Service', amount: '$12,480', filedUnder: 'SAMPLE HOLDINGS LLC A CALIFORNIA LIMITED LIABILITY COMPANY', filedUnderKind: 'variant' },
     ],
   },
   civil: {
