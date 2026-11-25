@@ -413,6 +413,15 @@ const filedUnderLine = (f: { filedUnder?: string; filedUnderKind?: string }) => 
   : f.filedUnderKind === 'variant'
   ? `\nFiled under a slightly different form of the name: ${f.filedUnder}`
   : `\nFiled under a trade name or former name: ${f.filedUnder}. Confirm it belongs to this business.`;
+// Long case numbers (e.g. 30-2025-01521031-CU-UD-CJC) have no spaces, so break them at a dash to keep them inside the table.
+const wrapDocket = (n?: string) => {
+  const v = (n || '').trim();
+  if (v.length <= 16 || /\s/.test(v)) return v;
+  const dashes = [...v.matchAll(/-/g)].map((m) => m.index as number).filter((i) => i > 3 && i < v.length - 3);
+  if (!dashes.length) return v;
+  const cut = dashes.reduce((a, b) => (Math.abs(b - v.length / 2) < Math.abs(a - v.length / 2) ? b : a));
+  return `${v.slice(0, cut + 1)}\n${v.slice(cut + 1)}`;
+};
 const relatedCount = (fs: { filedUnder?: string }[]) => fs.filter((f) => f.filedUnder).length;
 const relatedNote = (n: number, what: string) => (n ? ` ${n} ${what}${n === 1 ? ' was' : 's were'} filed under a trade name, former name, different legal ending or slightly different form of the name and ${n === 1 ? 'is' : 'are'} marked in the table; confirm ${n === 1 ? 'it belongs' : 'they belong'} to this business.` : '');
 
@@ -445,7 +454,7 @@ export function parseLiens(name: string, raw: Raw | null, searchedAt: Date): Lie
       type: lienType(str(f.filing_type)),
       filed: str(f.filing_date).slice(0, 10),
       lapse: str(f.lapse_date).slice(0, 10),
-      status: str(f.status) || 'Not stated',
+      status: str(f.status) || 'Not reported',
       securedParty: claimants.join('; ') || 'Not listed',
       amount: fmtMoney(f.lien_amount) || undefined,
       collateral: coll ? coll.slice(0, 160) + (coll.length > 160 ? '...' : '') : undefined,
@@ -477,7 +486,7 @@ export function parseCivil(name: string, raw: Raw | null, searchedAt: Date): Civ
       const open = norm ? norm === 'open' : !closed && /active|open|pending/i.test(status);
       return {
         title: str(d.title), court: str(d.court), state: str(d.state).toUpperCase(), caseType: str(d.case_type),
-        status: status ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase() : 'Not stated',
+        status: status ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase() : 'Not reported',
         filed: str(d.date_filed).slice(0, 10), closed, docketNumber: str(d.docket_number), open,
       } as CivilCase;
     });
@@ -2034,10 +2043,10 @@ export async function buildReportPdf(input: ReportInput, logoPng?: Uint8Array): 
       w.table(
         ['Case', 'Court', 'Status', 'Filed', 'Case number'],
         [168, 128, 58, 58, CONTENT_W - 412],
-        shown.map((c) => [`${c.title}${c.caseType ? `\n${c.caseType}` : ''}`, c.court, c.status, c.filed || '-', c.docketNumber || '-']),
+        shown.map((c) => [`${c.title}${c.caseType ? `\n${c.caseType}` : ''}`, c.court, c.status, c.filed || '-', wrapDocket(c.docketNumber) || '-']),
       );
     }
-    w.paragraph(`Source: official state and federal court records. Searched for "${cv.searchedFor}" on ${fmtDate(cv.searchedAt)}. The same name can belong to an unrelated business. Court records can be incomplete or delayed, so confirm with the court before relying on them.${leftOutNote(cv.leftOut, cv.formed, 'case')}`, { size: 8.5, color: MUTED });
+    w.paragraph(`Source: official state and federal court records. Searched for "${cv.searchedFor}" on ${fmtDate(cv.searchedAt)}. The same name can belong to an unrelated business. Court records can be incomplete or delayed, so confirm with the court before relying on them.${cv.cases.slice(0, 15).some((c) => c.status === 'Not reported') ? ' "Not reported" means the court record did not list whether the case is open or closed; check the case number with the court.' : ''}${leftOutNote(cv.leftOut, cv.formed, 'case')}`, { size: 8.5, color: MUTED });
   }
 
   // Property environmental check
