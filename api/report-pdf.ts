@@ -78,11 +78,11 @@ export type Officer = { name: string; title: string; address?: string };
 export type PeopleResult = { searchedAt: Date; statementDate?: string; statementUrl?: string; officers: Officer[]; note?: string };
 
 // UCC liens (financing statements) filed against the business
-export type UccFiling = { fileNumber: string; type: string; filed: string; lapse: string; status: string; securedParty: string; collateral?: string; debtors?: string[]; matchLevel?: string; filedUnder?: string; filedUnderKind?: 'suffix' | 'related' };
+export type UccFiling = { fileNumber: string; type: string; filed: string; lapse: string; status: string; securedParty: string; collateral?: string; debtors?: string[]; matchLevel?: string; filedUnder?: string; filedUnderKind?: 'suffix' | 'variant' | 'related' };
 export type UccResult = { searchedAt: Date; searchedFor: string; status: 'searched' | 'unavailable'; filings: UccFiling[]; leftOut?: number; formed?: string; otherName?: number };
 
 // Tax and judgment liens, and civil lawsuits (state and federal courts)
-export type LienFiling = { fileNumber: string; type: string; filed: string; lapse: string; status: string; securedParty: string; amount?: string; collateral?: string; debtors?: string[]; matchLevel?: string; filedUnder?: string; filedUnderKind?: 'suffix' | 'related' };
+export type LienFiling = { fileNumber: string; type: string; filed: string; lapse: string; status: string; securedParty: string; amount?: string; collateral?: string; debtors?: string[]; matchLevel?: string; filedUnder?: string; filedUnderKind?: 'suffix' | 'variant' | 'related' };
 export type LienResult = { searchedAt: Date; searchedFor: string; status: 'searched' | 'unavailable'; filings: LienFiling[]; leftOut?: number; formed?: string; otherName?: number };
 export type CivilCase = { title: string; court: string; state: string; caseType: string; status: string; filed: string; closed: string; docketNumber: string; open: boolean };
 export type CivilResult = { searchedAt: Date; searchedFor: string; status: 'searched' | 'unavailable'; cases: CivilCase[]; leftOut?: number; formed?: string };
@@ -402,12 +402,19 @@ const leftOutNote = (n?: number, formed?: string, what = 'filing') => (n && form
 // Same business name with the legal ending removed (Inc, LLC, Corp, P.C., etc.).
 const LEGAL_ENDING = / (llc|inc|corp|co|company|ltd|limited|lp|llp|pc|a professional corp|professional corp|pllc|lllp)$/;
 const baseKey = (n: string) => { let k = bizKey(n); for (let i = 0; i < 2; i++) k = k.replace(LEGAL_ENDING, '').trim(); return k; };
+// Add-ons some filers put after the name ("A Corporation", "A California Corporation", "A Professional Corporation",
+// "A California Limited Liability Company"). The same business, written a slightly different way.
+const NAME_ADDON = / a (?:[a-z]+ ){0,2}(?:corp|llc|company|co|lp|llp|partnership|limited partnership|general partnership)$/;
+const formKey = (n: string) => bizKey(n).replace(NAME_ADDON, '').trim();
+const formBaseKey = (n: string) => { let k = formKey(n); for (let i = 0; i < 2; i++) k = k.replace(LEGAL_ENDING, '').trim(); return k; };
 // Filings kept because they were filed under a related name (Lien Matching settings: alternative names and legal endings).
 const filedUnderLine = (f: { filedUnder?: string; filedUnderKind?: string }) => !f.filedUnder ? '' : f.filedUnderKind === 'suffix'
   ? `\nFiled under a different legal ending: ${f.filedUnder}`
+  : f.filedUnderKind === 'variant'
+  ? `\nFiled under a slightly different form of the name: ${f.filedUnder}`
   : `\nFiled under a trade name or former name: ${f.filedUnder}. Confirm it belongs to this business.`;
 const relatedCount = (fs: { filedUnder?: string }[]) => fs.filter((f) => f.filedUnder).length;
-const relatedNote = (n: number, what: string) => (n ? ` ${n} ${what}${n === 1 ? ' was' : 's were'} filed under a trade name, former name or different legal ending and ${n === 1 ? 'is' : 'are'} marked in the table; confirm ${n === 1 ? 'it belongs' : 'they belong'} to this business.` : '');
+const relatedNote = (n: number, what: string) => (n ? ` ${n} ${what}${n === 1 ? ' was' : 's were'} filed under a trade name, former name, different legal ending or slightly different form of the name and ${n === 1 ? 'is' : 'are'} marked in the table; confirm ${n === 1 ? 'it belongs' : 'they belong'} to this business.` : '');
 
 const blOk = (r: Raw) => Number(r.httpStatus) >= 200 && Number(r.httpStatus) < 300 && str(r.state).toUpperCase() === 'COMPLETED';
 const normNum = (x: string) => x.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -2871,13 +2878,20 @@ export async function runReport(
   // 2) When a filing lists its debtor, the debtor must be this exact business.
   const official = bizKey(topName || name);
   const officialBase = baseKey(topName || name);
+  const officialForm = formKey(topName || name);
+  const officialFormBase = formBaseKey(topName || name);
   // Keep: exact name; same name with a different legal ending (Inc vs. LLC); or a filing the lien source matched
   // to this business under a trade name or former name (match level SIMILAR, from the Lien Matching settings). Those two are marked.
   const keepDebtor = (f: UccFiling | LienFiling): boolean => {
     const d = f.debtors;
     if (!d || !d.length || d.some((x) => bizKey(x) === official)) return true;
+    // Same name once punctuation and add-ons like "A Corporation" are set aside.
+    const variant = officialForm ? d.find((x) => formKey(x) === officialForm) : undefined;
+    if (variant) { f.filedUnder = variant; f.filedUnderKind = 'variant'; return true; }
     const suffix = officialBase ? d.find((x) => baseKey(x) === officialBase) : undefined;
     if (suffix) { f.filedUnder = suffix; f.filedUnderKind = 'suffix'; return true; }
+    const variantBase = officialFormBase ? d.find((x) => formBaseKey(x) === officialFormBase) : undefined;
+    if (variantBase) { f.filedUnder = variantBase; f.filedUnderKind = 'variant'; return true; }
     if (f.matchLevel === 'SIMILAR') { f.filedUnder = d[0]; f.filedUnderKind = 'related'; return true; }
     return false;
   };
